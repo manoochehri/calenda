@@ -251,6 +251,36 @@ return {
 		end,
 	},
 	{
+		name = "buildings have depth and substantial projecting balconies, not only facade graphics",
+		run = function()
+			local eligible, withBalcony = 0, 0
+			for _, f in result.facades do
+				assert(f.depth >= 9, `facade {f.id} has visible wall depth`)
+				if f.floors == 2 and f.kind ~= "stone" then
+					eligible += 1
+					if #f.balconies > 0 then
+						withBalcony += 1
+						assert(f.balconies[1].depth >= 2.5, "balconies visibly project")
+					end
+				end
+			end
+			assert(eligible > 0 and withBalcony / eligible >= 0.9, "most two-storey buildings have real balconies")
+		end,
+	},
+	{
+		name = "Rey is a seeded chicken cameo outside gameplay space",
+		run = function()
+			local rey = (result :: any).rey
+			assert(rey ~= nil, "Rey exists")
+			local again = (StreetLayoutGen.generate(info, theme, 54) :: any).rey
+			assert(rey.x == again.x and rey.z == again.z, "same seed places Rey the same way")
+			local other = (StreetLayoutGen.generate(info, theme, 55) :: any).rey
+			assert(rey.x ~= other.x or rey.z ~= other.z, "another seed moves Rey")
+			assert(math.abs(rey.x) > 20 and math.abs(rey.x) < theme.layout.facadeInset, "Rey stays on the forecourt")
+			assert(rey.z > 0 and rey.z < info.plazaStart, "Rey appears along the street")
+		end,
+	},
+	{
 		name = "camera sight lines to the lead, the next gate row and spectators clear every prop",
 		run = function()
 			local boxes = allBoxes(result)
