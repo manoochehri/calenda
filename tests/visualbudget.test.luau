@@ -164,21 +164,36 @@ return {
 				local ok = Config.validate(c)
 				return not ok
 			end
-			assert(invalid(function(c)
-				c.visualBudget.cameraPullback = nil
-			end), "missing cameraPullback")
-			assert(invalid(function(c)
-				c.visualBudget.cameraPullback.max = c.visualBudget.cameraPullback.start - 0.1
-			end), "pullback max below start")
-			assert(invalid(function(c)
-				c.visualBudget.formationDensity.sectionsToMax = 0
-			end), "density sectionsToMax zero")
-			assert(invalid(function(c)
-				c.visualBudget.formationDensity.start = -1
-			end), "density negative start")
-			assert(invalid(function(c)
-				c.visualBudget.cameraPullback.start = "1"
-			end), "non-number start")
+			assert(
+				invalid(function(c)
+					c.visualBudget.cameraPullback = nil
+				end),
+				"missing cameraPullback"
+			)
+			assert(
+				invalid(function(c)
+					c.visualBudget.cameraPullback.max = c.visualBudget.cameraPullback.start - 0.1
+				end),
+				"pullback max below start"
+			)
+			assert(
+				invalid(function(c)
+					c.visualBudget.formationDensity.sectionsToMax = 0
+				end),
+				"density sectionsToMax zero"
+			)
+			assert(
+				invalid(function(c)
+					c.visualBudget.formationDensity.start = -1
+				end),
+				"density negative start"
+			)
+			assert(
+				invalid(function(c)
+					c.visualBudget.cameraPullback.start = "1"
+				end),
+				"non-number start"
+			)
 		end,
 	},
 }

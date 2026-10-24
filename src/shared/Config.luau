@@ -5,6 +5,7 @@
 
 export type ClusterType = { hits: number, reward: number }
 export type GateOp = { kind: string, value: number }
+export type Curve = { start: number, max: number, sectionsToMax: number }
 export type ConfigType = {
 	sectionSize: number,
 	startingTotal: number,
@@ -13,7 +14,12 @@ export type ConfigType = {
 	obstacleLoss: number,
 	speed: number,
 	firing: { base: number, cap: number, perSection: number },
-	visualBudget: { sectionRepresentatives: number, looseAvatars: number },
+	visualBudget: {
+		sectionRepresentatives: number,
+		looseAvatars: number,
+		cameraPullback: Curve,
+		formationDensity: Curve,
+	},
 	finaleThresholds: { number },
 	giftEveryNthShot: number,
 	durations: { assemblySeconds: number, dispersalSeconds: number },
@@ -27,6 +33,18 @@ end
 
 local function isPositive(v: any): boolean
 	return type(v) == "number" and v > 0 and v < math.huge
+end
+
+-- A saturating linear curve over logical sections: start at 0 sections, max at sectionsToMax.
+local function validCurve(c: any): boolean
+	return type(c) == "table"
+		and type(c.start) == "number"
+		and c.start >= 0
+		and c.start < math.huge
+		and type(c.max) == "number"
+		and c.max >= c.start
+		and c.max < math.huge
+		and isPositiveInt(c.sectionsToMax)
 end
 
 local function ascending(list: any, firstMin: number): boolean
@@ -111,6 +129,12 @@ local function validate(c: any): (boolean, string?)
 	then
 		return false, "visualBudget needs positive integer sectionRepresentatives and looseAvatars"
 	end
+	for _, name in { "cameraPullback", "formationDensity" } do
+		if not validCurve(v[name]) then
+			return false,
+				`visualBudget.{name} needs numeric start >= 0, max >= start and positive integer sectionsToMax`
+		end
+	end
 
 	if not ascending(c.finaleThresholds, 1) then
 		return false, "finaleThresholds must be a strictly ascending list of positive integers"
@@ -156,7 +180,14 @@ local config: ConfigType = {
 	obstacleLoss = 10, -- [spec s9]
 	speed = 16, -- [default] studs/second; spec gives no value
 	firing = { base = 3, cap = 12, perSection = 1 }, -- [spec s4] min(cap, base + perSection * sectionCount)
-	visualBudget = { sectionRepresentatives = 6, looseAvatars = 24 }, -- [spec s8]
+	visualBudget = {
+		sectionRepresentatives = 6, -- [spec s8]
+		looseAvatars = 24, -- [spec s8]
+		-- Spec s8 asks for a "modest" pullback and a denser formation as the party grows, no numbers.
+		-- Both curves rise linearly with logical sections and saturate at sectionsToMax.
+		cameraPullback = { start = 1.0, max = 1.4, sectionsToMax = 40 }, -- [default] camera distance multiplier
+		formationDensity = { start = 0.5, max = 1.0, sectionsToMax = 40 }, -- [default] 0..1 compactness
+	},
 	finaleThresholds = { 50, 150, 300 }, -- [spec s9, provisional]
 	giftEveryNthShot = 4, -- [spec s4] every fourth shot once a dancer section exists
 	durations = {
