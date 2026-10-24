@@ -134,4 +134,35 @@ return {
 	expectInvalid("gate op multiply by 1", function(c)
 		c.gateOps[2].value = 1
 	end),
+	expectInvalid("music missing", function(c)
+		c.music = nil
+	end),
+	expectInvalid("music bpm zero", function(c)
+		c.music.bpm = 0
+	end),
+	expectInvalid("music beatsPerBar fractional", function(c)
+		c.music.beatsPerBar = 3.5
+	end),
+	expectInvalid("music fadeBars zero", function(c)
+		c.music.fadeBars = 0
+	end),
+	expectInvalid("music maxSources above hard cap 4", function(c)
+		c.music.maxSources = 5
+	end),
+	expectInvalid("music stem ids wrong length", function(c)
+		c.music.stemSoundIds = { "", "" }
+	end),
+	expectInvalid("music stem id not a string", function(c)
+		c.music.stemSoundIds[1] = 123
+	end),
+	{
+		name = "music stem ids default to empty placeholders (game runs silent)",
+		run = function()
+			eq(#Config.music.stemSoundIds, #Config.musicLayerSections, "stem count")
+			for i, id in Config.music.stemSoundIds do
+				eq(id, "", `stemSoundIds[{i}]`)
+			end
+			eq(Config.music.maxSources, 4, "maxSources")
+		end,
+	},
 }

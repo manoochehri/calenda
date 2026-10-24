@@ -6,6 +6,13 @@
 export type ClusterType = { hits: number, reward: number }
 export type GateOp = { kind: string, value: number }
 export type Curve = { start: number, max: number, sectionsToMax: number }
+export type MusicConfig = {
+	bpm: number,
+	beatsPerBar: number,
+	fadeBars: number,
+	maxSources: number,
+	stemSoundIds: { string },
+}
 export type ConfigType = {
 	sectionSize: number,
 	startingTotal: number,
@@ -24,6 +31,7 @@ export type ConfigType = {
 	giftEveryNthShot: number,
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
+	music: MusicConfig,
 	validate: (config: any) -> (boolean, string?),
 }
 
@@ -144,6 +152,29 @@ local function validate(c: any): (boolean, string?)
 			"musicLayerSections must be a strictly ascending list of non-negative integers"
 	end
 
+	local m = c.music
+	if type(m) ~= "table" then
+		return false, "music must be a table"
+	end
+	if not isPositive(m.bpm) then
+		return false, "music.bpm must be a positive number"
+	end
+	if not isPositiveInt(m.beatsPerBar) or not isPositiveInt(m.fadeBars) then
+		return false, "music.beatsPerBar and music.fadeBars must be positive integers"
+	end
+	-- Spec s10: adding sections must not add unlimited audio sources; 4 is the hard maximum.
+	if not isPositiveInt(m.maxSources) or m.maxSources > 4 then
+		return false, "music.maxSources must be an integer from 1 to 4"
+	end
+	if type(m.stemSoundIds) ~= "table" or #m.stemSoundIds ~= #c.musicLayerSections then
+		return false, "music.stemSoundIds needs one entry per musicLayerSections entry"
+	end
+	for i = 1, #c.musicLayerSections do
+		if type(m.stemSoundIds[i]) ~= "string" then
+			return false, `music.stemSoundIds[{i}] must be a string`
+		end
+	end
+
 	local d = c.durations
 	if
 		type(d) ~= "table"
@@ -195,6 +226,15 @@ local config: ConfigType = {
 		dispersalSeconds = 0.5, -- [default] spec says only "brief animation" (s5)
 	},
 	musicLayerSections = { 0, 1, 3, 6 }, -- [spec s10] percussion, brass, bass/ensemble, crowd accents
+	music = {
+		bpm = 120, -- [default] tempo of the (not yet supplied) loop; spec gives no number
+		beatsPerBar = 4, -- [default] 4/4
+		fadeBars = 1, -- [default] crossfade length in bars
+		maxSources = 4, -- [spec s10] hard cap on simultaneous stems; validate rejects > 4
+		-- [default] UNVERIFIED placeholders: empty = silent. Audio must be original or licensed;
+		-- the owner supplies real SoundIds. Order matches musicLayerSections.
+		stemSoundIds = { "", "", "", "" },
+	},
 	validate = validate,
 }
 
