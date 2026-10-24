@@ -390,4 +390,65 @@ return {
 			eq(driver:replays()[#driver:replays()].time, t, "newest replay kept")
 		end,
 	},
+	{
+		name = "defeated run: fromEvents and format show the defeated outcome and score",
+		run = function()
+			local attackCount = math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local clusters: { RunState.ClusterDef } = {}
+			local ids = {}
+			for i = 1, attackCount do
+				table.insert(clusters, { id = `c{i}`, type = "large" })
+				table.insert(ids, `c{i}`)
+			end
+			local state = RunState.new({
+				seed = 5,
+				automated = false,
+				layout = { gatePairs = {}, clusters = clusters, obstacles = {} },
+				startingTotal = 12,
+			})
+			state:attackClusters(ids)
+			local log = RunLog.fromEvents(state:events())
+			assert(log.completion ~= nil, "a defeated run has a completion entry")
+			eq((log.completion :: RunLog.Completion).outcome, "defeated", "outcome")
+			eq((log.completion :: RunLog.Completion).score, 12, "score")
+			eq((log.completion :: RunLog.Completion).finalTotal, 12, "final total")
+			local last = log.entries[#log.entries]
+			eq(last.kind, "complete", "terminal entry")
+			eq(last.outcome, "defeated", "terminal entry outcome")
+			assert(
+				string.find(
+					RunLog.format(log),
+					"complete: defeated finalTotal=12 score=12",
+					1,
+					true
+				),
+				"format shows the defeat"
+			)
+		end,
+	},
+	{
+		name = "driver run log shows the defeat outcome (RunDriver records it)",
+		run = function()
+			local d = RunDriver.new({
+				layout = driverFixture(),
+				automated = true,
+				hooks = {
+					endCheck = function(ctx)
+						return ctx.z1 >= 100
+					end,
+				},
+			})
+			for _ = 1, 600 do
+				d:tick(DT)
+				if d:outcome() ~= nil then
+					break
+				end
+			end
+			eq(d:outcome(), "defeated", "driver outcome")
+			local log = d:runLog()
+			assert(log.completion ~= nil, "log has a completion entry")
+			eq((log.completion :: RunLog.Completion).outcome, "defeated", "log outcome")
+			eq((log.completion :: RunLog.Completion).score, d:snapshot().score, "log score")
+		end,
+	},
 }

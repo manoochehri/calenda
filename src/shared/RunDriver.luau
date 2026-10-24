@@ -11,6 +11,7 @@
 -- (3) attacks, (4) end checks (defeat wins over reaching the plaza). The hooks below are the
 -- extension points: #9 plugs targeting/shooting into `shots`, #36 plugs cluster attacks into
 -- `attacks` and HP defeat into `endCheck`.
+-- A defeat is recorded in RunState's log (event "defeated"), so runLog() shows the outcome.
 local Config = require("./Config")
 local Crossing = require("./Crossing")
 local Level = require("./Level")
@@ -22,6 +23,7 @@ local Steering = require("./Steering")
 local RunDriver = {}
 
 RunDriver.MAX_DT = 0.1 -- [default] seconds; a longer frame is simulated as this long
+RunDriver.TICK_DT = 1 / 30 -- shared fixed step for server and validator
 RunDriver.REPLAY_COOLDOWN = 1 -- [default] seconds between accepted replay requests
 
 -- Passed to hooks. `state` is server-only; `emit` queues an event for replication.
@@ -31,6 +33,8 @@ export type DriverEvent = {
 	side: string?,
 	before: number?,
 	after: number?,
+	hpBefore: number?,
+	hpAfter: number?,
 	score: number?,
 }
 export type TickContext = {
@@ -41,11 +45,13 @@ export type TickContext = {
 	x: number,
 	state: RunState.RunState,
 	emit: (DriverEvent) -> (),
+	passedClusters: { number },
 }
 export type Hooks = {
 	shots: ((TickContext) -> ())?, -- phase 1, before the lead moves (issue #9)
 	attacks: ((TickContext) -> ())?, -- phase 3, after gates and the obstacle (issue #36)
 	endCheck: ((TickContext) -> boolean)?, -- phase 4, true = the run ends defeated (issue #36)
+	reset: (() -> ())?, -- clear per-run hook state when replay begins
 }
 export type Options = {
 	layout: Level.Layout,
@@ -185,6 +191,7 @@ function RunDriver.new(opts: Options): RunDriver
 			emit = function(e: DriverEvent)
 				table.insert(events, e)
 			end,
+			passedClusters = {},
 		}
 
 		-- (1) shots land, meters fill, conversions credited (issue #9)
@@ -223,9 +230,13 @@ function RunDriver.new(opts: Options): RunDriver
 		end
 
 		-- (4) end checks: defeat wins over reaching the plaza on the same tick
-		local defeated = hooks.endCheck ~= nil and hooks.endCheck(ctx) == true
+		local defeated = state:outcome() == "defeated"
+			or (hooks.endCheck ~= nil and hooks.endCheck(ctx) == true)
 		if defeated then
-			ended, finalOutcome, finalScore = true, "defeated", state:total()
+			if state:outcome() == nil then
+				state:defeat() -- an end-check hook ended it: record the outcome in the run log
+			end
+			ended, finalOutcome, finalScore = true, "defeated", state:score() or state:total()
 			table.insert(events, { kind = "defeated", score = finalScore })
 		elseif z1 >= layout.plazaStart then
 			local r = state:complete()
@@ -251,6 +262,9 @@ function RunDriver.new(opts: Options): RunDriver
 			table.remove(replays, 1)
 		end
 		state:reset()
+		if hooks.reset then
+			hooks.reset()
+		end
 		time, z, x, target = 0, 0, 0, 0
 		ended, finalOutcome, finalScore = false, nil, nil
 		return true
@@ -262,6 +276,8 @@ function RunDriver.new(opts: Options): RunDriver
 			z = z,
 			x = x,
 			total = state:total(),
+			hp = state:hp(),
+			maxHp = Config.hp.max,
 			best = state:best(),
 			outcome = finalOutcome,
 			score = finalScore,

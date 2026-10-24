@@ -47,10 +47,13 @@ return {
 			local c = Config
 			eq(c.sectionSize, 50, "sectionSize")
 			eq(c.startingTotal, 10, "startingTotal")
+			eq(c.hp.max, 100, "hp.max")
 			eq(c.clusterTypes.small.hits, 3, "small.hits")
 			eq(c.clusterTypes.small.reward, 5, "small.reward")
+			eq(c.clusterTypes.small.attackDamage, 5, "small.attackDamage")
 			eq(c.clusterTypes.large.hits, 8, "large.hits")
 			eq(c.clusterTypes.large.reward, 15, "large.reward")
+			eq(c.clusterTypes.large.attackDamage, 12, "large.attackDamage")
 			eq(c.obstacleLoss, 10, "obstacleLoss")
 			eq(c.firing.base, 3, "firing.base")
 			eq(c.firing.cap, 12, "firing.cap")
@@ -75,6 +78,7 @@ return {
 			assert(table.isfrozen(Config))
 			assert(table.isfrozen(Config.clusterTypes))
 			assert(table.isfrozen(Config.clusterTypes.small))
+			assert(table.isfrozen(Config.hp))
 			assert(table.isfrozen(Config.finaleThresholds))
 			assert(table.isfrozen(Config.gateOps))
 			assert(table.isfrozen(Config.gateOps[1]))
@@ -94,6 +98,12 @@ return {
 	end),
 	expectInvalid("startingTotal negative", function(c)
 		c.startingTotal = -1
+	end),
+	expectInvalid("HP maximum zero", function(c)
+		c.hp.max = 0
+	end),
+	expectInvalid("small attack damage non-integer", function(c)
+		c.clusterTypes.small.attackDamage = 2.5
 	end),
 	expectInvalid("missing field", function(c)
 		c.obstacleLoss = nil
@@ -172,12 +182,6 @@ return {
 			eq(Config.spectators.centerTolerance, 3, "centerTolerance")
 			eq(Config.firing.range, 60, "firing.range")
 			assert(table.isfrozen(Config.spectators), "spectators frozen")
-		end,
-	},
-	{
-		name = "hp keys are not added here (issue #36)",
-		run = function()
-			assert((Config :: any).hp == nil, "hp belongs to issue #36")
 		end,
 	},
 	expectInvalid("spectators missing", function(c)

@@ -3,7 +3,7 @@
 -- Values marked [spec] come from docs/Calenda-Prototype-Spec.md; values marked [default] are
 -- placeholders chosen by the engineer because the spec gives no number (all are tuning defaults).
 
-export type ClusterType = { hits: number, reward: number }
+export type ClusterType = { hits: number, reward: number, attackDamage: number }
 export type GateOp = { kind: string, value: number }
 export type Curve = { start: number, max: number, sectionsToMax: number }
 export type MusicConfig = {
@@ -16,6 +16,7 @@ export type MusicConfig = {
 export type ConfigType = {
 	sectionSize: number,
 	startingTotal: number,
+	hp: { max: number },
 	clusterTypes: { small: ClusterType, large: ClusterType },
 	gateOps: { GateOp },
 	obstacleLoss: number,
@@ -97,9 +98,17 @@ local function validate(c: any): (boolean, string?)
 	end
 	for _, name in { "small", "large" } do
 		local ct = c.clusterTypes[name]
-		if type(ct) ~= "table" or not isPositiveInt(ct.hits) or not isPositiveInt(ct.reward) then
-			return false, `clusterTypes.{name} needs positive integer hits and reward`
+		if
+			type(ct) ~= "table"
+			or not isPositiveInt(ct.hits)
+			or not isPositiveInt(ct.reward)
+			or not isPositiveInt(ct.attackDamage)
+		then
+			return false, `clusterTypes.{name} needs positive integer hits, reward and attackDamage`
 		end
+	end
+	if type(c.hp) ~= "table" or not isPositiveInt(c.hp.max) then
+		return false, "hp.max must be a positive integer"
 	end
 
 	if type(c.gateOps) ~= "table" or #c.gateOps == 0 then
@@ -215,9 +224,10 @@ end
 local config: ConfigType = {
 	sectionSize = 50, -- [spec s5]
 	startingTotal = 10, -- [spec s5]
+	hp = { max = 100 }, -- [default] initial parade HP; no regeneration
 	clusterTypes = {
-		small = { hits = 3, reward = 5 }, -- [spec s4]
-		large = { hits = 8, reward = 15 }, -- [spec s4]
+		small = { hits = 3, reward = 5, attackDamage = 5 }, -- hits/reward [spec s4], attackDamage [default]
+		large = { hits = 8, reward = 15, attackDamage = 12 }, -- hits/reward [spec s4], attackDamage [default]
 	},
 	-- [default] The spec only gives +N and xN as the allowed forms; +20 and x2 are its examples (s6).
 	gateOps = {

@@ -9,13 +9,17 @@
 -- report.clusters[id] = { encounterTime, convertTime, reachTime } is the per-cluster arrival data
 -- (an unconverted cluster has reachTime and no convertTime: that is when it attacks). The HP
 -- trajectory checks (no-input run defeated, competent run completed with HP left) plug in there.
+-- Those checks use the same RunDriver.TICK_DT and phase order as the server.
 local CrowdMath = require("./CrowdMath")
 local Config = require("./Config")
 local Level = require("./Level")
+local RunDriver = require("./RunDriver")
 
 type Layout = Level.Layout
 
 export type ClusterInfo = { encounterTime: number?, convertTime: number?, reachTime: number? }
+export type HPTrajectoryPoint = { time: number, hp: number }
+export type HPScenario = { outcome: string?, hp: number, trajectory: { HPTrajectoryPoint } }
 export type Report = {
 	ok: boolean,
 	errors: { string },
@@ -32,6 +36,7 @@ export type Report = {
 	recruitTotalBaseRate: number,
 	recruitTotalAvailable: number,
 	clusters: { [number]: ClusterInfo },
+	hpScenarios: { [string]: HPScenario }?,
 }
 export type Context = { layout: any, config: any, report: Report }
 export type ExtraCheck = (ctx: Context) -> (boolean, string?)
@@ -43,7 +48,7 @@ local FINAL_FROM, FINAL_TO = 65, 90
 local PLAZA_TIME, PLAZA_TOLERANCE = 90, 2
 local MIN_DECISION_SECONDS = 3 -- spec s6: enough distance to read and steer
 local MAX_GATES = 12 -- routes are enumerated (2^gates)
-local DT = 1 / 30
+local DT = RunDriver.TICK_DT
 
 local function emptyReport(): Report
 	return {

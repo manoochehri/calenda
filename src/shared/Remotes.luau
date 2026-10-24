@@ -21,12 +21,13 @@ Remotes.names = table.freeze({
 export type SteerPayload = { x: number }
 
 -- Server -> client. Compact and display-only. `over` is true once the run has ended.
--- Extension point (issue #36): add `hp` and `maxHp` here when parade HP exists.
 export type StatePayload = {
 	t: number,
 	z: number,
 	x: number,
 	total: number,
+	hp: number,
+	maxHp: number,
 	best: number,
 	over: boolean,
 	outcome: string?,
@@ -34,13 +35,14 @@ export type StatePayload = {
 }
 
 -- Server -> client discrete events. ids are layout ids, for animation lookup only.
--- Extension point (issues #9 / #36): add "cluster", "attack" and "defeated" kinds.
 export type EventPayload = {
 	kind: string,
 	id: number?,
 	side: string?,
 	before: number?,
 	after: number?,
+	hpBefore: number?,
+	hpAfter: number?,
 	score: number?,
 }
 
@@ -48,9 +50,9 @@ local EVENT_KINDS: { [string]: boolean } = {
 	gate = true,
 	obstacle = true,
 	complete = true,
-	cluster = true, -- reserved for #9 / #36
-	attack = true, -- reserved for #36
-	defeated = true, -- reserved for #36
+	cluster = true,
+	attack = true,
+	defeated = true,
 }
 
 function Remotes.isEventKind(kind: any): boolean
@@ -83,6 +85,8 @@ export type Snapshot = {
 	z: number,
 	x: number,
 	total: number,
+	hp: number,
+	maxHp: number,
 	best: number,
 	outcome: string?,
 	score: number?,
@@ -94,6 +98,8 @@ function Remotes.encodeState(s: Snapshot): StatePayload
 		z = round2(s.z),
 		x = round2(s.x),
 		total = s.total,
+		hp = s.hp,
+		maxHp = s.maxHp,
 		best = s.best,
 		over = s.outcome ~= nil,
 		outcome = s.outcome,

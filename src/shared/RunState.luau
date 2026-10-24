@@ -38,13 +38,15 @@ export type Result = {
 	before: number?,
 	after: number?,
 	score: number?,
+	hpBefore: number?,
+	hpAfter: number?,
 }
 
 -- Spec s12 Record: run start/seed, first recruitment, gate choice with before/after totals,
 -- first assembly, obstacle losses, completion/final total.
 export type Event = {
 	index: number,
-	kind: string, -- run_start | gate | cluster_credit | obstacle | complete
+	kind: string, -- run_start | gate | cluster_credit | obstacle | cluster_attack | complete | defeated
 	time: number,
 	seed: number,
 	automated: boolean,
@@ -55,15 +57,22 @@ export type Event = {
 	score: number?,
 	firstRecruit: boolean?,
 	firstAssembly: boolean?,
+	hpBefore: number?,
+	hpAfter: number?,
+	outcome: Outcome?,
 }
 
 export type RunState = {
 	resolveGate: (self: RunState, pairId: any, leadX: any) -> Result,
 	creditCluster: (self: RunState, id: any) -> Result,
+	attackCluster: (self: RunState, id: any) -> Result,
+	attackClusters: (self: RunState, ids: { any }) -> { Result },
 	hitObstacle: (self: RunState, id: any) -> Result,
 	complete: (self: RunState) -> Result,
+	defeat: (self: RunState) -> Result,
 	reset: (self: RunState, seed: number?) -> (),
 	total: (self: RunState) -> number,
+	hp: (self: RunState) -> number,
 	isComplete: (self: RunState) -> boolean,
 	outcome: (self: RunState) -> Outcome?,
 	score: (self: RunState) -> number?,
@@ -147,6 +156,7 @@ local function new(opts: Options): RunState
 	-- Per-run state. Everything below is replaced wholesale by reset().
 	local seed = opts.seed
 	local crowdTotal = startTotal
+	local paradeHp = Config.hp.max
 	local outcome: Outcome? = nil
 	local finalScore: number? = nil
 	local usedGates: { [string]: boolean } = {}
@@ -187,6 +197,7 @@ local function new(opts: Options): RunState
 	local function start(newSeed: number)
 		seed = newSeed
 		crowdTotal = startTotal
+		paradeHp = Config.hp.max
 		outcome = nil
 		finalScore = nil
 		usedGates = {}
@@ -310,6 +321,81 @@ local function new(opts: Options): RunState
 		return { ok = true, before = before, after = after }
 	end
 
+	-- Ends the run defeated: score is the crowd total at this moment (spec s9), best is untouched,
+	-- and one "defeated" event is logged so the run log has the outcome (RunLog.fromEvents).
+	local function finishDefeat()
+		outcome = "defeated"
+		finalScore = crowdTotal
+		record("defeated", crowdTotal, crowdTotal, { score = crowdTotal })
+	end
+
+	local function applyAttack(id: any): Result
+		if not isId(id) then
+			return reject("invalid cluster id")
+		end
+		local cluster = clusters[id]
+		if cluster == nil then
+			return reject("unknown cluster")
+		end
+		if usedClusters[id] ~= nil then
+			return reject(`cluster already {usedClusters[id]}`)
+		end
+		local before = paradeHp
+		paradeHp = math.max(0, paradeHp - Config.clusterTypes[cluster.type].attackDamage)
+		usedClusters[id] = "attacked"
+		record("cluster_attack", crowdTotal, crowdTotal, {
+			id = id,
+			hpBefore = before,
+			hpAfter = paradeHp,
+			outcome = if paradeHp == 0 then "defeated" else outcome,
+		})
+		return {
+			ok = true,
+			before = before,
+			after = paradeHp,
+			hpBefore = before,
+			hpAfter = paradeHp,
+		}
+	end
+
+	function self.attackCluster(_, id: any): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		local result = applyAttack(id)
+		if result.ok and paradeHp == 0 then
+			finishDefeat()
+		end
+		return result
+	end
+
+	function self.attackClusters(_, ids: { any }): { Result }
+		local blocked = guard()
+		if blocked then
+			return { blocked }
+		end
+		assert(type(ids) == "table", "cluster attack ids must be a list")
+		local results: { Result } = {}
+		for _, id in ids do
+			table.insert(results, applyAttack(id))
+		end
+		if paradeHp == 0 and outcome == nil then
+			finishDefeat()
+		end
+		return results
+	end
+
+	-- The driver calls this when an end-check hook ends the run (HP already 0 ends it on its own).
+	function self.defeat(_): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		finishDefeat()
+		return { ok = true, before = crowdTotal, after = crowdTotal, score = crowdTotal }
+	end
+
 	function self.complete(_): Result
 		local blocked = guard()
 		if blocked then
@@ -331,6 +417,9 @@ local function new(opts: Options): RunState
 
 	function self.total(_)
 		return crowdTotal
+	end
+	function self.hp(_)
+		return paradeHp
 	end
 	function self.isComplete(_)
 		return outcome == "completed"

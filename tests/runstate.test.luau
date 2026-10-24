@@ -23,6 +23,7 @@ local layout: RunState.Layout = {
 	clusters = {
 		{ id = "c1", type = "small" },
 		{ id = "c2", type = "large" },
+		{ id = "c3", type = "small" },
 	},
 	obstacles = { { id = "o1" }, { id = "o2" } },
 }
@@ -221,6 +222,116 @@ return {
 		end,
 	},
 	{
+		name = "cluster attacks apply configured HP damage once and never change crowd total",
+		run = function()
+			local run = make()
+			local total, hp = run:total(), run:hp()
+			local first = run:attackCluster("c1")
+			assert(first.ok, "first attack")
+			eq(first.before, hp, "HP before")
+			eq(first.after, hp - Config.clusterTypes.small.attackDamage, "HP after")
+			eq(run:hp(), first.after, "current HP")
+			eq(run:total(), total, "attack leaves crowd unchanged")
+			eq(run:clusterConsumption("c1"), "attacked", "consumption")
+			local before = snapshot(run)
+			local again = run:attackCluster("c1")
+			reject(again.ok, again.reason, run, before, "repeated attack")
+		end,
+	},
+	{
+		name = "credited cluster cannot attack and forged attack events have no effect",
+		run = function()
+			local run = make()
+			assert(run:creditCluster("c1").ok, "credit")
+			local before = snapshot(run)
+			local credited = run:attackCluster("c1")
+			reject(credited.ok, credited.reason, run, before, "attack after credit")
+			local forged = run:attackCluster("forged")
+			reject(forged.ok, forged.reason, run, before, "forged attack")
+		end,
+	},
+	{
+		name = "HP zero defeats the run, clamps damage, ignores later events, and reset restores HP",
+		run = function()
+			local attackDamage = Config.clusterTypes.large.attackDamage
+			local attackCount = math.ceil(Config.hp.max / attackDamage)
+			local clusters: { RunState.ClusterDef } = {}
+			for i = 1, attackCount do
+				table.insert(clusters, { id = `c{i}`, type = "large" })
+			end
+			local run = RunState.new({
+				seed = 1,
+				automated = true,
+				layout = { gatePairs = {}, clusters = clusters, obstacles = {} },
+				startingTotal = 73,
+			})
+			for i = 1, attackCount do
+				assert(run:attackCluster(`c{i}`).ok, `attack {i}`)
+			end
+			eq(run:hp(), 0, "HP clamps at zero")
+			eq(run:outcome(), "defeated", "defeated outcome")
+			eq(run:score(), 73, "defeat score is current crowd total")
+			eq(run:best(), 0, "defeat does not update session best")
+			local before = snapshot(run)
+			local later = run:attackCluster(`c{attackCount}`)
+			reject(later.ok, later.reason, run, before, "attack after defeat")
+			run:reset()
+			eq(run:hp(), Config.hp.max, "HP reset")
+			eq(run:outcome(), nil, "outcome reset")
+		end,
+	},
+	{
+		name = "defeat is recorded once as a defeated event carrying the crowd total as score",
+		run = function()
+			local attackCount = math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local clusters: { RunState.ClusterDef } = {}
+			for i = 1, attackCount do
+				table.insert(clusters, { id = `c{i}`, type = "large" })
+			end
+			local run = RunState.new({
+				seed = 1,
+				automated = true,
+				layout = { gatePairs = {}, clusters = clusters, obstacles = {} },
+				startingTotal = 73,
+			})
+			local ids = {}
+			for i = 1, attackCount do
+				table.insert(ids, `c{i}`)
+			end
+			run:attackClusters(ids)
+			run:attackClusters({ "c1" }) -- ignored after the end
+			local defeats = 0
+			for _, e in run:events() do
+				if e.kind == "defeated" then
+					defeats += 1
+					eq(e.score, 73, "defeated event score")
+					eq(e.before, 73, "defeated event before")
+					eq(e.after, 73, "defeated event after")
+				end
+			end
+			eq(defeats, 1, "exactly one defeated event")
+			local events = run:events()
+			eq(events[#events].kind, "defeated", "defeated is the last event")
+		end,
+	},
+	{
+		name = "defeat() ends the run defeated once, keeps best at zero, and is refused after the end",
+		run = function()
+			local run = RunState.new({
+				seed = 1,
+				automated = true,
+				layout = { gatePairs = {}, clusters = {}, obstacles = {} },
+				startingTotal = 40,
+			})
+			assert(run:defeat().ok, "defeat accepted")
+			eq(run:outcome(), "defeated", "outcome")
+			eq(run:score(), 40, "score")
+			eq(run:best(), 0, "best unchanged")
+			assert(not run:defeat().ok, "second defeat refused")
+			assert(not run:complete().ok, "complete after defeat refused")
+		end,
+	},
+	{
 		name = "obstacle: applies -Config.obstacleLoss once",
 		run = function()
 			local run = make()
@@ -272,6 +383,8 @@ return {
 			for _ = 1, 3 do
 				run:resolveGate("g1", -3)
 				run:creditCluster("c1")
+				run:attackCluster("c3")
+				run:attackCluster("c3")
 				run:hitObstacle("o1")
 				run:resolveGate("g2", 3)
 				run:creditCluster("c2")
@@ -279,9 +392,13 @@ return {
 				run:resolveGate("g1", 3)
 				run:creditCluster("c1")
 			end
-			-- 10 +20 (g1 left)=30, +5=35, -10=25, g2 right +20=45, +15=60, -10=50
 			eq(run:total(), 50, "total")
-			eq(#run:events(), 1 + 6, "one event per consumed item plus run_start")
+			eq(
+				run:hp(),
+				Config.hp.max - Config.clusterTypes.small.attackDamage,
+				"one attack applied"
+			)
+			eq(#run:events(), 1 + 7, "one event per consumed item plus run_start")
 		end,
 	},
 	{

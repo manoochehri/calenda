@@ -3,9 +3,10 @@ local Config = require("../src/shared/Config")
 local DebugLayout = require("../src/shared/DebugLayout")
 local Level = require("../src/shared/Level")
 local RunDriver = require("../src/shared/RunDriver")
+local RunHooks = require("../src/shared/RunHooks")
 local Steering = require("../src/shared/Steering")
 
-local DT = 1 / 30
+local DT = RunDriver.TICK_DT
 
 local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {tostring(expected)}, got {tostring(actual)}`)
@@ -385,6 +386,264 @@ return {
 			eq(table.concat(order, ","), "shots,attacks,end", "phase order")
 			eq(totals[1], "shots:10", "shots see the pre-move total")
 			eq(totals[2], "attacks:25", "attacks see the post-gate total")
+		end,
+	},
+	{
+		name = "server driver attacks passed clusters in ID order before ending defeated",
+		run = function()
+			local clusters: { Level.Cluster } = {}
+			local lethalAttackCount =
+				math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local attackCount = lethalAttackCount + 2
+			for i = attackCount, 1, -1 do
+				table.insert(clusters, {
+					id = i,
+					wave = 1,
+					type = "large",
+					spawnTime = 0,
+					spawn = { x = 16, z = 1 },
+					path = {},
+				})
+			end
+			local layout: Level.Layout = {
+				name = "attack",
+				seed = 8,
+				streetLength = 400,
+				plazaStart = Config.speed * 0.1,
+				halfWidth = 20,
+				maxTotal = 1000,
+				intendedRecruitTotal = 0,
+				gates = {},
+				obstacles = {},
+				clusters = clusters,
+			}
+			local d =
+				RunDriver.new({ layout = layout, automated = true, hooks = RunHooks.new(layout) })
+			local events: { RunDriver.DriverEvent } = {}
+			for _ = 1, 100 do
+				for _, event in d:tick(DT) do
+					table.insert(events, event)
+				end
+				if d:outcome() ~= nil then
+					break
+				end
+			end
+			local ids = {}
+			for _, event in events do
+				if event.kind == "attack" then
+					table.insert(ids, event.id)
+				end
+			end
+			eq(#ids, attackCount, "attacked clusters")
+			for i, id in ids do
+				eq(id, i, "cluster attack order")
+			end
+			eq(
+				kinds(events),
+				table.concat(table.create(attackCount, "attack"), ",") .. ",defeated",
+				"event order"
+			)
+			eq(events[1].hpBefore, Config.hp.max, "first attack HP before")
+			eq(events[lethalAttackCount].hpAfter, 0, "lethal attack clamps HP")
+			eq(events[attackCount].hpBefore, 0, "same-tick attacks continue at zero HP")
+			eq(events[attackCount].hpAfter, 0, "HP stays clamped for later same-tick attacks")
+			eq(d:outcome(), "defeated", "outcome")
+			eq(d:total(), Config.startingTotal, "crowd unchanged")
+			eq(d:snapshot().hp, 0, "HP exposed in snapshot")
+			assert(d:replay(1), "defeated run replays")
+			eq(d:snapshot().hp, Config.hp.max, "replay restores HP")
+			eq(d:outcome(), nil, "replay clears outcome")
+			for _ = 1, 4 do
+				d:tick(DT)
+			end
+			eq(d:outcome(), "defeated", "replayed clusters are processed again")
+		end,
+	},
+	{
+		name = "cluster converted before passing does not attack the parade",
+		run = function()
+			local layout = fixture()
+			layout.clusters = {
+				{
+					id = 1,
+					wave = 1,
+					type = "small",
+					spawnTime = 0,
+					spawn = { x = 16, z = 14.67 },
+					path = {},
+				},
+			}
+			local d =
+				RunDriver.new({ layout = layout, automated = true, hooks = RunHooks.new(layout) })
+			local events: { RunDriver.DriverEvent } = {}
+			for _ = 1, 40 do
+				for _, event in d:tick(DT) do
+					table.insert(events, event)
+				end
+			end
+			for _, event in events do
+				assert(event.kind ~= "attack", "converted cluster must not attack")
+			end
+			eq(
+				d:total(),
+				Config.startingTotal + Config.clusterTypes.small.reward,
+				"converted reward"
+			)
+			eq(d:snapshot().hp, Config.hp.max, "HP unchanged")
+		end,
+	},
+	{
+		name = "filling shot and parade arrival in one fixed tick convert before attack",
+		run = function()
+			local layout = fixture()
+			layout.clusters = {
+				{
+					id = 1,
+					wave = 1,
+					type = "small",
+					spawnTime = 0,
+					spawn = {
+						x = 16,
+						z = (Config.speed + Config.spectators.approachSpeed) * 0.66,
+					},
+					path = {},
+				},
+			}
+			local testConfig = table.clone(Config)
+			testConfig.firing = table.clone(Config.firing)
+			testConfig.firing.base = 3.1
+			local hooks = RunHooks.new(layout, testConfig)
+			local shots = hooks.shots
+			local crossingTick = false
+			hooks.shots = function(ctx)
+				if shots then
+					shots(ctx)
+				end
+				local before = Level.clusterPosition(layout, 1, ctx.t0)
+				local after = Level.clusterPosition(layout, 1, ctx.t1)
+				if before.z > ctx.z0 and after.z <= ctx.z1 then
+					crossingTick = true
+					eq(
+						ctx.state:clusterConsumption("c1"),
+						"credited",
+						"shot converted before attack phase"
+					)
+					local runEvents = ctx.state:events()
+					eq(
+						runEvents[#runEvents].kind,
+						"cluster_credit",
+						"conversion event recorded this tick"
+					)
+					eq(#ctx.passedClusters, 0, "converted cluster not reported passed")
+				end
+			end
+			local d = RunDriver.new({ layout = layout, automated = true, hooks = hooks })
+			local events: { RunDriver.DriverEvent } = {}
+			for _ = 1, 30 do
+				for _, event in d:tick(RunDriver.TICK_DT) do
+					table.insert(events, event)
+				end
+			end
+			assert(crossingTick, "the cluster crossed during the shot filling tick")
+			for _, event in events do
+				assert(event.kind ~= "attack", "conversion precedes same-tick attack")
+			end
+			eq(d:total(), Config.startingTotal + Config.clusterTypes.small.reward, "reward once")
+			eq(d:snapshot().hp, Config.hp.max, "no attack damage")
+		end,
+	},
+	{
+		name = "session best updates only from completed runs through the driver",
+		run = function()
+			local shouldDefeat = false
+			local layout: Level.Layout = {
+				name = "best",
+				seed = 9,
+				streetLength = 64,
+				plazaStart = 32,
+				halfWidth = 20,
+				maxTotal = 1000,
+				intendedRecruitTotal = 0,
+				gates = {
+					{
+						id = 1,
+						z = 16,
+						left = { kind = "add", value = 1 },
+						right = { kind = "add", value = 200 },
+					},
+				},
+				obstacles = {},
+				clusters = {},
+			}
+			local hooks = RunHooks.new(layout)
+			hooks.endCheck = function(ctx)
+				return shouldDefeat and ctx.z1 >= 16
+			end
+			local d = RunDriver.new({
+				layout = layout,
+				automated = true,
+				hooks = hooks,
+			})
+			runOut(d)
+			eq(d:outcome(), "completed", "first run completed")
+			eq(d:snapshot().best, 11, "completed score becomes session best")
+			shouldDefeat = true
+			assert(d:replay(100), "replay accepted")
+			assert(d:steer(101, { x = 10 }), "steer right for the higher gate")
+			runOut(d)
+			eq(d:outcome(), "defeated", "second run defeated")
+			eq(d:snapshot().score, 210, "defeated score is higher")
+			eq(d:snapshot().best, 11, "defeat does not update session best")
+		end,
+	},
+	{
+		name = "lethal RunHooks attacks on the plaza tick defeat instead of completing",
+		run = function()
+			local dt = RunDriver.TICK_DT
+			local t1 = 2 * dt
+			local spawnTime = dt + dt / 4
+			local spawnZ = Config.speed * t1
+				+ Config.spectators.approachSpeed * (t1 - spawnTime)
+				- 1e-6 -- place every unconverted cluster just behind the lead at the plaza tick
+			local clusters: { Level.Cluster } = {}
+			for id = 1, math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage) do
+				table.insert(clusters, {
+					id = id,
+					wave = 1,
+					type = "large",
+					spawnTime = spawnTime,
+					spawn = { x = 16, z = spawnZ },
+					path = {},
+				})
+			end
+			local layout: Level.Layout = {
+				name = "lethal-plaza-tie",
+				seed = 10,
+				streetLength = 20,
+				plazaStart = Config.speed * t1,
+				halfWidth = 20,
+				maxTotal = 1000,
+				intendedRecruitTotal = 0,
+				gates = {},
+				obstacles = {},
+				clusters = clusters,
+			}
+			local d =
+				RunDriver.new({ layout = layout, automated = true, hooks = RunHooks.new(layout) })
+			local events: { RunDriver.DriverEvent } = {}
+			for _ = 1, 4 do
+				for _, event in d:tick(dt) do
+					table.insert(events, event)
+				end
+			end
+			eq(d:outcome(), "defeated", "lethal attacks beat plaza completion")
+			eq(
+				kinds(events),
+				table.concat(table.create(#clusters, "attack"), ",") .. ",defeated",
+				"same-tick attack and end-check events"
+			)
+			assert(not string.find(kinds(events), "complete", 1, true), "no plaza completion")
+			eq(d:snapshot().hp, 0, "HP reaches zero")
 		end,
 	},
 	{

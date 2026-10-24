@@ -12,7 +12,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
+local RunHooks = require(Shared:WaitForChild("RunHooks"))
 local RunLog = require(Shared:WaitForChild("RunLog"))
+local TickPacer = require(Shared:WaitForChild("TickPacer"))
 
 -- The lead musician is drawn by the client (src/client/CrowdView); no Roblox character is needed,
 -- and one would stand on the road and block the view.
@@ -39,6 +41,7 @@ folder.Parent = ReplicatedStorage
 type Session = {
 	driver: RunDriver.RunDriver,
 	sinceState: number,
+	accumulator: number,
 }
 local sessions: { [Player]: Session } = {}
 local logKeeper = RunLog.newKeeper() -- last few finished-run logs per player; released on leave
@@ -50,8 +53,13 @@ end
 local function startRun(player: Player)
 	-- The layout is the authored constant; nothing from the client reaches the driver's setup.
 	local session: Session = {
-		driver = RunDriver.new({ layout = DebugLayout, automated = false }),
+		driver = RunDriver.new({
+			layout = DebugLayout,
+			automated = false,
+			hooks = RunHooks.new(DebugLayout),
+		}),
 		sinceState = 0,
+		accumulator = 0,
 	}
 	sessions[player] = session
 	sendState(player, session)
@@ -70,31 +78,43 @@ end)
 steerRemote.OnServerEvent:Connect(function(player: Player, payload: any)
 	local session = sessions[player]
 	if session then
-		session.driver:steer(os.clock(), payload)
+		session.driver:steer(workspace:GetServerTimeNow(), payload)
 	end
 end)
 
 replayRemote.OnServerEvent:Connect(function(player: Player)
 	local session = sessions[player]
-	if session and session.driver:replay(os.clock()) then
+	if session and session.driver:replay(workspace:GetServerTimeNow()) then
 		session.sinceState = STATE_INTERVAL -- push the fresh state on the next step
+		session.accumulator = 0
 	end
 end)
 
 RunService.Heartbeat:Connect(function(dt: number)
 	for player, session in sessions do
-		for _, e in session.driver:tick(dt) do
-			eventRemote:FireClient(player, e)
-			if e.kind == "complete" or e.kind == "defeated" then
-				local log = session.driver:runLog()
-				logKeeper:add(player, log)
-				RunLog.print(log)
+		local ok, err = pcall(function()
+			local steps, carried = TickPacer.plan(session.accumulator, dt, RunDriver.TICK_DT)
+			session.accumulator = carried
+			for _ = 1, steps do
+				for _, e in session.driver:tick(RunDriver.TICK_DT) do
+					eventRemote:FireClient(player, e)
+					if e.kind == "complete" or e.kind == "defeated" then
+						local log = session.driver:runLog()
+						logKeeper:add(player, log)
+						RunLog.print(log)
+					end
+				end
 			end
-		end
-		session.sinceState += dt
-		if session.sinceState >= STATE_INTERVAL then
-			session.sinceState = 0
-			sendState(player, session)
+			session.sinceState += dt
+			if session.sinceState >= STATE_INTERVAL then
+				session.sinceState = 0
+				sendState(player, session)
+			end
+		end)
+		if not ok then
+			warn(`run session dropped after an error: {err}`)
+			sessions[player] = nil
+			logKeeper:release(player)
 		end
 	end
 end)

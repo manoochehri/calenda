@@ -175,8 +175,7 @@ function RunLog.fromEvents(events: { RunState.Event }, options: BuildOptions?): 
 				after = e.after,
 			})
 		elseif e.kind == "complete" or e.kind == "defeated" then
-			-- NOTE: RunState records only "complete". "defeated" is RESERVED for issue #36 (defeat/HP);
-			-- nothing produces it yet, so a defeated run currently has completion = nil. Not tested.
+			-- RunState logs "complete" for a plaza finish and "defeated" for a parade breakup (issue #36).
 			local outcome = if e.kind == "defeated" then "defeated" else "completed"
 			completion = {
 				outcome = outcome,

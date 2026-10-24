@@ -1,8 +1,13 @@
 --!strict
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
 local Level = require("../src/shared/Level")
 local LayoutValidator = require("../src/shared/LayoutValidator")
+local RunDriver = require("../src/shared/RunDriver")
+local RunHooks = require("../src/shared/RunHooks")
+
+local DT = RunDriver.TICK_DT
 
 local function clone(value: any): any
 	if type(value) ~= "table" then
@@ -54,6 +59,89 @@ local function cluster(l: any, id: number): any
 		end
 	end
 	error(`no cluster {id}`)
+end
+
+local function runHpScenario(competent: boolean): LayoutValidator.HPScenario
+	local driver = RunDriver.new({
+		layout = DebugLayout,
+		automated = true,
+		hooks = RunHooks.new(DebugLayout),
+	})
+	local trajectory = { { time = 0, hp = driver:snapshot().hp } }
+	local attacks = {}
+	local nextInput = 0
+	for _ = 1, math.ceil(100 / DT) do
+		local snapshot = driver:snapshot()
+		if competent and snapshot.time >= nextInput - 1e-9 then
+			local targetX = 0
+			local leadZ = snapshot.z
+			local closestCluster: Level.Cluster? = nil
+			local closestClusterDistance = math.huge
+			local closestLarge: Level.Cluster? = nil
+			local closestLargeDistance = math.huge
+			for _, c in DebugLayout.clusters do
+				if snapshot.time >= c.spawnTime then
+					local position = Level.clusterPosition(DebugLayout, c.id, snapshot.time)
+					local distance = position.z - leadZ
+					if distance > 0 and distance < closestClusterDistance then
+						closestCluster = c
+						closestClusterDistance = distance
+					end
+					if c.type == "large" and distance < closestLargeDistance then
+						closestLarge = c
+						closestLargeDistance = distance
+					end
+				end
+			end
+			-- Competent policy: steer toward the nearest large threat to prevent its larger HP loss;
+			-- otherwise follow the nearest active cluster. The no-input control never steers.
+			local clusterTarget = closestLarge or closestCluster
+			if clusterTarget then
+				targetX = if clusterTarget.spawn.x < 0 then -16 else 16
+			end
+
+			-- Prefer the gate with the larger current result when it is close enough to steer to.
+			for _, g in DebugLayout.gates do
+				local distance = g.z - leadZ
+				if distance > 0 and distance <= Config.speed * 1.25 then
+					local left = CrowdMath.applyOp(snapshot.total, g.left)
+					local right = CrowdMath.applyOp(snapshot.total, g.right)
+					targetX = if right > left then 16 else -16
+					break
+				end
+			end
+			assert(driver:steer(snapshot.time, { x = targetX }), "competent input accepted")
+			nextInput = snapshot.time + 0.05
+		end
+
+		local beforeHp = snapshot.hp
+		local events = driver:tick(DT)
+		for _, event in events do
+			if event.kind == "attack" then
+				local attackedCluster = Level.findCluster(DebugLayout, event.id)
+				table.insert(
+					attacks,
+					`{event.id}:{attackedCluster.type}@{string.format(
+						"%.3f",
+						driver:snapshot().time
+					)}`
+				)
+			end
+		end
+		local after = driver:snapshot()
+		if after.hp ~= beforeHp then
+			table.insert(trajectory, { time = after.time, hp = after.hp })
+		end
+		if after.outcome ~= nil then
+			return {
+				outcome = after.outcome,
+				hp = after.hp,
+				trajectory = trajectory,
+				attacks = attacks,
+			}
+		end
+	end
+	return { outcome = nil, hp = driver:snapshot().hp, trajectory = trajectory, attacks = attacks }
 end
 
 return {
@@ -157,6 +245,60 @@ return {
 		end,
 	},
 	{
+		name = "HP extra check runs no-input and competent DebugLayout scenarios through RunHooks",
+		run = function()
+			local scenarios: { [string]: any } = {}
+			local report = LayoutValidator.check(DebugLayout, nil, {
+				function(ctx)
+					assert(ctx.report.ok, "base layout checks pass before HP check")
+					scenarios.noInput = runHpScenario(false)
+					scenarios.competent = runHpScenario(true)
+					ctx.report.hpScenarios = scenarios
+					local function path(points: { LayoutValidator.HPTrajectoryPoint }): string
+						local out = {}
+						for _, point in points do
+							table.insert(out, `{string.format("%.3f", point.time)}:{point.hp}`)
+						end
+						return table.concat(out, ",")
+					end
+					local noInputPath = path(scenarios.noInput.trajectory)
+					local competentPath = path(scenarios.competent.trajectory)
+					print(
+						`HP scenarios (DebugLayout, samples=1 each): no-input outcome={scenarios.noInput.outcome} hp={scenarios.noInput.hp} trajectory={noInputPath}; attacks={table.concat(
+							scenarios.noInput.attacks,
+							","
+						)}; competent outcome={scenarios.competent.outcome} hp={scenarios.competent.hp} trajectory={competentPath}; attacks={table.concat(
+							scenarios.competent.attacks,
+							","
+						)}`
+					)
+					local ok = scenarios.noInput.outcome == "defeated"
+						and scenarios.competent.outcome == "completed"
+						and scenarios.competent.hp > 0
+					return ok,
+						`HP trajectory: no-input outcome={scenarios.noInput.outcome}, hp={scenarios.noInput.hp}; competent outcome={scenarios.competent.outcome}, hp={scenarios.competent.hp}`
+				end,
+			})
+			assert(report.ok, `HP check rejected layout: {table.concat(report.errors, " | ")}`)
+			assert(
+				scenarios.noInput ~= nil and scenarios.competent ~= nil,
+				"both runs were reported"
+			)
+			assert(
+				scenarios.competent.trajectory[2].hp == 95,
+				"competent policy accepts a small attack"
+			)
+			assert(
+				scenarios.noInput.trajectory[#scenarios.noInput.trajectory].hp == 0,
+				"no-input HP reaches zero"
+			)
+			assert(
+				scenarios.competent.trajectory[#scenarios.competent.trajectory].hp > 0,
+				"competent run preserves the configured remainder"
+			)
+		end,
+	},
+	{
 		name = "timings come from Config speed: a slower lead breaks the windows",
 		run = function()
 			local slow = clone(Config)
@@ -207,9 +349,7 @@ return {
 	end),
 	rejects("first cluster too late", "first cluster", function(l)
 		for _, c in l.clusters do
-			if c.wave == 1 then
-				c.spawnTime = 30
-			end
+			c.spawnTime += 30
 		end
 	end),
 	rejects("gate before 10 s", "before 10", function(l)
@@ -238,7 +378,7 @@ return {
 		end
 	end),
 	rejects("wave mixes sides", "mixes sides", function(l)
-		cluster(l, 1).spawn.x = 16
+		cluster(l, 2).wave = cluster(l, 1).wave
 	end),
 	rejects("gates too close to read", "too close", function(l)
 		gate(l, 4).z = gate(l, 3).z + Config.speed
