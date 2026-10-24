@@ -48,7 +48,13 @@ local function snapshot(run: RunState.RunState): string
 	return table.concat(parts, "|")
 end
 
-local function reject(ok: boolean, reason: string?, run: RunState.RunState, before: string, name: string)
+local function reject(
+	ok: boolean,
+	reason: string?,
+	run: RunState.RunState,
+	before: string,
+	name: string
+)
 	assert(not ok, `{name}: expected rejection`)
 	assert(reason ~= nil and reason ~= "", `{name}: rejection needs a reason`)
 	eq(snapshot(run), before, `{name} state unchanged`)
@@ -174,7 +180,11 @@ return {
 			eq(r.after, 10 + Config.clusterTypes.small.reward, "after")
 			local r2 = run:creditCluster("c2")
 			assert(r2.ok, "credit large")
-			eq(run:total(), 10 + Config.clusterTypes.small.reward + Config.clusterTypes.large.reward, "total")
+			eq(
+				run:total(),
+				10 + Config.clusterTypes.small.reward + Config.clusterTypes.large.reward,
+				"total"
+			)
 		end,
 	},
 	{
@@ -482,12 +492,20 @@ return {
 			bad({
 				seed = 1,
 				automated = true,
-				layout = { gatePairs = {}, clusters = { { id = "a", type = "small" }, { id = "a", type = "small" } }, obstacles = {} },
+				layout = {
+					gatePairs = {},
+					clusters = { { id = "a", type = "small" }, { id = "a", type = "small" } },
+					obstacles = {},
+				},
 			}, "duplicate cluster")
 			bad({
 				seed = 1,
 				automated = true,
-				layout = { gatePairs = {}, clusters = { { id = "a", type = "huge" } }, obstacles = {} },
+				layout = {
+					gatePairs = {},
+					clusters = { { id = "a", type = "huge" } },
+					obstacles = {},
+				},
 			}, "unknown cluster type")
 		end,
 	},
