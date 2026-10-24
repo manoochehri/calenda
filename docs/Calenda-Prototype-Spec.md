@@ -116,9 +116,9 @@ Use an original or appropriately licensed brass-and-percussion loop with synchro
 
 ## 11. Implementation boundaries
 
-Keep tunable values in configuration: section size, spectator approach speed (`spectators.approachSpeed`), starting total, cluster hits/rewards, gate operations, losses, speed, firing-rate curve, visual budgets, and finale thresholds.
+Keep tunable values in configuration: section size, spectator approach speed (`spectators.approachSpeed`), side tolerance (`spectators.centerTolerance`), firing range (`firing.range`), parade HP (`hp.max`) and per-cluster-type `attackDamage`, starting total, cluster hits/rewards, gate operations, losses, speed, firing-rate curve, visual budgets, and finale thresholds.
 
-Separate run state and crowd arithmetic from presentation. The server owns totals, gate/cluster consumption, losses, completion, and score; clients animate the results. Validate steering and crossing events; clients cannot submit arbitrary gains. Use pooled visual actors/projectiles, limited collision checks, and compact formations rather than full independent pathfinding for every represented follower.
+Separate run state and crowd arithmetic from presentation. The server owns totals, gate/cluster consumption, losses, parade HP, attacks, defeat, completion, and score; clients animate the results. Validate steering and crossing events; clients cannot submit arbitrary gains. Use pooled visual actors/projectiles, limited collision checks, and compact formations rather than full independent pathfinding for every represented follower.
 
 Use the team’s existing GitHub and agent workflow. Deliver a reproducible playable build, setup instructions, tuning configuration, a short known-issues list, and a capture of a complete run. This is a build brief; no repository or project has been created by this document.
 
@@ -128,11 +128,13 @@ Functional checks:
 
 - Touch and keyboard can complete the route and replay without stale state.
 - 49 → +1 produces one section with no loss of value; 120 → ×2 produces 240; 105 → −10 produces 95 and correctly updates the section visuals.
-- Gate pairs, spectator clusters, and obstacles each apply only once, even with overlapping actors or repeated events, including a cluster that fills while moving and a wave that is missed (no loss, no credit).
+- Gate pairs, spectator clusters, and obstacles each apply only once, even with overlapping actors or repeated events, including a cluster that fills while moving, and a wave that reaches the parade unconverted (it damages HP exactly once and never credits).
 - Large jumps assemble in one animation; a synthetic total of 10,000 keeps the counter accurate and respects visual budgets.
 - Client attempts to forge crowd gains or retrigger consumed gates do not alter server totals.
 - Total score equals the final crowd total; score and replay remain usable with sound off.
 - Measure on a named lower-end mobile test device, targeting sustained 30 FPS through the largest authored parade and finale. Record the device, observed frame times, and any limits; do not treat desktop automation as mobile validation.
+
+Amendment 1 checks: a no-input run ends defeated; a competent scripted run completes with HP above zero; the same-tick ordering below is covered by tests; attacks never change `crowdTotal`; HP never goes below zero and never regenerates; defeat ends the run once and later events are ignored.
 
 Record: run start/seed, first recruitment, gate choice and before/after totals, first assembly/time, obstacle losses, completion/final total, and replay. Distinguish automated QA sessions from human playtests.
 
@@ -144,7 +146,7 @@ If players do not understand assembly or want another run, improve the core loop
 
 ## Amendment 1 — Attacking waves and parade HP (owner decisions, 2026-10-23)
 
-Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave range without a penalty"), §5 ("No death or destruction animation"), and §9 ("Reaching the plaza always completes the run"; "Zero followers is recoverable"). Everything not listed here is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), and the −10 obstacle.
+Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave range without a penalty"), §9 ("Reaching the plaza always completes the run") and §12's "no penalty" wording. §5's "No death or destruction animation" is clarified, not removed: defeat is a playful party breakup, never a death or destruction animation. "Zero followers is recoverable" still holds. Everything not listed here is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), and the −10 obstacle.
 
 **Waves attack until converted.**
 - The layout places spectator clusters in waves. Each cluster starts at a spawn point ahead of the lead, on a sidewalk or in the lane, and walks toward the parade at `spectators.approachSpeed` (Config) along a deterministic path. The server position of every cluster is a pure function of layout, seed and run time, so the layout validator and the scripted-run test can compute it.
@@ -160,7 +162,11 @@ Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave r
 
 **Definitions (measured along the street axis from the lead's forward position).** A cluster has *reached the parade* when its position is at or behind the lead's forward position; from that moment it is *passed* (attacks if unconverted) and no longer a target. A cluster's *side* is the sign of its lateral offset from the street centerline (left, right, or center within the tolerance `spectators.centerTolerance` in Config).
 
-**Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
+**In range** means the distance along the street from the lead to the cluster is at most `firing.range` (Config). **Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
+
+**Same-tick ordering (server and validator must agree).** Within one simulation tick, in this order: (1) shots land, meters fill and conversions are credited (a cluster that fills on the tick it reaches the parade converts and does not attack); (2) the lead moves, then gates are resolved and then the obstacle is applied (crowd total changes); (3) unconverted clusters that reached the parade this tick attack, each once, reducing HP in cluster-id order; (4) end checks: if HP is 0 the run ends defeated, even if the lead also reached the plaza on this tick; otherwise reaching the plaza completes the run. Events after the run ends are ignored. Score is the crowd total after all of that tick's events.
+
+**On defeat** there is no plaza finale and no celebration tier is shown; the party breakup beat and the results screen play. The finale and the three tiers (§9) are for completed runs only.
 
 **Balance.** Conversion speed (fire rate), wave size, approach speed and `attackDamage` are tuned in Config and the layout so that the player has to react: standing still or ignoring a side should lose HP, and a careful player should usually finish with HP left. The layout validator and the scripted-run test must show both a no-input run (defeated) and a competent run (completed), and report the HP trajectory. All values are initial defaults.
 
