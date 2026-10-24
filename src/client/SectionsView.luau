@@ -13,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Dance = require(Shared:WaitForChild("Dance"))
 local Formation = require(Shared:WaitForChild("Formation"))
 local FollowerSlots = require(Shared:WaitForChild("FollowerSlots"))
 local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
@@ -73,6 +74,7 @@ export type Builder = SectionFigure.Builder
 export type SectionsView = {
 	-- Returns the current swirl 0..1 so the caller can pull the loose crowd inward.
 	update: (self: SectionsView, leadX: number, leadZ: number, total: number, dt: number) -> number,
+	onEvent: (self: SectionsView, payload: any) -> (),
 	reset: (self: SectionsView, total: number) -> (),
 	-- A server cluster or miss Event: a gift shot makes every dancer section toss (visual only).
 	onShot: (self: SectionsView, payload: any) -> (),
@@ -116,10 +118,12 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local director = SectionDirector.new(initialTotal)
 	local reps: { [number]: Rep } = {}
 	local ghosts: { { rep: Rep, t: number } } = {}
-	local clock = 0
+	local clock = os.clock()
 	local layoutTotal = -1
 	local layout: Formation.Layout = Formation.forTotal(0)
 	local indicatorT = 0
+	local reactionKind = ""
+	local reactionAt = -math.huge
 
 	-- Decorative musical rings on the beat (globo only; they never recruit or touch the total).
 	-- A bounded set of timed rings drawn as camera-facing circles; capacity is GloboPose.MAX_RINGS.
@@ -154,7 +158,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end, function(r)
 		r.part.Parent = nil
 	end)
-	local lastBeatClock = os.clock()
+	local ringClock = 0
+	local lastBeatClock = 0
 	local beatCount = 0
 
 	local gui = Instance.new("ScreenGui")
@@ -248,7 +253,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 		bits:clear()
 		rings:clear()
 		ringPool:setCount(0)
-		lastBeatClock = os.clock()
+		ringClock = 0
+		lastBeatClock = 0
 	end
 
 	function view.onShot(_, payload: any)
@@ -262,6 +268,21 @@ function SectionsView.new(initialTotal: number): SectionsView
 			if rep.tossesGifts and toss ~= nil then
 				toss(rep.visual, now)
 			end
+		end
+	end
+
+	function view.onEvent(_, payload: any)
+		if
+			type(payload) == "table"
+			and (
+				payload.kind == "gate"
+				or payload.kind == "conversion"
+				or payload.kind == "attack"
+				or payload.kind == "complete"
+				or payload.kind == "defeated"
+			)
+		then
+			reactionKind, reactionAt = payload.kind, clock
 		end
 	end
 
@@ -331,7 +352,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end
 
 	function view.update(_, leadX: number, leadZ: number, total: number, dt: number): number
-		clock += dt
+		clock = os.clock() -- common local beat clock; music clock can replace it when synchronized stems exist
 		local plan = director:observe(total)
 		if plan then
 			startPlan(plan, leadX, leadZ)
@@ -348,7 +369,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 			layoutTotal = total
 			layout = Formation.forTotal(total)
 		end
-		local intensity = PuppetPose.intensity(layout.plan.logicalSections)
+		local intensity, tempo = Dance.intensity(total, layout.plan.logicalSections)
+		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
 		local risePerSecond = 1 / Config.durations.assemblySeconds
 		for index, rep in reps do
 			local slot = layout.sections[index]
@@ -362,7 +384,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 			local big = SectionScale.scaleOf(rep.sectionType, index)
 			local scale = PuppetPose.rise(rep.riseT) * big
 			local ground = CFrame.new(rep.x, 0, rep.z)
-			rep.visual:setPose(ground, os.clock(), rep.phase, scale, intensity)
+			local reaction = CFrame.new(0, eventHop, 0) * CFrame.Angles(eventRoll, eventTurn, 0)
+			rep.visual:setPose(ground * reaction, clock * tempo, rep.phase, scale, intensity)
 			rep.badge.Text = `x{rep.count}`
 			rep.badgeGui.Enabled = rep.count > 1 and rep.riseT >= 1
 		end
@@ -396,9 +419,9 @@ function SectionsView.new(initialTotal: number): SectionsView
 			end
 		end
 		-- One ring per beat per settled globo, however many beats a slow frame spans.
-		local nowClock = os.clock()
-		local beats = GloboPose.beatsIn(lastBeatClock, nowClock)
-		lastBeatClock = nowClock
+		ringClock += dt * tempo
+		local beats = GloboPose.beatsIn(lastBeatClock, ringClock)
+		lastBeatClock = ringClock
 		if beats > 0 then
 			beatCount += beats
 			for _, rep in reps do

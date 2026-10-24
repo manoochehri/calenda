@@ -233,6 +233,8 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	sfx:onEvent(payload, music:intensity(), os.clock())
 	crowd:onEvent(payload, if latest then latest.t else 0) -- where new followers come from (issue #68)
+	sections:onEvent(payload)
+	leadAvatar:onEvent(payload)
 	if payload.kind == "gate" then
 		hud:pop()
 	elseif payload.kind == "obstacle" then
@@ -241,7 +243,12 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 			hud:pop()
 		end
 	elseif payload.kind == "cluster" then
-		clusters:onCluster(payload)
+		if clusters:onCluster(payload) then
+			local conversion = { kind = "conversion" }
+			crowd:onEvent(conversion, if latest then latest.t else 0)
+			sections:onEvent(conversion)
+			leadAvatar:onEvent(conversion)
+		end
 		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
 	elseif payload.kind == "miss" then
 		clusters:onMiss(payload) -- continuous fire with no target: flies on and fades (issue #67)
@@ -285,7 +292,7 @@ RunService:BindToRenderStep(
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
-		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift)
+		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift, total)
 		crowd:update(
 			drawnX,
 			z,

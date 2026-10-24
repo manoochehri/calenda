@@ -151,4 +151,25 @@ return {
 			end
 		end,
 	},
+	{
+		name = "finale confetti lands on bar downbeats and keeps the tier's total burst count",
+		run = function()
+			local secondsPerBar = 60 * Config.music.beatsPerBar / Config.music.bpm
+			for tier = 0, 3 do
+				local times = FinalePlan.burstTimes(tier)
+				eq(#times, Celebration.profile(tier).bursts, `tier {tier} burst count`)
+				for _, time in times do
+					assert(
+						time >= 0 and time < FinalePlan.DURATION,
+						"burst stays inside the finale"
+					)
+					near(
+						time / secondsPerBar,
+						math.round(time / secondsPerBar),
+						"burst is on a bar downbeat"
+					)
+				end
+			end
+		end,
+	},
 }

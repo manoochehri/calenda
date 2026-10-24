@@ -5,6 +5,7 @@
 -- and the per-frame functions take time and return numbers; the client only turns them into Parts.
 local Config = require("./Config")
 local FollowerSlots = require("./FollowerSlots")
+local DanceConfig = require("./DanceConfig")
 
 export type Look = {
 	color: { number }, -- RGB 0..255 of the costume (ribbon-skirt tone)
@@ -38,10 +39,10 @@ FollowerLook.SCALE_MIN = 0.9 -- [default]
 FollowerLook.SCALE_MAX = 1.18 -- [default]
 FollowerLook.HAT_SHARE = 0.25 -- [default] share of followers with a hat
 FollowerLook.FLOWER_SHARE = 0.2 -- [default] share with a flower (the rest wear neither)
-FollowerLook.BOUNCE_MIN = 0.5 -- [default] studs of hop (was a flat 0.25)
-FollowerLook.BOUNCE_MAX = 0.95 -- [default]
-FollowerLook.TEMPO_MIN = 8 -- [default] radians/second
-FollowerLook.TEMPO_MAX = 13 -- [default]
+FollowerLook.BOUNCE_MIN = DanceConfig.followerBounceMin
+FollowerLook.BOUNCE_MAX = DanceConfig.followerBounceMax
+FollowerLook.TEMPO_MIN = DanceConfig.followerTempoMin
+FollowerLook.TEMPO_MAX = DanceConfig.followerTempoMax
 FollowerLook.SQUASH = 0.16 -- [default] share of height lost on landing / gained at the top
 FollowerLook.BREATH = 0.05 -- [default] crowd scale pulse on the beat, +- share
 FollowerLook.BREATH_POWER = 3 -- [default] sharpness of the pulse (higher = a quick pop)
@@ -81,9 +82,14 @@ end
 
 -- The march at `time`: a hop with squash on landing and stretch at the top.
 function FollowerLook.march(look: Look, time: number): March
+	local y, squashY, squashXZ = FollowerLook.marchValues(look, time)
+	return { y = y, squashY = squashY, squashXZ = squashXZ }
+end
+
+function FollowerLook.marchValues(look: Look, time: number): (number, number, number)
 	local step = math.abs(math.sin(time * look.tempo * 0.5 + look.phase)) -- 0 on the foot, 1 at the top
 	local sy = 1 + FollowerLook.SQUASH * (2 * step - 1)
-	return { y = look.bounce * step, squashY = sy, squashXZ = 1 / math.sqrt(sy) }
+	return look.bounce * step, sy, 1 / math.sqrt(sy)
 end
 
 -- True when a foot came down between `prev` and `now` (the step wave crossed zero).

@@ -4,11 +4,12 @@
 -- Roblox positions; nothing here touches the engine, so Lune tests them.
 -- The server never sees the avatar: the lead's hitbox stays the fixed Crossing hitbox.
 local ViewMap = require("./ViewMap")
+local DanceConfig = require("./DanceConfig")
 
 local LeadPose = {}
 
-LeadPose.BOB_HEIGHT = 0.25 -- [default] studs the march bob lifts the lead
-LeadPose.BOB_RATE = 9 -- [default] radians/second
+LeadPose.BOB_HEIGHT = DanceConfig.leadBobStuds
+LeadPose.BOB_RATE = DanceConfig.leadBobRadiansPerSecond
 LeadPose.FACING_YAW = math.pi -- a Roblox front is -z; the parade walks toward +z
 LeadPose.FALLBACK_GRACE = 3 -- [default] seconds without an avatar before the block stand-in shows
 LeadPose.AVATAR_TOP = 6 -- studs: a default avatar with a tall hat or hair stays under this

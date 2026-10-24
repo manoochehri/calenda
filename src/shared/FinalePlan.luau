@@ -4,6 +4,7 @@
 -- music peak. The music value is an intensity 0..1 for a placeholder hook; no asset IDs exist.
 local Beats = require("./Beats")
 local Celebration = require("./Celebration")
+local Config = require("./Config")
 
 export type Frame = {
 	phase: string, -- "spread" | "party" | "peak" | "done"
@@ -72,7 +73,15 @@ function FinalePlan.depthAhead(streetLength: number, leadZ: number): number
 end
 
 function FinalePlan.burstTimes(tier: number): { number }
-	return Beats.evenly(Celebration.profile(tier).bursts, 0.5, FinalePlan.DURATION - 1)
+	local count = Celebration.profile(tier).bursts
+	local secondsPerBar = 60 * Config.music.beatsPerBar / Config.music.bpm
+	local downbeats = math.floor((FinalePlan.DURATION - 1) / secondsPerBar) + 1
+	local times = {}
+	for i = 0, count - 1 do
+		local downbeatIndex = math.floor(i * downbeats / count)
+		table.insert(times, downbeatIndex * secondsPerBar)
+	end
+	return times
 end
 
 function FinalePlan.giftTimes(tier: number): { number }
