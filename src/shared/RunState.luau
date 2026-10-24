@@ -120,6 +120,14 @@ local function new(opts: Options): RunState
 	assert(isFinite(opts.seed), "seed must be a number")
 	assert(type(opts.automated) == "boolean", "automated must be a boolean")
 	checkLayout(opts.layout)
+	-- Only the server may set this, and never from client data (issue #8). Still validated.
+	if opts.startingTotal ~= nil then
+		local v: any = opts.startingTotal
+		assert(
+			type(v) == "number" and v >= 0 and v == math.floor(v) and v < math.huge,
+			"startingTotal must be a non-negative integer"
+		)
+	end
 
 	local gates: { [string]: GatePair } = {}
 	for _, p in opts.layout.gatePairs do
