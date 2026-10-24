@@ -1,6 +1,11 @@
 --!strict
 -- Player-facing text. Spanish is the primary language (spec header); keep every visible string here.
+local function sectionsGained(n: number): string
+	return `+{n} secciones` -- spec s7: the combined-celebration indicator
+end
+
 return table.freeze({
+	sectionsGained = sectionsGained,
 	hint = "Arrastra para moverte", -- spec s9, first seconds of a run
 	followers = "Seguidores",
 	loose = "Sueltos",

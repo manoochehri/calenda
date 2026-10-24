@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Formation = require(Shared:WaitForChild("Formation"))
 local Pool = require(Shared:WaitForChild("Pool"))
+local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
 
 -- Flat, saturated colors: the lead is the brightest thing on screen, followers share one color.
 local LEAD_COLOR = Color3.fromRGB(255, 221, 0)
@@ -26,7 +27,15 @@ local BOB_RATE = 9 -- [default] radians/second
 type Avatar = { model: Model, x: number, z: number, fresh: boolean }
 
 export type CrowdView = {
-	update: (self: CrowdView, leadX: number, leadZ: number, total: number, dt: number) -> (),
+	-- swirl 0..1 (issue #14): pulls the loose followers inward during a section celebration.
+	update: (
+		self: CrowdView,
+		leadX: number,
+		leadZ: number,
+		total: number,
+		dt: number,
+		swirl: number?
+	) -> (),
 }
 
 local CrowdView = {}
@@ -152,7 +161,7 @@ function CrowdView.new(): CrowdView
 
 	local view = {} :: CrowdView
 
-	function view.update(_, leadX: number, leadZ: number, total: number, dt: number)
+	function view.update(_, leadX: number, leadZ: number, total: number, dt: number, swirl: number?)
 		clock += dt
 		if total ~= cachedTotal then
 			cachedTotal = total
@@ -167,7 +176,8 @@ function CrowdView.new(): CrowdView
 		local avatars = pool:setCount(#layout.slots)
 		for i, avatar in avatars do
 			local slot = layout.slots[i]
-			local tx, tz = leadX + slot.dx, leadZ + slot.dz
+			local sx, sz = SectionEvents.swirlSlot(slot.dx, slot.dz, swirl or 0)
+			local tx, tz = leadX + sx, leadZ + sz
 			if avatar.fresh then
 				avatar.x, avatar.z, avatar.fresh = tx, tz, false
 			else
