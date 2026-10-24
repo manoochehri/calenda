@@ -65,6 +65,7 @@ return {
 			eq(c.finaleThresholds[2], 150, "finale 2")
 			eq(c.finaleThresholds[3], 300, "finale 3")
 			eq(c.giftEveryNthShot, 4, "giftEveryNthShot")
+			eq(c.debug.startupTiming, false, "startup timing default")
 			eq(c.durations.assemblySeconds, 0.8, "assemblySeconds")
 			eq(c.musicLayerSections[1], 0, "music 1")
 			eq(c.musicLayerSections[2], 1, "music 2")
@@ -79,6 +80,7 @@ return {
 			assert(table.isfrozen(Config.clusterTypes))
 			assert(table.isfrozen(Config.clusterTypes.small))
 			assert(table.isfrozen(Config.hp))
+			assert(table.isfrozen(Config.debug))
 			assert(table.isfrozen(Config.finaleThresholds))
 			assert(table.isfrozen(Config.gateOps))
 			assert(table.isfrozen(Config.gateOps[1]))
@@ -89,6 +91,9 @@ return {
 	},
 	expectInvalid("sectionSize zero", function(c)
 		c.sectionSize = 0
+	end),
+	expectInvalid("startup timing flag must be boolean", function(c)
+		c.debug.startupTiming = "yes"
 	end),
 	expectInvalid("sectionSize non-integer", function(c)
 		c.sectionSize = 50.5

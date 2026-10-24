@@ -10,32 +10,40 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CameraRig = require(Shared:WaitForChild("CameraRig"))
-local Config = require(Shared:WaitForChild("Config"))
-local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
-local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
-local HpBar = require(Shared:WaitForChild("HpBar"))
-local HpExtension = require(Shared:WaitForChild("HpExtension"))
-local InputIntent = require(Shared:WaitForChild("InputIntent"))
-local Remotes = require(Shared:WaitForChild("Remotes"))
-local ResetPlan = require(Shared:WaitForChild("ResetPlan"))
-local RunView = require(Shared:WaitForChild("RunView"))
-local Steering = require(Shared:WaitForChild("Steering"))
-local ViewMap = require(Shared:WaitForChild("ViewMap"))
-local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
+local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
+local startupTrace = StartupTrace.trace
+local TIMING = StartupTrace.enabled -- opt-in startup timing (#73): every call below is free when false
+local timedRequire = StartupTrace.timedRequire
+if TIMING then
+	startupTrace:mark("Main.client script start")
+end
 
-local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
-local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
-local ClusterView = require(script.Parent:WaitForChild("ClusterView"))
-local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
-local EndFlow = require(script.Parent:WaitForChild("EndFlow"))
-local Hud = require(script.Parent:WaitForChild("Hud"))
-local InputController = require(script.Parent:WaitForChild("InputController"))
-local LeadAvatar = require(script.Parent:WaitForChild("LeadAvatar"))
-local MusicPlayer = require(script.Parent:WaitForChild("MusicPlayer"))
-local SfxPlayer = require(script.Parent:WaitForChild("SfxPlayer"))
-local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
-local ObstacleView = require(script.Parent:WaitForChild("ObstacleView"))
+local CameraRig = timedRequire("Shared", Shared, "CameraRig")
+local Config = StartupTrace.Config
+local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
+local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
+local HpBar = timedRequire("Shared", Shared, "HpBar")
+local HpExtension = timedRequire("Shared", Shared, "HpExtension")
+local InputIntent = timedRequire("Shared", Shared, "InputIntent")
+local Remotes = timedRequire("Shared", Shared, "Remotes")
+local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
+local RunView = timedRequire("Shared", Shared, "RunView")
+local Steering = timedRequire("Shared", Shared, "Steering")
+local ViewMap = timedRequire("Shared", Shared, "ViewMap")
+local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
+
+local TouchControls = timedRequire("Client", script.Parent, "TouchControls")
+local Backdrop = timedRequire("Client", script.Parent, "Backdrop")
+local ClusterView = timedRequire("Client", script.Parent, "ClusterView")
+local CrowdView = timedRequire("Client", script.Parent, "CrowdView")
+local EndFlow = timedRequire("Client", script.Parent, "EndFlow")
+local Hud = timedRequire("Client", script.Parent, "Hud")
+local InputController = timedRequire("Client", script.Parent, "InputController")
+local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
+local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
+local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
+local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
+local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 
@@ -45,27 +53,45 @@ local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
+local stepAt = startupTrace:begin()
 Backdrop.build()
+stepAt = startupTrace:lap("Backdrop.build", stepAt)
 TouchControls.disable()
 
 local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
 	steerRemote:FireServer({ x = x })
 end)
+stepAt = startupTrace:lap("InputController.new", stepAt)
 local music = MusicPlayer.new() -- silent while no music ids are set (issues #21, #62)
+stepAt = startupTrace:lap("MusicPlayer.new", stepAt)
 local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
+stepAt = startupTrace:lap("SfxPlayer.new", stepAt)
 local hud = Hud.new(function()
 	replayRemote:FireServer()
 	sfx:play("replayClick", music:intensity(), os.clock())
 end)
-local crowd = CrowdView.new()
+stepAt = startupTrace:lap("Hud.new", stepAt)
+local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here
+stepAt = startupTrace:lap("CrowdView.new", stepAt)
 local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
+stepAt = startupTrace:lap("LeadAvatar.new", stepAt)
 local sections = SectionsView.new(Config.startingTotal)
+stepAt = startupTrace:lap("SectionsView.new", stepAt)
 local clusters = ClusterView.new(DebugLayout)
+stepAt = startupTrace:lap("ClusterView.new", stepAt)
 local obstacleFeedback = ObstacleView.new(DebugLayout)
+stepAt = startupTrace:lap("ObstacleView.new", stepAt)
 local hitFx = HitFeedback.new() -- hit jolt, screen shake and flash (issue #50)
+stepAt = startupTrace:lap("HitFeedback.new", stepAt)
 local hudClock = 0
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
 local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
+startupTrace:lap("EndFlow.new", stepAt)
+
+-- Startup timing (#73): true until the mark is taken, then a single boolean test per frame/event.
+-- Always false when the flag is off, so the render step and State handler skip all of it.
+local awaitingFirstState = TIMING
+local awaitingFirstFrame = TIMING
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -85,6 +111,11 @@ end
 stateRemote.OnClientEvent:Connect(function(payload: any)
 	if not looksLikeState(payload) then
 		return
+	end
+	if awaitingFirstState then
+		awaitingFirstState = false
+		startupTrace:mark("first State received")
+		StartupTrace.finishIfReady()
 	end
 	local state = payload :: Remotes.StatePayload
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
@@ -155,6 +186,11 @@ RunService:BindToRenderStep(
 	"CalendaFrame",
 	Enum.RenderPriority.Camera.Value + 1,
 	function(dt: number)
+		if awaitingFirstFrame then
+			awaitingFirstFrame = false
+			startupTrace:mark("first CalendaFrame render-step callback")
+			StartupTrace.finishIfReady()
+		end
 		local state = latest
 		if state == nil then
 			return
