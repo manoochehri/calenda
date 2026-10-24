@@ -139,3 +139,18 @@ Record: run start/seed, first recruitment, gate choice and before/after totals, 
 For an initial directional test with 10 Spanish-speaking players unfamiliar with the game, aim for at least 8 to understand steering and growth without coaching, 7 to correctly explain what a puppet represents, and 5 to voluntarily replay. These are proposed internal targets, not industry benchmarks or proof of revenue potential. Ask what felt satisfying or confusing before explaining the design.
 
 If players do not understand assembly or want another run, improve the core loop before expanding content or monetization. Later monetization candidates are puppet outfits, globo decorations, trails, and celebrations that preserve readable crowd math.
+
+---
+
+## Amendment 1 — Waves of spectators (owner decision, 2026-10-23)
+
+Supersedes the "stand on either side" placement in §4 and the sidewalk-only targeting in §3 where they conflict. Everything not listed here is unchanged (no combat, no penalty, crowd math, gates, obstacle, score).
+
+- **Waves move toward the parade.** The layout places spectator clusters in waves. Each cluster starts at a spawn point ahead of the lead, on a sidewalk or in the lane, and walks toward the parade at `spectators.approachSpeed` (Config) along a deterministic path. The server position of every cluster is a pure function of layout, seed and run time, so the layout validator and the scripted-run test can compute it.
+- **Meter, hits, rewards and credit-once are unchanged** (§4). A cluster whose meter fills is credited once, wherever it is; its members then run into the parade.
+- **Missing a wave has no penalty.** A cluster that reaches the parade unfilled passes around it (visual only) and is gone. No loss, no credit, no extra way to lose followers.
+- **Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
+- **Pacing.** Wave density and speed are tuned in the layout so the intended recruit total stays reachable at the base fire rate; the layout validator proves it.
+- **Gates stay stationary in the lane**; the gate pair rules (§6) are unchanged.
+- **Feel reference:** Mob Control. A dense, readable swarm; a bar with a large number above each group (here the excitement meter with its hit count). Reference only; no copying of assets, branding or UI.
+
