@@ -7,16 +7,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local HudMeters = require(Shared:WaitForChild("HudMeters"))
-local StreetTheme = require(Shared:WaitForChild("StreetTheme"))
 
-local function themeColor(rgb: StreetTheme.RGB): Color3
-	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
-end
-
-local WHITE = themeColor(StreetTheme.palette.cream)
-local OUTLINE = themeColor(StreetTheme.palette.ink)
+local WHITE = Color3.fromRGB(255, 255, 255)
+local OUTLINE = Color3.fromRGB(28, 22, 34)
 
 export type RunHud = {
 	setMeter: (self: RunHud, meter: HudMeters.SectionMeter) -> (),
@@ -31,7 +25,7 @@ function RunHud.new(): RunHud
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaRunHud"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = false
+	gui.IgnoreGuiInset = true
 	gui.DisplayOrder = 5
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
@@ -39,16 +33,16 @@ function RunHud.new(): RunHud
 	local back = Instance.new("Frame")
 	back.Name = "SectionMeter"
 	back.AnchorPoint = Vector2.new(0.5, 0)
-	back.Position = UDim2.fromScale(HudLayout.meter.centerX, HudLayout.meter.top)
-	back.Size = UDim2.fromScale(HudLayout.meter.width, HudLayout.meter.height)
-	back.BackgroundColor3 = OUTLINE
+	back.Position = UDim2.fromScale(0.5, 0.215)
+	back.Size = UDim2.fromScale(0.5, 0.06)
+	back.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
 	back.BackgroundTransparency = 0.35
 	back.BorderSizePixel = 0
 	back.Parent = gui
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = themeColor(StreetTheme.palette.marigold)
+	fill.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
 	fill.BorderSizePixel = 0
 	fill.Parent = back
 	local caption = Instance.new("TextLabel")
@@ -76,7 +70,7 @@ function RunHud.new(): RunHud
 	banner.BackgroundTransparency = 1
 	banner.TextScaled = true
 	banner.Font = Enum.Font.GothamBlack
-	banner.TextColor3 = themeColor(StreetTheme.palette.marigold)
+	banner.TextColor3 = Color3.fromRGB(255, 221, 0)
 	banner.TextStrokeColor3 = OUTLINE
 	banner.TextStrokeTransparency = 0
 	banner.Visible = false

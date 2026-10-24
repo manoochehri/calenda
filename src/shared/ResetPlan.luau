@@ -13,6 +13,7 @@ ResetPlan.items = table.freeze({
 	"clusters", -- spectator groups, projectile flights and floats (issue #12)
 	"obstacles", -- obstacle feedback in flight (issue #15)
 	"music", -- layered stems: stop, rewind, forget the crossfade schedule (issue #21)
+	"audio", -- audio intensity, music duck and peak, sound effect cooldowns and voices (issue #62)
 	"bits", -- confetti and other pooled pieces still in the air
 	"finale", -- plaza dancers, gifts and the finale banner
 	"hp", -- the HP bar, its low warning and any hit shake, flash or jolt in progress (issue #50)

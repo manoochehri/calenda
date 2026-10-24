@@ -9,17 +9,11 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
 local HpBar = require(Shared:WaitForChild("HpBar"))
-local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local RunView = require(Shared:WaitForChild("RunView"))
-local StreetTheme = require(Shared:WaitForChild("StreetTheme"))
 local Strings = require(Shared:WaitForChild("Strings"))
 
-local function themeColor(rgb: StreetTheme.RGB): Color3
-	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
-end
-
-local WHITE = themeColor(StreetTheme.palette.cream)
-local OUTLINE = themeColor(StreetTheme.palette.ink)
+local WHITE = Color3.fromRGB(255, 255, 255)
+local OUTLINE = Color3.fromRGB(28, 22, 34)
 
 export type Hud = {
 	update: (self: Hud, hud: RunView.Hud, hintVisible: boolean) -> (),
@@ -58,7 +52,7 @@ function Hud.new(onReplay: () -> ()): Hud
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaHud"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = false
+	gui.IgnoreGuiInset = true
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 	-- Crowd counter, top center. The big number is the exact total; the line under it is the
@@ -66,16 +60,16 @@ function Hud.new(onReplay: () -> ()): Hud
 	label(
 		gui,
 		"Caption",
-		UDim2.fromScale(HudLayout.caption.centerX, HudLayout.caption.top),
-		UDim2.fromScale(HudLayout.caption.width, HudLayout.caption.height),
+		UDim2.fromScale(0.5, 0.02),
+		UDim2.fromScale(0.4, 0.04),
 		Enum.Font.GothamBold
 	).Text =
 		Strings.followers
 	local counter = label(
 		gui,
 		"Counter",
-		UDim2.fromScale(HudLayout.counter.centerX, HudLayout.counter.top),
-		UDim2.fromScale(HudLayout.counter.width, HudLayout.counter.height),
+		UDim2.fromScale(0.5, 0.06),
+		UDim2.fromScale(0.5, 0.11),
 		Enum.Font.GothamBlack
 	)
 	local scale = Instance.new("UIScale")
@@ -83,16 +77,16 @@ function Hud.new(onReplay: () -> ()): Hud
 	local detail = label(
 		gui,
 		"Detail",
-		UDim2.fromScale(HudLayout.detail.centerX, HudLayout.detail.top),
-		UDim2.fromScale(HudLayout.detail.width, HudLayout.detail.height),
+		UDim2.fromScale(0.5, 0.17),
+		UDim2.fromScale(0.4, 0.04),
 		Enum.Font.GothamBold
 	)
 
 	local hint = label(
 		gui,
 		"Hint",
-		UDim2.fromScale(HudLayout.hint.centerX, HudLayout.hint.top),
-		UDim2.fromScale(HudLayout.hint.width, HudLayout.hint.height),
+		UDim2.fromScale(0.5, 0.86),
+		UDim2.fromScale(0.7, 0.07),
 		Enum.Font.GothamBlack
 	)
 	hint.Text = Strings.hint
@@ -102,9 +96,9 @@ function Hud.new(onReplay: () -> ()): Hud
 	local hpRoot = Instance.new("Frame")
 	hpRoot.Name = "HpBar"
 	hpRoot.BackgroundTransparency = 1
-	hpRoot.AnchorPoint = Vector2.new(0.5, 0)
-	hpRoot.Position = UDim2.fromScale(HudLayout.hp.centerX, HudLayout.hp.top)
-	hpRoot.Size = UDim2.fromScale(HudLayout.hp.width, HudLayout.hp.height)
+	hpRoot.AnchorPoint = Vector2.new(0, 0)
+	hpRoot.Position = UDim2.fromScale(0.03, 0.03)
+	hpRoot.Size = UDim2.fromScale(0.22, 0.07)
 	hpRoot.Visible = false
 	hpRoot.Parent = gui
 	local hpScale = Instance.new("UIScale")
@@ -117,12 +111,12 @@ function Hud.new(onReplay: () -> ()): Hud
 		Enum.Font.GothamBlack
 	)
 	hpIcon.Text = Strings.hpIcon
-	hpIcon.TextColor3 = themeColor(StreetTheme.palette.cone)
+	hpIcon.TextColor3 = Color3.fromRGB(235, 60, 60)
 	local hpBack = Instance.new("Frame")
 	hpBack.Name = "Back"
 	hpBack.Position = UDim2.fromScale(0.2, 0.15)
 	hpBack.Size = UDim2.fromScale(0.8, 0.7)
-	hpBack.BackgroundColor3 = OUTLINE
+	hpBack.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
 	hpBack.BackgroundTransparency = 0.2
 	hpBack.BorderSizePixel = 0
 	hpBack.Parent = hpRoot
@@ -184,7 +178,7 @@ function Hud.new(onReplay: () -> ()): Hud
 	local panel = Instance.new("Frame")
 	panel.Name = "EndPanel"
 	panel.Size = UDim2.fromScale(1, 1)
-	panel.BackgroundColor3 = OUTLINE
+	panel.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
 	panel.BackgroundTransparency = 0.45
 	panel.Visible = false
 	panel.Parent = gui
@@ -214,7 +208,7 @@ function Hud.new(onReplay: () -> ()): Hud
 	replay.AnchorPoint = Vector2.new(0.5, 0)
 	replay.Position = UDim2.fromScale(0.5, 0.62)
 	replay.Size = UDim2.fromScale(0.5, 0.1)
-	replay.BackgroundColor3 = themeColor(StreetTheme.palette.marigold)
+	replay.BackgroundColor3 = Color3.fromRGB(240, 120, 20)
 	replay.TextColor3 = WHITE
 	replay.TextStrokeColor3 = OUTLINE
 	replay.TextStrokeTransparency = 0

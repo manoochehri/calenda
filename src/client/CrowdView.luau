@@ -14,20 +14,15 @@ local Formation = require(Shared:WaitForChild("Formation"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
-local StreetTheme = require(Shared:WaitForChild("StreetTheme"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 -- Flat, saturated colors: the lead is the brightest thing on screen, followers share one color.
-local function themeColor(rgb: StreetTheme.RGB): Color3
-	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
-end
-
-local LEAD_COLOR = themeColor(StreetTheme.palette.marigold)
-local LEAD_HEAD_COLOR = themeColor(StreetTheme.palette.cream)
-local LEAD_HAT_COLOR = Color3.fromRGB(214, 91, 42)
-local HORN_COLOR = themeColor(StreetTheme.palette.marigold)
-local RING_COLOR = themeColor(StreetTheme.palette.leadRing)
-local FOLLOWER_COLOR = themeColor(StreetTheme.palette.follower)
+local LEAD_COLOR = Color3.fromRGB(255, 221, 0)
+local LEAD_HEAD_COLOR = Color3.fromRGB(255, 240, 150)
+local LEAD_HAT_COLOR = Color3.fromRGB(255, 110, 20)
+local HORN_COLOR = Color3.fromRGB(235, 175, 40)
+local RING_COLOR = Color3.fromRGB(80, 235, 255)
+local FOLLOWER_COLOR = Color3.fromRGB(45, 120, 235)
 
 local FOLLOW_RATE = 9 -- [default] how fast an avatar eases toward its slot
 local BOB_HEIGHT = 0.25 -- [default] studs (followers)
@@ -140,7 +135,7 @@ local function buildRing(parent: Instance): Part
 	local ring = Instance.new("Part")
 	ring.Name = "LeadRing"
 	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.2, 9, 9) -- cylinder axis is X; rotated upright below
+	ring.Size = Vector3.new(0.2, 8, 8) -- cylinder axis is X; rotated upright below
 	ring.Color = RING_COLOR
 	ring.Material = Enum.Material.Neon
 	ring.Transparency = 0.2

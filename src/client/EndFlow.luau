@@ -22,6 +22,8 @@ export type Out = {
 	tumble: number,
 	lift: number,
 	pullback: number, -- multiplier on the camera pullback
+	musicIntensity: number?, -- FinalePlan.at(t).musicIntensity during the finale, else nil (issue #62)
+	defeated: boolean, -- the party is breaking up: duck the music (issue #62)
 	view: (hud: RunView.Hud) -> RunView.Hud, -- the HUD view with the results gated on the flow
 }
 
@@ -62,6 +64,7 @@ function EndFlow.new(): EndFlow
 			else ""
 		local ending = (kind ~= "") and phase ~= "running"
 		local tumble, lift, pullback = 0, 0, 1
+		local musicIntensity: number? = nil
 		if ending then
 			-- After the beat the scene holds its last frame behind the results panel.
 			local length = if kind == "finale" then FinalePlan.DURATION else DefeatPlan.DURATION
@@ -69,7 +72,8 @@ function EndFlow.new(): EndFlow
 			scene:update(kind, elapsed, prevElapsed, dt, flow.tier)
 			prevElapsed = elapsed
 			if kind == "finale" then
-				pullback = FinalePlan.at(elapsed).cameraPullback
+				local f = FinalePlan.at(elapsed)
+				pullback, musicIntensity = f.cameraPullback, f.musicIntensity
 			else
 				local d = DefeatPlan.at(elapsed)
 				tumble, lift = d.tumble, d.lift
@@ -85,6 +89,8 @@ function EndFlow.new(): EndFlow
 			tumble = tumble,
 			lift = lift,
 			pullback = pullback,
+			musicIntensity = musicIntensity,
+			defeated = ending and kind == "breakup",
 			view = function(view: RunView.Hud): RunView.Hud
 				return Results.apply(view, state, flow)
 			end,
