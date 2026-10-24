@@ -6,8 +6,8 @@
 The owner tests in Roblox Studio via Rojo, but agents cannot run Studio. The mount-time contract needs a one-command, hermetic build/test. The spec (§11) already requires run state and crowd arithmetic to be separate from presentation, with the server authoritative.
 
 ## Decision
-- Luau source synced with Rojo; toolchain pinned in `rokit.toml` (rojo, lune, stylua, selene).
-- All gameplay rules (crowd arithmetic, gate/cluster/obstacle resolution, firing-rate curve, visual-budget allocation, run recording, layout generation) live in pure Luau modules with no `game`/`Instance` access, in `src/shared/`, and are unit-tested under Lune. `make test` runs lint, format check, Lune tests and `rojo build`.
+- Luau source synced with Rojo; toolchain to be pinned in `rokit.toml` (issue #2) (rojo, lune, stylua, selene).
+- All gameplay rules (crowd arithmetic, gate/cluster/obstacle resolution, firing-rate curve, visual-budget allocation, run recording, layout generation) live in pure Luau modules with no `game`/`Instance` access, in `src/shared/` (created as issues land), and are unit-tested under Lune. `make test` (created by issue #2) runs lint, format check, Lune tests and `rojo build`.
 - Presentation code (camera, input, models, UI, audio) cannot be tested by agents; each such issue states the exact manual check for the owner in the PR and is verified by reading code plus `rojo build`, marked UNVERIFIED in-engine. Owner testing is never a merge gate (owner instruction 2026-10-23).
 - Placeholder art is built from primitive Parts; no asset IDs are invented.
 

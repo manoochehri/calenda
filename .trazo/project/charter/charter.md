@@ -42,4 +42,4 @@ Build: stop adding scope when every build milestone has 0 open issues; the remai
 Project: after the 10-player playtest, if fewer than 5 voluntarily replay or fewer than 7 can explain what a puppet represents, no content, monetization or new section-type work is filed until a core-loop (recruit, gate, assemble) change has been built and retested (spec §12).
 
 ## Out of scope
-Everything in spec §2 "Deferred": shops, paid multipliers, pets, trading, clothing creation, custom music uploads, daily rewards, elaborate progression, boss fights, global leaderboards; also multiplayer interaction, merging the parade into an animal, and publishing to Roblox.
+Everything in spec §2 "Deferred": shops, paid multipliers, pets, trading, clothing creation, custom music uploads, daily rewards, elaborate progression, boss fights, global leaderboards; also multiplayer interaction and merging the parade into an animal. Charter additions beyond the spec (owner to confirm): no publishing to Roblox, and the Stop rule thresholds restate spec §12's playtest targets as a work-stopping condition.
