@@ -20,7 +20,8 @@ export type ConfigType = {
 	gateOps: { GateOp },
 	obstacleLoss: number,
 	speed: number,
-	firing: { base: number, cap: number, perSection: number },
+	firing: { base: number, cap: number, perSection: number, range: number },
+	spectators: { approachSpeed: number, centerTolerance: number },
 	visualBudget: {
 		sectionRepresentatives: number,
 		looseAvatars: number,
@@ -128,6 +129,21 @@ local function validate(c: any): (boolean, string?)
 	if f.cap < f.base then
 		return false, "firing.cap must be >= firing.base"
 	end
+	if not isPositive(f.range) then
+		return false, "firing.range must be a positive number"
+	end
+
+	local sp = c.spectators
+	if type(sp) ~= "table" or not isPositive(sp.approachSpeed) then
+		return false, "spectators.approachSpeed must be a positive number"
+	end
+	if
+		type(sp.centerTolerance) ~= "number"
+		or sp.centerTolerance < 0
+		or sp.centerTolerance == math.huge
+	then
+		return false, "spectators.centerTolerance must be a non-negative number"
+	end
 
 	local v = c.visualBudget
 	if
@@ -210,7 +226,16 @@ local config: ConfigType = {
 	},
 	obstacleLoss = 10, -- [spec s9]
 	speed = 16, -- [default] studs/second; spec gives no value
-	firing = { base = 3, cap = 12, perSection = 1 }, -- [spec s4] min(cap, base + perSection * sectionCount)
+	firing = {
+		base = 3, -- [spec s4] min(cap, base + perSection * sectionCount)
+		cap = 12, -- [spec s4]
+		perSection = 1, -- [spec s4]
+		range = 60, -- [default] studs along the street from the lead; spec (Amendment 1) names the key only
+	},
+	spectators = {
+		approachSpeed = 6, -- [default] studs/second a cluster walks toward the parade; spec names the key only
+		centerTolerance = 3, -- [default] studs; |x| at or below this counts as "center" (Amendment 1)
+	},
 	visualBudget = {
 		sectionRepresentatives = 6, -- [spec s8]
 		looseAvatars = 24, -- [spec s8]
