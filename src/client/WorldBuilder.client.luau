@@ -1,16 +1,25 @@
 --!strict
 -- Client-only presentation for the fixed debug layout (issue #11).
 -- Gameplay stays server-owned; this script only draws the authored course. The standing gate
--- portals and their labels live in GateView (issue #70).
+-- portals and their labels live in GateView (issue #70). Startup timing (issue #73) is opt-in
+-- and costs nothing when Config.debug.startupTiming is false.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared:WaitForChild("Config"))
-local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
-local LevelTheme = require(Shared:WaitForChild("LevelTheme"))
-local ViewMap = require(Shared:WaitForChild("ViewMap"))
-local GateView = require(script.Parent:WaitForChild("GateView"))
+local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
+local trace = StartupTrace.trace
+local TIMING = StartupTrace.enabled -- evaluated once; every mark below is skipped when false
+if TIMING then
+	trace:mark("WorldBuilder.client script start")
+end
+local timedRequire = StartupTrace.timedRequire
+
+local Config = StartupTrace.Config
+local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
+local LevelTheme = timedRequire("Shared", Shared, "LevelTheme")
+local ViewMap = timedRequire("Shared", Shared, "ViewMap")
+local GateView = timedRequire("Client", script.Parent, "GateView")
 
 local WORLD_NAME = "CalendaWorld"
 local ROAD_HALF_WIDTH = DebugLayout.halfWidth - 6
@@ -209,11 +218,27 @@ local function buildWorld()
 	end
 
 	-- Standing gate portals (issue #70): drawn, animated and fed by the server Event in GateView.
+	local gateStartedAt = trace:begin()
 	GateView.new(world, DebugLayout)
+	trace:span("GateView.new", gateStartedAt)
 
 	for _, obstacle in DebugLayout.obstacles do
 		addObstacle(world, obstacle.id, obstacle.side, obstacle.z)
 	end
 end
 
-buildWorld()
+if TIMING then
+	local builtAt = trace:begin()
+	local ok, err = pcall(buildWorld)
+	trace:span("WorldBuilder.buildWorld", builtAt)
+	if ok then
+		trace:mark("WorldBuilder built")
+		StartupTrace.finishIfReady()
+	else
+		trace:mark("WorldBuilder FAILED")
+		trace:finish("WorldBuilder error")
+		error(err, 0)
+	end
+else
+	buildWorld()
+end

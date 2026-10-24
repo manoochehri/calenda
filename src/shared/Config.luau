@@ -35,6 +35,7 @@ export type ConfigType = {
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
 	music: MusicConfig,
+	debug: { startupTiming: boolean },
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
 	sfx: { [string]: string }, -- sound effect asset ids by slot, empty = silent (issue #62)
 	validate: (config: any) -> (boolean, string?),
@@ -91,6 +92,9 @@ local function validate(c: any): (boolean, string?)
 		or c.startingTotal ~= math.floor(c.startingTotal)
 	then
 		return false, "startingTotal must be a non-negative integer"
+	end
+	if type(c.debug) ~= "table" or type(c.debug.startupTiming) ~= "boolean" then
+		return false, "debug.startupTiming must be a boolean"
 	end
 	if not isPositive(c.speed) then
 		return false, "speed must be a positive number"
@@ -303,6 +307,9 @@ local config: ConfigType = {
 		defeatBreakup = "",
 		replayClick = "",
 		crowdLoop = "", -- looping crowd ambience whose volume follows the follower count
+	},
+	debug = {
+		startupTiming = false, -- [default] opt-in local startup trace; no Output logging unless enabled
 	},
 	validate = validate,
 }
