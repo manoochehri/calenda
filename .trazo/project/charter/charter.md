@@ -21,7 +21,7 @@ Agent-verifiable (spec §12 functional checks), each backed by an automated test
 - Score equals the final crowd total; replay resets all run state.
 - Reproducible build: `make test` passes from a fresh worktree and `rojo build` produces a place file.
 
-Owner-run (cannot be done by agents; tracked in the "Human validation" milestone, not blocking the build milestones):
+Owner-run (cannot be done by agents; tracked in the "Owner validation" milestone, not blocking the build milestones):
 - 30 FPS sustained on a named lower-end mobile device through the largest authored parade and finale.
 - Directional playtest with 10 Spanish-speaking players: ≥8 understand steering and growth uncoached, ≥7 explain what a puppet represents, ≥5 voluntarily replay. These are proposed internal targets, not industry benchmarks or proof of revenue.
 
