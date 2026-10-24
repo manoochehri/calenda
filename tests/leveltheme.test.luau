@@ -105,6 +105,15 @@ return {
 		run = function()
 			local b = theme.budgets
 			assert(b.maxFacadeParts > 0 and b.maxFlagStrips > 0 and b.maxLamps > 0, "positive")
+			local componentCaps = b.maxFacadeParts
+				+ b.maxFlagStrips
+				+ b.maxLamps * 2
+				+ b.maxPlazaParts
+				+ b.maxGroundParts
+			assert(
+				LevelTheme.maxTotalParts(theme) >= componentCaps + 7,
+				"includes Rey's seven Parts"
+			)
 			assert(
 				LevelTheme.maxTotalParts(theme) <= 600,
 				`total {LevelTheme.maxTotalParts(theme)}`

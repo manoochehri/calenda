@@ -50,25 +50,35 @@ stroke. Those two trade-offs are deliberate and written next to the numbers.
 
 ## Buildings
 
-Two-storey colonial facades (about 70% of modules) painted flat in the four wall colors, never the
-same color twice in a row on one side, with white trim: a plinth band at the foot and a cornice
-with a small roof overhang. Roughly a quarter of the street modules are one-storey shopfronts with
-a wide barred window and a door. Every ninth module (and the first) is a stone-block corner
-building in cantera grey-green with iron trim. In the plaza zone the street becomes an arcade of
-tall arches. Beyond the end of the street stands a church-like stone wall with two towers.
+Two-storey colonial buildings (about 70% of modules) are solid blocks about 9 studs deep, painted
+in the four wall colors, never the same color twice in a row on one side. Their thick roof caps
+overhang the street-facing wall and the side edges. Most two-storey colored buildings carry a wide,
+projecting iron balcony slab; the repeat of roof volume and balconies should read from the high
+camera before the finer facade details do. Roughly a quarter of the street modules are one-storey
+shopfronts with a wide barred window and a door. Every ninth module (and the first) is a
+stone-block corner building in cantera grey-green with iron trim. In the plaza zone the street
+becomes an arcade of tall arches. Beyond the end of the street stands a church-like stone wall with
+two towers.
 
 Details, drawn as Frames on one SurfaceGui per facade (no Part per window):
 
 - windows: dark glass, a white or iron outline, about half with an arched head; ground-floor
   windows always carry an iron grille outline;
 - doors: an iron-dark door with a white surround, arched about 60% of the time;
-- balconies: on about 40% of two-storey modules a projecting iron slab (one Part) with a railing
+- balconies: a projecting iron slab (one Part) on most two-storey colored buildings, with a railing
   outline on the wall above it, over the upper windows;
 - no lettering, no signs, no shop names.
 
-Facade height is 13 to 20 studs plus a 1.5 stud cornice (top at most 21.5). They stand with their
-street face at |x| = 28, beyond the sidewalk edge (|x| = 20), so they are never between the
-camera and the road, the gates, the spectators or the lead (see "Camera rule").
+Building height is 13 to 20 studs plus a 1.5 stud roof cap (top at most 21.5). They stand with their
+street-facing wall at |x| = 28, beyond the sidewalk edge (|x| = 20), so the wall volume and roof cap
+stay outside the camera corridor to the road, gates, spectators and lead (see "Camera rule").
+
+## Rey the chicken
+
+One small primitive-Part chicken named Rey appears at a seeded random position along the street's
+forecourt, beyond |x| = 20 and before the plaza. Rey is ambient and visual-only: no collision,
+interaction, scoring, or gameplay effect. The position changes with the layout seed, and the
+camera sight-line test includes the chicken's bounds.
 
 ## Papel picado
 
@@ -137,7 +147,8 @@ cannot swap a meaning; a test checks every style appears on both sides.
   line to the lead or the next gate row.
 - Do not make facades pastel-white or the road pale: the dark road is what makes followers, gates
   and the lead readable.
-- Do not add a Part per flag or per window; keep the street under 600 Parts (measured: 460).
+- Do not add a Part per flag or per window; the generated street, including Rey, stays under the
+  600-Part limit checked by the Lune budget test.
 
 ## Studio checklist (presentation is UNVERIFIED until done)
 
@@ -145,6 +156,8 @@ cannot swap a meaning; a test checks every style appears on both sides.
       second to the plaza; the road, gates, lead and crowd stay the clearest things.
 - [ ] No flag string, lamp, facade or tree ever covers the lead, the next gate row or a spectator
       while running the whole street; pullback at maximum too.
+- [ ] Building thickness, overhanging roof caps and projecting balconies read as 3D buildings from
+      the game camera; Rey looks like a chicken on the forecourt and does not cover gameplay.
 - [ ] Frames on SurfaceGuis render (windows, arches with rounded corners, flags); the flags face
       inward on both sides and are not mirrored wrongly; the frame order is irrelevant.
 - [ ] Road courses and curb stripes do not z-fight with the road, the center-line dashes or the
@@ -153,5 +166,6 @@ cannot swap a meaning; a test checks every style appears on both sides.
       washed out; the street far ahead is not fogged.
 - [ ] About a dozen PointLights are fine on a phone; the whole street builds over several frames
       without a visible hitch and the progress callback reaches 1.
-- [ ] Frame rate on a mid phone (about 460 Parts, 2,500 facade GUI instances and 1,700 flag Frames).
+- [ ] Record the phone model and frame rate while the whole street builds; compare with the
+      generated Part/GUI counts printed by the Lune budget test.
 - [ ] Restart (reset) twice: Backdrop.build leaves exactly one street and one Atmosphere.

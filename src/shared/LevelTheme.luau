@@ -242,7 +242,7 @@ LevelTheme.level1 = {
 	heights = { facadeMin = 13, facadeMax = 20, roofExtra = 1.5, lampHeight = 9 },
 	layout = {
 		facadeInset = 28,
-		facadeDepth = 6,
+		facadeDepth = 9,
 		moduleWidthMin = 22,
 		moduleWidthMax = 32,
 		runIn = 80,
@@ -268,7 +268,12 @@ end
 -- Upper bound of Parts the generator may emit under the budgets.
 function LevelTheme.maxTotalParts(theme: Theme): number
 	local b = theme.budgets
-	return b.maxFacadeParts + b.maxFlagStrips + b.maxLamps * 2 + b.maxPlazaParts + b.maxGroundParts
+	return b.maxFacadeParts
+		+ b.maxFlagStrips
+		+ b.maxLamps * 2
+		+ b.maxPlazaParts
+		+ b.maxGroundParts
+		+ 7
 end
 
 -- Structural rules tying the theme to CameraRig. The camera sight lines to the lead, the next gate

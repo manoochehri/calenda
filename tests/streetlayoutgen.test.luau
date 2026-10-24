@@ -16,6 +16,23 @@ local result = StreetLayoutGen.generate(info, theme, 54)
 
 type Box = { cx: number, cy: number, cz: number, sx: number, sy: number, sz: number }
 
+local function reyBounds(rey: StreetLayoutGen.Rey): Box
+	return {
+		cx = rey.x,
+		cy = 1,
+		cz = rey.z + 0.15,
+		sx = 1.5,
+		sy = 2,
+		sz = 2.4,
+	}
+end
+
+local function overlaps(a: Box, b: Box): boolean
+	return math.abs(a.cx - b.cx) * 2 < a.sx + b.sx
+		and math.abs(a.cy - b.cy) * 2 < a.sy + b.sy
+		and math.abs(a.cz - b.cz) * 2 < a.sz + b.sz
+end
+
 -- Slab test: does the segment a->b hit the axis-aligned box?
 local function hits(a: { number }, b: { number }, box: Box): boolean
 	local lo = { box.cx - box.sx / 2, box.cy - box.sy / 2, box.cz - box.sz / 2 }
@@ -48,6 +65,7 @@ local function allBoxes(r: StreetLayoutGen.Result): { Box }
 			table.insert(boxes, p)
 		end
 	end
+	table.insert(boxes, reyBounds(r.rey))
 	for _, s in r.flags do
 		table.insert(boxes, {
 			cx = s.x,
@@ -251,6 +269,69 @@ return {
 		end,
 	},
 	{
+		name = "buildings have depth and substantial projecting balconies, not only facade graphics",
+		run = function()
+			local eligible, withBalcony = 0, 0
+			for _, f in result.facades do
+				assert(f.depth >= 9, `facade {f.id} has visible wall depth`)
+				if f.floors == 2 and f.kind ~= "stone" then
+					eligible += 1
+					if #f.balconies > 0 then
+						withBalcony += 1
+						assert(f.balconies[1].depth >= 2.5, "balconies visibly project")
+					end
+				end
+			end
+			assert(
+				eligible > 0 and withBalcony / eligible >= 0.9,
+				"most two-storey buildings have real balconies"
+			)
+		end,
+	},
+	{
+		name = "Rey is a seeded chicken cameo outside gameplay space",
+		run = function()
+			local rey = (result :: any).rey
+			assert(rey ~= nil, "Rey exists")
+			local again = (StreetLayoutGen.generate(info, theme, 54) :: any).rey
+			assert(rey.x == again.x and rey.z == again.z, "same seed places Rey the same way")
+			local other = (StreetLayoutGen.generate(info, theme, 55) :: any).rey
+			assert(rey.x ~= other.x or rey.z ~= other.z, "another seed moves Rey")
+			assert(
+				math.abs(rey.x) > 20 and math.abs(rey.x) < theme.layout.facadeInset,
+				"Rey stays on the forecourt"
+			)
+			assert(rey.z > 0 and rey.z < info.plazaStart, "Rey appears along the street")
+		end,
+	},
+	{
+		name = "Rey's full bounds stay in clear forecourt space across layout seeds",
+		run = function()
+			for seed = 1, 64 do
+				local layout = StreetLayoutGen.generate(info, theme, seed)
+				local bounds = reyBounds(layout.rey)
+				for _, f in layout.facades do
+					local boxes = StreetLayoutGen.facadeBoxes(f)
+					for _, structure in boxes do
+						assert(
+							not overlaps(bounds, structure),
+							`seed {seed}: Rey overlaps facade/roof {f.id}`
+						)
+					end
+					local roof = boxes[2]
+					local sharesStreetDepth = math.abs(bounds.cz - roof.cz) * 2
+						< bounds.sz + roof.sz
+					local sharesRoofFootprint = math.abs(bounds.cx - roof.cx) * 2
+						< bounds.sx + roof.sx
+					assert(
+						not (sharesStreetDepth and sharesRoofFootprint),
+						`seed {seed}: Rey's full footprint sits under roof cap {f.id}`
+					)
+				end
+			end
+		end,
+	},
+	{
 		name = "camera sight lines to the lead, the next gate row and spectators clear every prop",
 		run = function()
 			local boxes = allBoxes(result)
@@ -327,6 +408,7 @@ return {
 		run = function()
 			local order = StreetLayoutGen.buildOrder(result)
 			local expected = #result.facades
+				+ 1 -- Rey
 				+ #result.flags
 				+ #result.lamps
 				+ #result.ground
