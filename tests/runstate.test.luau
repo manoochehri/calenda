@@ -525,4 +525,24 @@ return {
 			eq(run:score(), expected, "score")
 		end,
 	},
+	{
+		name = "new: startingTotal must be a non-negative integer when given (never client data)",
+		run = function()
+			local empty = { gatePairs = {}, clusters = {}, obstacles = {} }
+			for _, bad in { -1, 1.5, 0 / 0, math.huge, -math.huge, "10", true } do
+				local ok = pcall(function()
+					RunState.new({
+						seed = 1,
+						automated = true,
+						layout = empty,
+						startingTotal = bad :: any,
+					})
+				end)
+				assert(not ok, `startingTotal {tostring(bad)} must be rejected`)
+			end
+			local zero =
+				RunState.new({ seed = 1, automated = true, layout = empty, startingTotal = 0 })
+			eq(zero:total(), 0, "zero allowed")
+		end,
+	},
 }
