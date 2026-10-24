@@ -5,8 +5,13 @@
 -- docs/art-brief-level-1.md for the words behind every value. Values are tuning defaults.
 -- Coordinates are WORLD x (left = negative); the client applies ViewMap.x when it builds Parts.
 local CameraRig = require("./CameraRig")
+local PortalGeometry = require("./PortalGeometry")
 
 local LevelTheme = {}
+
+-- Tallest standing thing in the play corridor the dressing must stay above: the gate portal (and a
+-- puppet, 11). Not CameraRig.TALLEST_PROP, so the theme survives the crowd PR (#76) splitting it.
+LevelTheme.PROP_TOP = math.max(16, PortalGeometry.TOP)
 
 export type Rgb = { r: number, g: number, b: number }
 
@@ -255,7 +260,7 @@ LevelTheme.level1 = {
 } :: Theme
 
 -- Tallest point of any facade (wall + roof/cornice). Facades stand outside the play corridor, so
--- they may exceed CameraRig.TALLEST_PROP; the rule is that they stay well under the camera.
+-- they may exceed LevelTheme.PROP_TOP; the rule is that they stay well under the camera.
 function LevelTheme.facadeTopMax(theme: Theme): number
 	return theme.heights.facadeMax + theme.heights.roofExtra
 end
@@ -290,7 +295,7 @@ function LevelTheme.validate(theme: Theme, halfWidth: number): { string }
 		if lane.x < halfWidth + 2 or lane.x >= l.facadeInset then
 			table.insert(problems, `flag lane {i} not between corridor and facades`)
 		end
-		if lane.y - l.flagHeight / 2 <= CameraRig.TALLEST_PROP then
+		if lane.y - l.flagHeight / 2 <= LevelTheme.PROP_TOP then
 			table.insert(problems, `flag lane {i} not above the tallest prop`)
 		end
 	end

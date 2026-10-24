@@ -126,7 +126,7 @@ return {
 			-- flags hang above the tallest prop and outside the corridor
 			for _, lane in theme.layout.flagLanes do
 				assert(
-					lane.y - theme.layout.flagHeight / 2 > CameraRig.TALLEST_PROP,
+					lane.y - theme.layout.flagHeight / 2 > LevelTheme.PROP_TOP,
 					"flags above props"
 				)
 				assert(lane.x >= DebugLayout.halfWidth + 2, "flag lane outside corridor")

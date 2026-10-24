@@ -11,6 +11,7 @@
 -- BUDGETS: the theme's budgets are hard caps; widths, strip lengths, pitches and lamp spacing
 -- stretch to fit them (the generator never drops the far end of the street). With
 -- LevelTheme.level1 and the debug layout the measured total is about 380 parts (tests print it).
+local LayerHeights = require("./LayerHeights")
 local LevelTheme = require("./LevelTheme")
 
 local StreetLayoutGen = {}
@@ -364,10 +365,10 @@ local function makeGround(
 				"road",
 				"block",
 				-roadHalf + (i - 0.5) * width,
-				0,
+				LayerHeights.GROUND - 0.1,
 				(z0 + streetEnd) / 2,
 				width,
-				0.04,
+				0.2,
 				len,
 				if i % 2 == 1 then p.road else p.roadAlt,
 				m.road
@@ -382,10 +383,10 @@ local function makeGround(
 				"curb",
 				"block",
 				sign * l.curbX,
-				0.01,
+				LayerHeights.MARKING - 0.1,
 				(z0 + streetEnd) / 2,
 				0.8,
-				0.04,
+				0.2,
 				len,
 				p.curb,
 				"SmoothPlastic"
@@ -427,10 +428,10 @@ local function makePlaza(theme: LevelTheme.Theme, info: LayoutInfo, rng: () -> n
 						"paving",
 						"block",
 						-info.halfWidth + (c - 0.5) * w,
-						0,
+						LayerHeights.MARKING - 0.1,
 						info.plazaStart + (r - 0.5) * d,
 						w,
-						0.04,
+						0.2,
 						d,
 						if (r + c) % 2 == 0 then p.plazaPaving else p.plazaPavingAlt,
 						m.plaza

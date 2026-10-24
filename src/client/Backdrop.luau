@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local LevelTheme = require(Shared:WaitForChild("LevelTheme"))
 local OaxacaStreet = require(script.Parent:WaitForChild("OaxacaStreet"))
 
@@ -54,14 +55,14 @@ function Backdrop.build(onProgress: ((number) -> ())?)
 		folder,
 		"Ground",
 		Vector3.new(3000, 1, length + 3000),
-		Vector3.new(0, -1.6, length / 2),
+		Vector3.new(0, LayerHeights.EARTH - 0.5, length / 2),
 		toColor(palette.ground)
 	)
 	slab(
 		folder,
 		"RunIn",
 		Vector3.new((DebugLayout.halfWidth - 6) * 2, 1, RUN_IN),
-		Vector3.new(0, -0.5, -RUN_IN / 2),
+		Vector3.new(0, LayerHeights.ROAD_BASE - 0.5, -RUN_IN / 2),
 		toColor(palette.road)
 	)
 

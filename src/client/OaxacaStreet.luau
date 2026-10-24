@@ -27,6 +27,7 @@ local ATMOSPHERE_NAME = "OaxacaAtmosphere"
 local BATCH = 40 -- items per frame
 local PPS = 12 -- SurfaceGui pixels per stud on facades
 local SEED = 54
+local GUI_MAX_DISTANCE = 400 -- studs; the camera sees about 300 ahead, details beyond are cut
 
 local OaxacaStreet = {}
 
@@ -117,6 +118,7 @@ local function surfaceGui(part: Part, face: Enum.NormalId, canvas: Vector2): Sur
 	gui.CanvasSize = canvas
 	gui.LightInfluence = 0
 	gui.AlwaysOnTop = false
+	gui.MaxDistance = GUI_MAX_DISTANCE -- documented SurfaceGui property; UNVERIFIED in engine
 	gui.Parent = part
 	return gui
 end
@@ -147,7 +149,7 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 		f.z,
 		color(f.trim),
 		Enum.Material.Concrete,
-		true
+		false -- cornices and balconies cast no shadows: about 560 casters is too heavy on a phone
 	)
 	-- Overhang toward the street: nudge in Roblox x (toward = street centre direction).
 	cornice.Position += Vector3.new(toward * 0.3, 0, 0)
@@ -219,7 +221,7 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 			f.z + zOffset,
 			accent,
 			Enum.Material.Metal,
-			true
+			false
 		)
 		-- Iron railing drawn on the wall above the slab.
 		local rail = newFrame(

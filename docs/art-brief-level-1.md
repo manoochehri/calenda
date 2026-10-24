@@ -85,6 +85,12 @@ material), so the converging lines add depth without competing with gate text. A
 runs along each road edge. Sidewalks are pale pavement; the forecourt beyond them is a slightly
 darker pavement so the facade feet are anchored. The dashed center line of the road stays.
 
+Layering (issue #85): flat ground things never share a height. `src/shared/LayerHeights.luau`
+names the tops: earth plate -1.1, road slab -0.2 (a 0.2 kerb below the sidewalks), ground 0
+(sidewalks, forecourt, plaza, road courses), markings 0.2 (curb stripe, dashes, plaza paving),
+decals 0.4 (gate crossing strips, cone feet), lead ring 0.6, gate pass ring 0.8, landed confetti
+1.0. Any two that overlap differ by at least 0.2 studs; a test checks every pair in the world.
+
 ## Farol lamps
 
 Black iron lamp posts (9 studs) with a warm glowing lantern, alternating sides about every 96

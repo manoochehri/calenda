@@ -2,6 +2,10 @@
 -- A small pooled burst system for confetti, dust and dispersing dancers (issue #14). Plain Parts
 -- with hand-rolled ballistics: no assets, a hard cap so a huge parade never adds draw cost.
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LayerHeights = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LayerHeights"))
+
 local Bits = {}
 
 Bits.MAX = 90 -- [default] pieces alive at once; the oldest is recycled first
@@ -115,8 +119,9 @@ function Bits.new(parent: Instance): Bits
 				else
 					b.vy -= GRAVITY * (1 - b.drag) * dt
 					local pos = p.Position + Vector3.new(b.vx, b.vy, b.vz) * dt
-					if pos.Y < 0.2 then
-						pos = Vector3.new(pos.X, 0.2, pos.Z)
+					if pos.Y < LayerHeights.DEBRIS then
+						-- landed debris rests on its own layer, clear of the rings (issue #85 audit)
+						pos = Vector3.new(pos.X, LayerHeights.DEBRIS, pos.Z)
 						b.vy, b.vx, b.vz = 0, b.vx * 0.9, b.vz * 0.9
 					end
 					p.CFrame = CFrame.new(pos)
