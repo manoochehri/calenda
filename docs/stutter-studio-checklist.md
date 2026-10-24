@@ -9,6 +9,8 @@ to find whether stutter comes from client script work or outside the labeled ren
    device/model and graphics level.
 3. Start Play Solo, press **Jugar**, and run through the opening, a busy mid-street section, and the
    finale. Watch the lead, camera, followers, spectators, and sections for visible stops or jumps.
+   As the crowd grows through the former high-intensity boundary, movement amplitude may grow but
+   the parade pace must stay constant without a pose jump.
 4. Show the Performance Summary (Ctrl+Shift+F5; on macOS, ⌘+Shift+F5). Record the observed FPS
    during each segment. The project target is sustained 30 FPS on a named lower-end mobile device;
    agent-side simulations do not establish that target.
