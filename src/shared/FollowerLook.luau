@@ -82,9 +82,14 @@ end
 
 -- The march at `time`: a hop with squash on landing and stretch at the top.
 function FollowerLook.march(look: Look, time: number): March
+	local y, squashY, squashXZ = FollowerLook.marchValues(look, time)
+	return { y = y, squashY = squashY, squashXZ = squashXZ }
+end
+
+function FollowerLook.marchValues(look: Look, time: number): (number, number, number)
 	local step = math.abs(math.sin(time * look.tempo * 0.5 + look.phase)) -- 0 on the foot, 1 at the top
 	local sy = 1 + FollowerLook.SQUASH * (2 * step - 1)
-	return { y = look.bounce * step, squashY = sy, squashXZ = 1 / math.sqrt(sy) }
+	return look.bounce * step, sy, 1 / math.sqrt(sy)
 end
 
 -- True when a foot came down between `prev` and `now` (the step wave crossed zero).

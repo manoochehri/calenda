@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GloboPose = require(Shared:WaitForChild("GloboPose"))
+local DanceConfig = require(Shared:WaitForChild("DanceConfig"))
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
 local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
@@ -17,7 +18,7 @@ local SectionFigure = require(script.Parent:WaitForChild("SectionFigure"))
 local SPHERE_DIAMETER = 7.5 -- [default] studs at scale 1; a puppet is 11 tall
 local SPHERE_Y = 11.5 -- [default] sphere center above the feet
 local POLE_LENGTH = 9.4 -- [default]
-local CARRIER_SCALE = 0.32 -- [default] carriers are small people
+local CARRIER_SCALE = DanceConfig.globoCarrierScale
 local DOT_COUNT = 12 -- [default]
 local GOLDEN_ANGLE = 2.399963229728653
 
@@ -106,6 +107,16 @@ function GloboFigure.new(parent: Instance, index: number, carriers: number): Sec
 		table.insert(people, PuppetFigure.new(model, palettes[(index + i) % #palettes + 1]))
 	end
 	local offsets = GloboPose.carrierOffsets(carriers)
+	local poseBuffer: GloboPose.Pose = { spin = 0, tiltX = 0, tiltZ = 0, lift = 0, carrierStep = 0 }
+	local carrierPose: PuppetPose.Pose = {
+		headBob = 0,
+		headTilt = 0,
+		armLeft = 0,
+		armRight = 0,
+		clap = 0,
+		sway = 0,
+		bow = 0,
+	}
 
 	local center = Vector3.zero
 	local visual = {} :: SectionFigure.Visual
@@ -123,14 +134,20 @@ function GloboFigure.new(parent: Instance, index: number, carriers: number): Sec
 		intensity: number
 	)
 		local s = math.max(scale, 0.001)
-		local pose = GloboPose.pose(time, phase)
+		GloboPose.into(poseBuffer, time, phase)
+		local pose = poseBuffer
 		-- The whole pole leans about its base; the sphere pops up on the beat and turns on the pole.
-		local poleFrame = ground * CFrame.Angles(pose.tiltX, 0, pose.tiltZ)
+		local poleFrame = ground
+			* CFrame.Angles(
+				math.clamp(pose.tiltX * intensity, -GloboPose.MAX_TILT, GloboPose.MAX_TILT),
+				0,
+				math.clamp(pose.tiltZ * intensity, -GloboPose.MAX_TILT, GloboPose.MAX_TILT)
+			)
 		FigureParts.place(pole, poleFrame, CFrame.new(0, POLE_LENGTH / 2, 0), s)
 		local lift = pose.lift * math.min(intensity, PuppetPose.MAX_INTENSITY)
 		local sphereFrame = poleFrame
 			* CFrame.new(0, (SPHERE_Y + lift) * s, 0)
-			* CFrame.Angles(0, pose.spin, 0)
+			* CFrame.Angles(0, pose.spin * math.min(intensity, DanceConfig.maxAmplitude), 0)
 		FigureParts.place(sphere, sphereFrame, CFrame.identity, s)
 		FigureParts.place(belt, sphereFrame, beltTilt, s)
 		FigureParts.place(belt2, sphereFrame, belt2Tilt, s)
@@ -141,8 +158,8 @@ function GloboFigure.new(parent: Instance, index: number, carriers: number): Sec
 		center = sphereFrame.Position
 		for i, person in people do
 			local o = offsets[i]
-			local bob = pose.carrierStep * 0.3 * s
-			local walk = PuppetPose.pose(time, phase + i * 0.31)
+			local bob = pose.carrierStep * DanceConfig.globoCarrierStepStuds * s * intensity
+			PuppetPose.into(carrierPose, time, phase + i * 0.31)
 			person:setPose(
 				ground
 					* CFrame.new(
@@ -150,9 +167,9 @@ function GloboFigure.new(parent: Instance, index: number, carriers: number): Sec
 						bob,
 						o.dz * s * SectionScale.GLOBO_CARRIER_FACTOR
 					),
-				walk,
+				carrierPose,
 				s * CARRIER_SCALE,
-				1
+				intensity
 			)
 		end
 	end

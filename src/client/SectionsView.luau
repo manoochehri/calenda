@@ -158,7 +158,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end, function(r)
 		r.part.Parent = nil
 	end)
-	local lastBeatClock = os.clock()
+	local ringClock = 0
+	local lastBeatClock = 0
 	local beatCount = 0
 
 	local gui = Instance.new("ScreenGui")
@@ -252,7 +253,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 		bits:clear()
 		rings:clear()
 		ringPool:setCount(0)
-		lastBeatClock = os.clock()
+		ringClock = 0
+		lastBeatClock = 0
 	end
 
 	function view.onShot(_, payload: any)
@@ -417,10 +419,9 @@ function SectionsView.new(initialTotal: number): SectionsView
 			end
 		end
 		-- One ring per beat per settled globo, however many beats a slow frame spans.
-		local nowClock = os.clock()
-		local danceClock = nowClock * tempo
-		local beats = GloboPose.beatsIn(lastBeatClock, danceClock)
-		lastBeatClock = danceClock
+		ringClock += dt * tempo
+		local beats = GloboPose.beatsIn(lastBeatClock, ringClock)
+		lastBeatClock = ringClock
 		if beats > 0 then
 			beatCount += beats
 			for _, rep in reps do

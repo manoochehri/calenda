@@ -203,9 +203,10 @@ function LeadAvatar.new(): LeadAvatar
 		_,
 		leadX: number,
 		leadZ: number,
-		dt: number,
+		_dt: number,
 		tumble: number?,
-		lift: number?
+		lift: number?,
+		total: number?
 	)
 		clock = os.clock() -- shared local monotonic beat clock
 		local part = root

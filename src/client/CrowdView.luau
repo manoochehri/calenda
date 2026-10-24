@@ -265,11 +265,12 @@ function CrowdView.new(): CrowdView
 		local beat = clock * Config.music.bpm / 60 * danceTempo + look.phase / (2 * math.pi)
 		local danceHop, danceSway, arm, spin = Dance.pose(avatar.variant, beat, amplitude)
 		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
-		local march = FollowerLook.march(look, clock * danceTempo)
+		local marchY, marchSquashY, marchSquashXZ =
+			FollowerLook.marchValues(look, clock * danceTempo)
 		local hop, sy, sxz = y + danceHop * 0.35 + eventHop, 1, 1
 		if marching then
-			hop += march.y
-			sy, sxz = march.squashY, march.squashXZ
+			hop += marchY
+			sy, sxz = marchSquashY, marchSquashXZ
 			if FollowerLook.footfall(look, avatar.lastClock, clock) then
 				avatar.steps += 1
 				if FollowerLook.raisesDust(id, avatar.steps) then
@@ -277,7 +278,7 @@ function CrowdView.new(): CrowdView
 				end
 			end
 		else
-			hop += 0.6 * march.y -- runners and leavers keep their own hop
+			hop += 0.6 * marchY -- runners and leavers keep their own hop
 		end
 		avatar.lastClock = clock
 		local k = look.scale * breathNow
