@@ -109,7 +109,7 @@ return {
 		end,
 	},
 	{
-		name = "cap reached: extra joins stream in as runners that merge, members stay at the cap",
+		name = "cap reached: extra joins stream in as runners that merge, combined avatars stay at the cap",
 		run = function()
 			local flow = newFlow(30) -- 30 loose, 24 drawn
 			flow:step(DT, 0, 100, 0)
@@ -119,7 +119,11 @@ return {
 			for _ = 1, 90 do
 				local frame = flow:step(DT, 0, 100, 0)
 				sawRunners = math.max(sawRunners, #frame.runners)
-				eq(#frame.members, CAP, "members stay at the cap")
+				eq(
+					#frame.members + #frame.runners,
+					CAP,
+					"members + runners fill, never exceed, the cap"
+				)
 			end
 			assert(sawRunners >= 3, `expected a visible stream, saw {sawRunners}`)
 			eq(flow:counts().runners, 0, "all merged")
@@ -211,7 +215,10 @@ return {
 					maxAbs = math.max(maxAbs, math.abs(l.x))
 				end
 			end
-			assert(maxAbs < 12, `merging followers stay near the lead, max |x| {maxAbs}`)
+			assert(
+				maxAbs <= FollowerSlots.roadHalfWidth(),
+				`merging followers stay near the lead, max |x| {maxAbs}`
+			)
 			assert(maxL >= 1, "leavers drawn")
 		end,
 	},
@@ -256,6 +263,10 @@ return {
 						z += Config.speed * DT
 						local f = flow:step(DT, (rnd() - 0.5) * 0.2, z, 0)
 						assert(#f.members <= CAP, "members over the cap")
+						assert(
+							#f.members + #f.runners + #f.leavers <= CAP,
+							"combined avatars over the cap"
+						)
 						assert(#f.runners <= FollowerFlow.STREAM_CAP, "runners over the cap")
 						assert(#f.leavers <= FollowerFlow.LEAVER_CAP, "leavers over the cap")
 						for _, m in f.members do
@@ -327,6 +338,63 @@ return {
 				FollowerSource.fromEvent(layout, { kind = "gate", id = 1, side = "up" }, 5),
 				nil,
 				"bad side"
+			)
+		end,
+	},
+	{
+		name = "combined cap: overlapping runner stream and peel-off never draw more than 24 avatars",
+		run = function()
+			local flow = newFlow(45) -- 24 drawn
+			flow:step(DT, 0, 100, 0)
+			flow:hint({ kind = "gate", x = 10, z = 100, side = "right" })
+			flow:setTotal(140)
+			local z = 100
+			local sawStream = 0
+			for i = 1, 300 do
+				if i == 20 then
+					flow:setTotal(120) -- a loss while the stream is still running
+				end
+				z += Config.speed * DT
+				local f = flow:step(DT, 0, z, 0)
+				sawStream = math.max(sawStream, #f.runners)
+				assert(
+					#f.members + #f.runners + #f.leavers <= CAP,
+					`combined {#f.members + #f.runners + #f.leavers} at frame {i}`
+				)
+			end
+			assert(sawStream >= 3, "the stream is still visible under the combined cap")
+		end,
+	},
+	{
+		name = "fit: transients keep their place, outermost members step aside",
+		run = function()
+			local members, runners = {}, {}
+			for i = 1, 24 do
+				members[i] =
+					{ id = i, slot = 25 - i, x = 0, z = 0, vx = 0, y = 0, phase = 0, bobRate = 1 }
+			end
+			for i = 1, 5 do
+				runners[i] = { id = 100 + i, x = 0, z = 0, vx = 0, y = 0 }
+			end
+			local f = FollowerFlow.fit({ members = members, runners = runners, leavers = {} }, 24)
+			eq(#f.members, 19, "five members step aside")
+			eq(#f.runners, 5, "runners all drawn")
+			for _, m in f.members do
+				assert(m.slot <= 19, "the outermost slots left")
+			end
+		end,
+	},
+	{
+		name = "fit: global cap also holds if one transient category alone exceeds it",
+		run = function()
+			local leavers = {}
+			for i = 1, 30 do
+				leavers[i] = { id = i, x = 0, z = 0, vx = 0, y = 0, cheering = false }
+			end
+			local f = FollowerFlow.fit({ members = {}, runners = {}, leavers = leavers }, 24)
+			assert(
+				#f.members + #f.runners + #f.leavers <= 24,
+				"combined avatar count must obey cap"
 			)
 		end,
 	},

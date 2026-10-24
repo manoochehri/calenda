@@ -1,5 +1,6 @@
 --!strict
 local FollowerSlots = require("../src/shared/FollowerSlots")
+local SectionScale = require("../src/shared/SectionScale")
 local Formation = require("../src/shared/Formation")
 local ParadeTail = require("../src/shared/ParadeTail")
 
@@ -28,6 +29,16 @@ return {
 		run = function()
 			assert(not pcall(ParadeTail.depth, -1), "negative total accepted")
 			assert(not pcall(ParadeTail.depth, 1.5), "fractional total accepted")
+		end,
+	},
+	{
+		name = "the footprint ParadeTail adds covers every real section footprint",
+		run = function()
+			for i = 1, 6 do
+				for _, t in { "puppet", "globo", "dancers" } do
+					assert(SectionScale.footprint(t, i) <= FollowerSlots.BASE_FOOTPRINT, `{t} {i}`)
+				end
+			end
 		end,
 	},
 }

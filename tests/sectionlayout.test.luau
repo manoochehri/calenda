@@ -7,7 +7,7 @@ local SectionScale = require("../src/shared/SectionScale")
 local ViewMap = require("../src/shared/ViewMap")
 
 local MARGIN = 0.04
-local ASPECTS = { 16 / 9, 4 / 3 } -- landscape and tablet; portrait phones are on the Studio checklist
+local ASPECTS = { 16 / 9, 19.5 / 9, 4 / 3 } -- landscape: desktop, modern phone, tablet (portrait is out of scope)
 local PULLBACKS = { 1, 1.1, 1.2, 1.3, 1.4 }
 local TYPES = { "puppet", "globo", "dancers" }
 
@@ -103,8 +103,8 @@ return {
 				"puppet at least 1.5x its old height"
 			)
 			assert(
-				SectionScale.tallest() <= CameraRig.TALLEST_PROP,
-				`TALLEST_PROP {CameraRig.TALLEST_PROP} must cover {SectionScale.tallest()}`
+				SectionScale.tallest() <= CameraRig.SECTION_TALLEST,
+				`SECTION_TALLEST {CameraRig.SECTION_TALLEST} must cover {SectionScale.tallest()}`
 			)
 		end,
 	},
@@ -115,18 +115,19 @@ return {
 			for _, pullback in PULLBACKS do
 				local pose = CameraRig.pose(0, 0, pullback, tallest)
 				assert(
-					CameraRig.gateClearance(pose, 0, CameraRig.PROP_FRONT, tallest)
+					CameraRig.gateClearance(pose, 0, CameraRig.SECTION_FRONT, tallest)
 						>= CameraRig.CLEARANCE - 1e-9,
 					`gate row hidden at pullback {pullback}`
 				)
 				for i = 1, 6 do
 					local b = FollowerSlots.base(i)
+					local h = SectionScale.heightOf(TYPES[(i - 1) % 3 + 1], i)
 					assert(
-						CameraRig.leadClearance(pose, 0, b.dz, tallest) >= 0,
+						CameraRig.leadClearance(pose, 0, b.dz, h) >= 0,
 						`lead hidden by base {i}`
 					)
 					assert(
-						CameraRig.gateClearance(pose, 0, b.dz, tallest) >= CameraRig.CLEARANCE,
+						CameraRig.gateClearance(pose, 0, b.dz, h) >= CameraRig.CLEARANCE,
 						`gate hidden by base {i}`
 					)
 				end
@@ -155,6 +156,67 @@ return {
 			end
 			assert(n >= 4, "sizes differ between figures")
 			assert(not pcall(SectionScale.scaleOf, "tuba", 1), "unknown type")
+		end,
+	},
+	{
+		name = "REAL footprint: no follower slot (body, sway, spring overshoot) overlaps any section's figures",
+		run = function()
+			local FollowerLook = require("../src/shared/FollowerLook")
+			local FollowerFlow = require("../src/shared/FollowerFlow")
+			local body = 0.7 * FollowerLook.SCALE_MAX -- half width of the widest follower
+			local overshoot = 0.3 -- [default] margin for spring overshoot
+			for i = 1, Config.visualBudget.sectionRepresentatives do
+				local b = FollowerSlots.base(i)
+				local need = SectionScale.footprint(TYPES[(i - 1) % 3 + 1], i)
+					+ body
+					+ FollowerFlow.SWAY_AMPLITUDE
+					+ overshoot
+				for k = 1, FollowerSlots.capacity() do
+					local s = FollowerSlots.slot(k)
+					local d = math.sqrt((s.dx - b.dx) ^ 2 + (s.dz - b.dz) ^ 2)
+					assert(d >= need - 1e-9, `follower slot {k} is {d} from base {i}, needs {need}`)
+				end
+			end
+		end,
+	},
+	{
+		name = "REAL footprint stays clear after the parade cloud is squeezed at both road edges",
+		run = function()
+			local FollowerLook = require("../src/shared/FollowerLook")
+			local FollowerFlow = require("../src/shared/FollowerFlow")
+			local body = 0.7 * FollowerLook.SCALE_MAX
+			local overshoot = 0.3
+			for leadX = -41, 41, 2 do
+				local _, w = FollowerSlots.layout(leadX)
+				for i = 1, Config.visualBudget.sectionRepresentatives do
+					local b = FollowerSlots.base(i)
+					local footprint = SectionScale.footprint(TYPES[(i - 1) % 3 + 1], i)
+					for k = 1, FollowerSlots.capacity() do
+						local s = FollowerSlots.slot(k)
+						local dx = w * (s.dx - b.dx)
+						local dz = s.dz - b.dz
+						local distance = math.sqrt(dx * dx + dz * dz)
+						local required = footprint + body + FollowerFlow.SWAY_AMPLITUDE + overshoot
+						assert(
+							distance >= required - 1e-9,
+							`leadX={leadX}, follower {k} overlaps section {i}: {distance} < {required}`
+						)
+					end
+				end
+			end
+		end,
+	},
+	{
+		name = "the hole reserved around a base covers the biggest footprint any type can have",
+		run = function()
+			for i = 1, 6 do
+				for _, t in TYPES do
+					assert(
+						SectionScale.footprint(t, i) <= FollowerSlots.BASE_FOOTPRINT,
+						`{t} {i} footprint`
+					)
+				end
+			end
 		end,
 	},
 }

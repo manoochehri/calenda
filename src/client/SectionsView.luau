@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Formation = require(Shared:WaitForChild("Formation"))
+local FollowerSlots = require(Shared:WaitForChild("FollowerSlots"))
 local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
 local Effects = require(Shared:WaitForChild("Effects"))
 local GloboPose = require(Shared:WaitForChild("GloboPose"))
@@ -352,7 +353,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 		for index, rep in reps do
 			local slot = layout.sections[index]
 			if slot then
-				rep.x, rep.z = ViewMap.x(leadX + slot.dx), leadZ + slot.dz -- view space
+				rep.x, rep.z = ViewMap.x(FollowerSlots.worldX(leadX, slot.dx)), leadZ + slot.dz -- view space
 			end
 			if rep.riseT < 1 then
 				rep.riseT = math.min(1, rep.riseT + dt * risePerSecond)

@@ -2,6 +2,7 @@
 local Config = require("../src/shared/Config")
 local Crossing = require("../src/shared/Crossing")
 local Formation = require("../src/shared/Formation")
+local FollowerSlots = require("../src/shared/FollowerSlots")
 
 local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {tostring(expected)}, got {tostring(actual)}`)
@@ -61,7 +62,7 @@ return {
 				distinct(f.slots, 1.5, `total {total}`)
 				for i, s in f.slots do
 					assert(s.dz < -hb.halfDepth, `total {total} slot {i} is behind the lead`)
-					assert(math.abs(s.dx) <= 12, "stays near the lane")
+					assert(math.abs(s.dx) <= FollowerSlots.MAX_DX, "stays near the lane")
 				end
 			end
 		end,
@@ -71,8 +72,8 @@ return {
 		run = function()
 			local rows, cols, n = {}, {}, 0
 			for _, s in Formation.slots(24) do
-				rows[math.floor(s.dz + 0.5)] = true
-				cols[math.floor(s.dx + 0.5)] = true
+				rows[math.floor(s.dz * 2 + 0.5)] = true
+				cols[math.floor(s.dx * 2 + 0.5)] = true
 			end
 			local nr, nc = 0, 0
 			for _ in rows do
@@ -81,7 +82,7 @@ return {
 			for _ in cols do
 				nc += 1
 			end
-			assert(nr >= 10 and nc >= 12, `looks gridded: {nr} rows, {nc} columns`)
+			assert(nr >= 10 and nc >= 16, `looks gridded: {nr} rows, {nc} columns`)
 			eq(n, 0, "unused")
 		end,
 	},

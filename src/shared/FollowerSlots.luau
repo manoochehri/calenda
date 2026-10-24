@@ -8,6 +8,7 @@
 -- Offsets are relative to the lead, in studs: dx lateral (left negative), dz along the street
 -- (negative = behind). The client mirrors dx with ViewMap.x when it draws.
 local Config = require("./Config")
+local DebugLayout = require("./DebugLayout")
 
 export type Slot = { dx: number, dz: number }
 
@@ -16,22 +17,33 @@ local FollowerSlots = {}
 FollowerSlots.CENTER_DZ = -9.5 -- [default] middle of the cloud, studs behind the lead
 FollowerSlots.RADIUS_STEP = 2.6 -- [default] studs; the disc slot k draws from has radius RADIUS_STEP * sqrt(k) + 1.5
 FollowerSlots.DEPTH_SCALE = 0.75 -- [default] the cloud is flatter along the street than across it
-FollowerSlots.CANDIDATES = 48 -- [default] seeded candidates tried per slot
-FollowerSlots.MIN_DZ = -16 -- [default] deepest a follower stands (the camera is 24 behind the lead)
+FollowerSlots.CANDIDATES = 600 -- [default] seeded candidates tried per slot
+FollowerSlots.MIN_DZ = -19 -- [default] deepest a follower stands (the camera is 24 behind the lead)
 FollowerSlots.MAX_DZ = -3.5 -- [default] stays out of the lead's hitbox (Crossing.LEAD_HITBOX)
-FollowerSlots.MAX_DX = 12 -- [default] widest a follower stands
-FollowerSlots.BASE_HOLE = 3.0 -- [default] clear radius around every section base
+FollowerSlots.SIDEWALK_WIDTH = 6 -- mirrors WorldBuilder: the road is DebugLayout.halfWidth - 6 wide per side
+FollowerSlots.FOLLOWER_MARGIN = 1.15 -- [default] follower half width (0.83) + idle sway (0.3)
+FollowerSlots.BASE_FOOTPRINT = 1.8 -- [default] widest section footprint (SectionScale.footprint, tested <=)
+FollowerSlots.BASE_HOLE = 4.5 -- [default] conservative clear radius, including the road-edge cloud squeeze
+-- Half width of the road the parade must stay on (followers and figures never stand on the sidewalk).
+function FollowerSlots.roadHalfWidth(): number
+	return DebugLayout.halfWidth - FollowerSlots.SIDEWALK_WIDTH
+end
+-- How far the whole cloud (followers and section footprints) may reach to either side of its centre.
+-- Kept well under the road half width so the cloud stays attached to the lead (see `layout`).
+FollowerSlots.REACH = 10 -- [default] studs
+FollowerSlots.MIN_WIDTH = 0.7 -- [default] the cloud is squeezed to at most this share near the road edge
+FollowerSlots.MAX_DX = FollowerSlots.REACH - FollowerSlots.FOLLOWER_MARGIN -- widest a follower stands
 FollowerSlots.MAX_BASES = 6 -- spec s8: at most 6 section representatives
 
 -- Section bases, in the order sections form (puppet, globo, dancers, puppet, globo, dancers).
 -- Irregular on purpose: a loose V and scatter, staggered in depth, no two in a row or column.
 FollowerSlots.BASES = table.freeze({
-	table.freeze({ dx = -1.5, dz = -10 }),
-	table.freeze({ dx = 4.5, dz = -12 }),
-	table.freeze({ dx = -5, dz = -13.5 }),
-	table.freeze({ dx = 9, dz = -10.4 }),
-	table.freeze({ dx = 0.5, dz = -14.7 }),
-	table.freeze({ dx = -10, dz = -11 }),
+	table.freeze({ dx = -5.5, dz = -10.8 }),
+	table.freeze({ dx = 0.5, dz = -12.2 }),
+	table.freeze({ dx = 6, dz = -10.4 }),
+	table.freeze({ dx = -3, dz = -16 }),
+	table.freeze({ dx = 4, dz = -16.5 }),
+	table.freeze({ dx = -8.2, dz = -14.5 }),
 })
 
 -- Deterministic unit float in [0, 1) from an integer and a salt (xorshift on 32 bits).
@@ -65,7 +77,7 @@ local function build(): { Slot }
 	for k = 1, Config.visualBudget.looseAvatars do
 		local best: Slot? = nil
 		local bestGap = -1
-		local reach = FollowerSlots.RADIUS_STEP * math.sqrt(k) + 1.5
+		local reach = FollowerSlots.RADIUS_STEP * math.sqrt(k) + 4
 		for c = 1, FollowerSlots.CANDIDATES * 3 do
 			if c == FollowerSlots.CANDIDATES + 1 and best ~= nil then
 				break
@@ -132,6 +144,25 @@ end
 -- How many slots exist: the visual budget's loose avatar cap (spec s8).
 function FollowerSlots.capacity(): number
 	return #SLOTS
+end
+
+-- Where the cloud stands when the lead is at `leadX`: its centre `c` and a width factor `w` (world x of a
+-- slot or base with offset dx is c + w * dx). The centre follows the lead exactly while the cloud fits;
+-- only when the cloud would cross the road edge is it squeezed (w down to MIN_WIDTH) and, past that, its
+-- centre stops following. Continuous in leadX, and every follower and figure stays on the road.
+function FollowerSlots.layout(leadX: number): (number, number)
+	local road = FollowerSlots.roadHalfWidth()
+	local margin = FollowerSlots.BASE_FOOTPRINT -- the widest unscaled margin (a figure's footprint)
+	local span = FollowerSlots.REACH - margin -- the widest offset dx of any slot or base
+	local limit = road - margin - FollowerSlots.MIN_WIDTH * span -- furthest the centre may follow
+	local c = math.clamp(leadX, -limit, limit)
+	local w = math.min(1, (road - margin - math.abs(c)) / span)
+	return c, w
+end
+
+function FollowerSlots.worldX(leadX: number, dx: number): number
+	local c, w = FollowerSlots.layout(leadX)
+	return c + w * dx
 end
 
 return FollowerSlots

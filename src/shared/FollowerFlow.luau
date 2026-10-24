@@ -54,7 +54,7 @@ FollowerFlow.JOIN_HOP_HEIGHT = 1.3 -- [default] studs
 FollowerFlow.RUNNER_MAX_SECONDS = 1.2 -- [default]
 FollowerFlow.LEAVER_CHEER_SECONDS = 0.7 -- [default]
 FollowerFlow.LEAVER_MAX_SECONDS = 2.2 -- [default]
-FollowerFlow.SWAY_AMPLITUDE = 0.45 -- [default] studs of idle drift per follower
+FollowerFlow.SWAY_AMPLITUDE = 0.3 -- [default] studs of idle drift per follower
 FollowerFlow.SWAY_RATE = 2.1 -- [default] radians/second
 FollowerFlow.SIDEWALK_INSET = 3 -- [default] studs in from the street edge
 FollowerFlow.MAX_TARGET_SPEED = 80 -- feed-forward clamp, studs/second
@@ -104,6 +104,30 @@ type Mover = {
 local function traits(id: number): (number, number, number, number)
 	local u = FollowerSlots.unit
 	return 8 + u(id, 11) * 5, 0.5 + u(id, 12) * 0.35, u(id, 13) * TWO_PI, 8 + u(id, 14) * 3
+end
+
+-- The charter's combined cap: members + runners + leavers drawn never exceed `cap`. Transients win;
+-- the outermost members (highest slot) step aside while they run, so the stream reads as the crowd
+-- taking them in. Mutates and returns the frame.
+function FollowerFlow.fit(frame: Frame, cap: number): Frame
+	local excess = #frame.members + #frame.runners + #frame.leavers - cap
+	if excess > 0 then
+		table.sort(frame.members, function(a, b)
+			return a.slot < b.slot
+		end)
+		for _ = 1, math.min(excess, #frame.members) do
+			table.remove(frame.members)
+		end
+		-- Still over (more transients than the cap): drop the newest runners.
+		while #frame.runners + #frame.leavers > cap and #frame.runners > 0 do
+			table.remove(frame.runners)
+		end
+		-- Last resort: leavers alone exceed the cap; drop the newest.
+		while #frame.runners + #frame.leavers > cap and #frame.leavers > 0 do
+			table.remove(frame.leavers)
+		end
+	end
+	return frame
 end
 
 function FollowerFlow.new(halfWidth: number): Flow
@@ -295,9 +319,10 @@ function FollowerFlow.new(halfWidth: number): Flow
 		return leadX + sign * 6, leadZ - 2
 	end
 
+	local cloudC, cloudW = 0, 1 -- FollowerSlots.layout for this frame: keeps the cloud on the road
+
 	local function slotTarget(
 		slot: number,
-		leadX: number,
 		leadZ: number,
 		swirl: number,
 		phase: number
@@ -305,7 +330,7 @@ function FollowerFlow.new(halfWidth: number): Flow
 		local s = FollowerSlots.slot(slot, density)
 		local dx, dz = SectionEvents.swirlSlot(s.dx, s.dz, swirl)
 		local sway = FollowerFlow.SWAY_AMPLITUDE
-		return leadX + dx + math.sin(clock * FollowerFlow.SWAY_RATE + phase) * sway,
+		return cloudC + cloudW * dx + math.sin(clock * FollowerFlow.SWAY_RATE + phase) * sway,
 			leadZ + dz + math.sin(clock * FollowerFlow.SWAY_RATE * 0.8 + phase * 1.3) * sway * 0.6
 	end
 
@@ -338,6 +363,7 @@ function FollowerFlow.new(halfWidth: number): Flow
 
 	function self.step(_, dt: number, leadX: number, leadZ: number, swirl: number?): Frame
 		clock += dt
+		cloudC, cloudW = FollowerSlots.layout(leadX)
 		local sw = swirl or 0
 		local leadVx = feedForward(lastLeadX, leadX, dt)
 		local leadVz = feedForward(lastLeadZ, leadZ, dt)
@@ -376,7 +402,7 @@ function FollowerFlow.new(halfWidth: number): Flow
 						),
 					}
 					local s = FollowerSlots.slot(mover.slot, density)
-					launch(mover, x, z, leadX + s.dx, leadZ + s.dz)
+					launch(mover, x, z, cloudC + cloudW * s.dx, leadZ + s.dz)
 					table.insert(movers, mover)
 				end
 			else
@@ -435,12 +461,12 @@ function FollowerFlow.new(halfWidth: number): Flow
 					m.bornAt = m.startAt
 					local x, z = sourceFor(m.id, m.hint, leadX, leadZ)
 					m.x, m.z = x, z
-					local tx, tz = slotTarget(m.slot, leadX, leadZ, sw, m.phase)
+					local tx, tz = slotTarget(m.slot, leadZ, sw, m.phase)
 					launch(m, x, z, tx, tz)
 					m.px, m.pz = nil, nil
 				end
 				if m.born then
-					local tx, tz = slotTarget(m.slot, leadX, leadZ, sw, m.phase)
+					local tx, tz = slotTarget(m.slot, leadZ, sw, m.phase)
 					if m.px == nil and m.bornAt == -math.huge then
 						m.x, m.z = tx, tz -- settled members start on their slot
 					end
@@ -476,7 +502,7 @@ function FollowerFlow.new(halfWidth: number): Flow
 			local tx, tz, tvx, tvz = v.tx, v.tz, 0, 0
 			if v.kind == "runner" then
 				local s = FollowerSlots.slot(v.slot, density)
-				tx, tz = leadX + s.dx, leadZ + s.dz
+				tx, tz = cloudC + cloudW * s.dx, leadZ + s.dz
 				tvx, tvz = leadVx, leadVz
 			elseif v.kind == "merge" then
 				tx, tz = leadX, leadZ - 4
@@ -522,6 +548,7 @@ function FollowerFlow.new(halfWidth: number): Flow
 			end
 		end
 		movers = keptMovers
+		FollowerFlow.fit(frame, FollowerSlots.capacity())
 		return frame
 	end
 
