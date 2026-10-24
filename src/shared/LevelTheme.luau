@@ -268,7 +268,12 @@ end
 -- Upper bound of Parts the generator may emit under the budgets.
 function LevelTheme.maxTotalParts(theme: Theme): number
 	local b = theme.budgets
-	return b.maxFacadeParts + b.maxFlagStrips + b.maxLamps * 2 + b.maxPlazaParts + b.maxGroundParts
+	return b.maxFacadeParts
+		+ b.maxFlagStrips
+		+ b.maxLamps * 2
+		+ b.maxPlazaParts
+		+ b.maxGroundParts
+		+ 7
 end
 
 -- Structural rules tying the theme to CameraRig. The camera sight lines to the lead, the next gate
