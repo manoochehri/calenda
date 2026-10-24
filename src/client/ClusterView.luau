@@ -13,6 +13,7 @@ local ClusterVisual = require(Shared:WaitForChild("ClusterVisual"))
 local MeterDisplay = require(Shared:WaitForChild("MeterDisplay"))
 local Effects = require(Shared:WaitForChild("Effects"))
 local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
+local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
 
 -- Spectators are warm orange against the gray road and blue followers: one mass, strong contrast.
@@ -21,11 +22,9 @@ local SPECTATOR_HEAD = Color3.fromRGB(255, 205, 150)
 local BAR_BACK = Color3.fromRGB(30, 20, 45)
 local BAR_FILL = Color3.fromRGB(255, 60, 160)
 local BAR_DONE = Color3.fromRGB(80, 235, 120)
-local SHOT_COLORS = {
-	note = Color3.fromRGB(255, 235, 60),
-	heart = Color3.fromRGB(255, 80, 140),
-	snack = Color3.fromRGB(150, 90, 40), -- chocolate brown: clearly not spectator orange
-}
+local NOTE_COLOR = Color3.fromRGB(table.unpack(GiftVisual.NOTE_RGB))
+local TREAT_STRIPE = Color3.fromRGB(255, 255, 255)
+local CATCH_FLASH = Color3.fromRGB(255, 255, 255)
 
 local METER_RATE = 14 -- [default] easing of the bar fill
 local CHEER_HOP = 0.9 -- [default] studs
@@ -156,15 +155,34 @@ function ClusterView.new(layout: any): ClusterView
 		m.body.Parent, m.head.Parent = nil, nil
 	end)
 
-	type Flight = { id: number, variant: string, fromX: number, fromZ: number }
+	type Flight = { id: number, variant: string, hits: number, fromX: number, fromZ: number }
 	local flights: Effects.Effects<Flight> = Effects.new(PROJECTILE_CAPACITY)
-	local projectilePool = Pool.new(function(): Part
-		return newPart(folder, Enum.PartType.Ball, Vector3.new(1, 1, 1), SHOT_COLORS.note)
-	end, function(p: Part)
-		p.Parent = folder
-	end, function(p: Part)
-		p.Parent = nil
+	-- A shot is one body Part (a ball for a note); a gift also shows its wrapped-treat extras:
+	-- a ribbon stripe and two twisted ends (issue #20). Pooled, never destroyed.
+	type Shot = { body: Part, extras: { Part } }
+	local projectilePool = Pool.new(function(): Shot
+		local body = newPart(folder, Enum.PartType.Ball, Vector3.new(1, 1, 1), NOTE_COLOR)
+		local stripe = newPart(
+			folder,
+			Enum.PartType.Cylinder,
+			Vector3.new(0.4, GiftVisual.TREAT_THICK + 0.1, GiftVisual.TREAT_THICK + 0.1),
+			TREAT_STRIPE
+		)
+		local twistA = newPart(folder, Enum.PartType.Block, Vector3.new(0.5, 0.9, 0.2), NOTE_COLOR)
+		local twistB = newPart(folder, Enum.PartType.Block, Vector3.new(0.5, 0.9, 0.2), NOTE_COLOR)
+		return { body = body, extras = { stripe, twistA, twistB } }
+	end, function(p: Shot)
+		p.body.Parent = folder
+	end, function(p: Shot)
+		p.body.Parent = nil
+		for _, e in p.extras do
+			e.Parent = nil
+		end
 	end)
+
+	-- Gift catches: cluster id -> clock time the gift lands. One slot per layout cluster, so it is
+	-- bounded; cleared on reset. Visual only.
+	local catches: { [number]: number } = {}
 
 	type Float = { x: number, z: number, text: string }
 	local floats: Effects.Effects<Float> = Effects.new(FLOAT_CAPACITY)
@@ -204,9 +222,13 @@ function ClusterView.new(layout: any): ClusterView
 		flights:start(clock, FeedbackMath.flightSeconds(dist), {
 			id = shot.id,
 			variant = variant,
+			hits = shot.hits,
 			fromX = lastLeadX,
 			fromZ = lastLeadZ,
 		})
+		if variant ~= "note" then
+			catches[shot.id] = clock + FeedbackMath.flightSeconds(dist)
+		end
 		if result.filled and result.reward then
 			floats:start(clock, FLOAT_SECONDS, {
 				x = result.x,
@@ -225,6 +247,7 @@ function ClusterView.new(layout: any): ClusterView
 		groups:setCount(0) -- hides every slot, which clears its bar
 		flights:clear()
 		floats:clear()
+		table.clear(catches)
 		currentPositions = {}
 	end
 
@@ -240,12 +263,28 @@ function ClusterView.new(layout: any): ClusterView
 			currentPositions[v.id] = { x = v.x, z = v.z }
 			local g = gs[i]
 			g.root.Position = Vector3.new(v.x, 1, v.z)
+			local caughtAt = catches[v.id]
+			if
+				caughtAt ~= nil
+				and clock - caughtAt
+					> GiftVisual.CATCH_SECONDS + GiftVisual.STAGGER_SECONDS * v.members
+			then
+				catches[v.id] = nil
+				caughtAt = nil
+			end
 			for mi, m in g.members do
 				if mi <= v.members then
 					local ox, oz = ClusterVisual.memberOffset(mi, v.members)
 					local hop = if v.phase == "cheering"
 						then CHEER_HOP * math.abs(math.sin(clock * CHEER_RATE + mi))
 						else 0.2 * math.abs(math.sin(clock * 6 + mi))
+					local glow = 0
+					if caughtAt ~= nil then -- the gift landed: the group hops and flashes, in a ripple
+						local c = GiftVisual.catch(clock - caughtAt, mi)
+						hop += c.hop
+						glow = c.glow
+					end
+					m.body.Color = SPECTATOR_COLOR:Lerp(CATCH_FLASH, glow * 0.7)
 					m.body.Position = Vector3.new(v.x + ox, 1 + hop, v.z + oz)
 					m.head.Position = Vector3.new(v.x + ox, 2.6 + hop, v.z + oz)
 					m.body.Parent, m.head.Parent = folder, folder
@@ -275,10 +314,14 @@ function ClusterView.new(layout: any): ClusterView
 		for i, p in ps do
 			local f = live[i]
 			local to = currentPositions[f.data.id]
+			local gift = f.data.variant ~= "note"
+			for _, e in p.extras do
+				e.Parent = if gift and to ~= nil then folder else nil
+			end
 			if to == nil then
-				p.Transparency = 1
+				p.body.Transparency = 1
 			else
-				p.Transparency = 0
+				p.body.Transparency = 0
 				local x, y, z = FeedbackMath.arc(
 					f.data.fromX,
 					2.5,
@@ -289,14 +332,33 @@ function ClusterView.new(layout: any): ClusterView
 					f.f,
 					FeedbackMath.ARC_HEIGHT
 				)
-				p.Position = Vector3.new(x, y, z)
-				p.Color = SHOT_COLORS[f.data.variant] or SHOT_COLORS.note
-				p.Size = if f.data.variant == "note"
-					then Vector3.new(0.9, 0.9, 0.9)
-					else Vector3.new(1.2, 1.2, 1.2)
-				p.Shape = if f.data.variant == "snack"
-					then Enum.PartType.Block
-					else Enum.PartType.Ball
+				if gift then
+					-- A wrapped treat: a cylinder roll with a ribbon and twisted ends, tumbling.
+					local look = GiftVisual.look(f.data.hits)
+					local w = GiftVisual.WRAPPERS[look.wrapper]
+					local wrap = Color3.fromRGB(w[1], w[2], w[3])
+					local at = CFrame.new(x, y, z)
+						* CFrame.Angles(GiftVisual.tumble(f.f) * (look.spin / 9), 0.6, 0)
+					local half = GiftVisual.TREAT_LENGTH / 2
+					p.body.Shape = Enum.PartType.Cylinder
+					p.body.Size =
+						Vector3.new(half * 1.3, GiftVisual.TREAT_THICK, GiftVisual.TREAT_THICK)
+					p.body.Color = wrap
+					p.body.CFrame = at
+					p.extras[1].CFrame = at
+					p.extras[2].Color, p.extras[3].Color = wrap, wrap
+					p.extras[2].CFrame = at
+						* CFrame.new(half * 0.8, 0, 0)
+						* CFrame.Angles(0.5, 0, 0)
+					p.extras[3].CFrame = at
+						* CFrame.new(-half * 0.8, 0, 0)
+						* CFrame.Angles(-0.5, 0, 0)
+				else
+					p.body.Position = Vector3.new(x, y, z)
+					p.body.Color = NOTE_COLOR
+					p.body.Size = Vector3.one * GiftVisual.NOTE_SIZE
+					p.body.Shape = Enum.PartType.Ball
+				end
 			end
 		end
 

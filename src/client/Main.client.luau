@@ -121,6 +121,7 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 		end
 	elseif payload.kind == "cluster" then
 		clusters:onCluster(payload)
+		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
 	elseif payload.kind == "attack" then
 		clusters:onAttack(payload) -- hook for issue #36; draws nothing yet
 	end

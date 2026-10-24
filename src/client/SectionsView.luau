@@ -5,8 +5,8 @@
 -- draws: the swirl value it returns pulls the loose crowd inward (applied by CrowdView), confetti
 -- and dust burst behind the lead, a puppet rises with a small decorative entourage, and a
 -- "+N secciones" label shows for a multi-threshold gate. Entourages are decoration only.
--- Section types are looked up in a SectionRegistry, so globo and dancers (issues #19, #20) plug in
--- by registering a builder. IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
+-- Section types are looked up in a SectionRegistry: puppet, globo (issue #19, decorative rings on
+-- the beat) and dancers (issue #20, tossing on gift shots) each register a builder. IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -14,6 +14,10 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Formation = require(Shared:WaitForChild("Formation"))
+local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
+local Effects = require(Shared:WaitForChild("Effects"))
+local GloboPose = require(Shared:WaitForChild("GloboPose"))
+local Pool = require(Shared:WaitForChild("Pool"))
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
 local SectionDirector = require(Shared:WaitForChild("SectionDirector"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
@@ -21,7 +25,9 @@ local SectionRegistry = require(Shared:WaitForChild("SectionRegistry"))
 local SectionTypes = require(Shared:WaitForChild("SectionTypes"))
 
 local Bits = require(script.Parent:WaitForChild("Bits"))
-local PuppetFigure = require(script.Parent:WaitForChild("PuppetFigure"))
+local DancerFigure = require(script.Parent:WaitForChild("DancerFigure"))
+local GloboFigure = require(script.Parent:WaitForChild("GloboFigure"))
+local SectionFigure = require(script.Parent:WaitForChild("SectionFigure"))
 
 local WHITE = Color3.fromRGB(255, 255, 255)
 local OUTLINE = Color3.fromRGB(28, 22, 34)
@@ -34,17 +40,22 @@ local CONFETTI_COLORS = {
 }
 local DUST_COLORS = { Color3.fromRGB(235, 225, 205) }
 local PIVOT_DZ = SectionEvents.SWIRL_PIVOT_DZ -- the swirl and confetti center, behind the lead
-local ENTOURAGE_SCALE = 0.35 -- [default]
-local ENTOURAGE_RADIUS = 4.2 -- [default] studs around the puppet
+local RING_COLORS = {
+	Color3.fromRGB(255, 215, 40),
+	Color3.fromRGB(255, 80, 150),
+	Color3.fromRGB(60, 200, 240),
+}
+local RING_MIN_RISE = 0.8 -- [default] rings start once the globo has nearly finished rising
 local INDICATOR_SECONDS = 1.3 -- [default] the "+N secciones" label outlives the 0.8 s animation
 local DISPERSE_DANCERS = 5 -- [default] per dispersed section
 
--- One drawn representative: the main figure plus its decorative entourage.
+-- One drawn representative: its visual (figure plus decorative entourage) and its xN badge.
 type Rep = {
 	index: number,
 	sectionType: string,
-	figures: { PuppetFigure.Figure },
-	scales: { number }, -- relative size per figure (1 for the main figure)
+	visual: SectionFigure.Visual,
+	emitsRings: boolean,
+	tossesGifts: boolean,
 	badge: TextLabel,
 	badgeGui: BillboardGui,
 	count: number,
@@ -53,31 +64,29 @@ type Rep = {
 	x: number,
 	z: number,
 }
--- Builder: creates a representative's figures. Globo/dancers register theirs in #19/#20.
-export type Builder = (
-	parent: Instance,
-	index: number,
-	entourage: number
-) -> ({ PuppetFigure.Figure }, { number })
+-- Builder: creates a representative's visual. One per section type, registered below.
+export type Builder = SectionFigure.Builder
 
 export type SectionsView = {
 	-- Returns the current swirl 0..1 so the caller can pull the loose crowd inward.
 	update: (self: SectionsView, leadX: number, leadZ: number, total: number, dt: number) -> number,
 	reset: (self: SectionsView, total: number) -> (),
+	-- A server cluster Event: a gift shot makes every dancer section toss (visual only).
+	onShot: (self: SectionsView, payload: any) -> (),
 	builders: SectionRegistry.Registry<Builder>,
 }
 
 local SectionsView = {}
 
-local function makeBadge(figure: PuppetFigure.Figure): (TextLabel, BillboardGui)
+local function makeBadge(anchor: Part): (TextLabel, BillboardGui)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "StackBadge"
 	gui.Size = UDim2.fromOffset(70, 36)
 	gui.StudsOffset = Vector3.new(0, 2.4, 0)
 	gui.AlwaysOnTop = true
 	gui.Enabled = false
-	gui.Adornee = figure.badgeAnchor
-	gui.Parent = figure.badgeAnchor
+	gui.Adornee = anchor
+	gui.Parent = anchor
 	local l = Instance.new("TextLabel")
 	l.Size = UDim2.fromScale(1, 1)
 	l.BackgroundTransparency = 1
@@ -90,30 +99,15 @@ local function makeBadge(figure: PuppetFigure.Figure): (TextLabel, BillboardGui)
 	return l, gui
 end
 
-local function puppetBuilder(
-	parent: Instance,
-	index: number,
-	entourage: number
-): ({ PuppetFigure.Figure }, { number })
-	local palettes = PuppetFigure.PALETTES
-	local figures = { PuppetFigure.new(parent, palettes[(index - 1) % #palettes + 1]) }
-	local scales = { 1 }
-	for i = 1, entourage do
-		table.insert(figures, PuppetFigure.new(parent, palettes[(index + i - 1) % #palettes + 1]))
-		table.insert(scales, ENTOURAGE_SCALE)
-	end
-	return figures, scales
-end
-
 function SectionsView.new(initialTotal: number): SectionsView
 	local folder = Instance.new("Folder")
 	folder.Name = "CalendaSections"
 	folder.Parent = Workspace
 
 	local builders = SectionRegistry.new() :: SectionRegistry.Registry<Builder>
-	builders:register("puppet", puppetBuilder)
-	-- globo / dancers: not registered yet; a representative of those types uses the puppet builder
-	-- as a stand-in so the xN stack is still readable until #19 / #20 register theirs.
+	builders:register("puppet", SectionFigure.puppet)
+	builders:register("globo", GloboFigure.new) -- issue #19
+	builders:register("dancers", DancerFigure.new) -- issue #20
 
 	local bits = Bits.new(folder)
 	local director = SectionDirector.new(initialTotal)
@@ -123,6 +117,42 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local layoutTotal = -1
 	local layout: Formation.Layout = Formation.forTotal(0)
 	local indicatorT = 0
+
+	-- Decorative musical rings on the beat (globo only; they never recruit or touch the total).
+	-- A bounded set of timed rings drawn as camera-facing circles; capacity is GloboPose.MAX_RINGS.
+	type RingData = { x: number, y: number, z: number, scale: number, color: Color3 }
+	local rings: Effects.Effects<RingData> = Effects.new(GloboPose.MAX_RINGS)
+	local ringPool = Pool.new(function()
+		local part = Instance.new("Part")
+		part.Name = "BeatRing"
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CastShadow = false
+		part.Transparency = 1
+		part.Size = Vector3.one
+		local ringGui = Instance.new("BillboardGui")
+		ringGui.Size = UDim2.fromScale(1, 1) -- Scale is studs on a BillboardGui
+		ringGui.MaxDistance = 400
+		ringGui.Parent = part
+		local circle = Instance.new("Frame")
+		circle.Size = UDim2.fromScale(1, 1)
+		circle.BackgroundTransparency = 1
+		circle.Parent = ringGui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = circle
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 5
+		stroke.Parent = circle
+		return { part = part, gui = ringGui, stroke = stroke }
+	end, function(r)
+		r.part.Parent = folder
+	end, function(r)
+		r.part.Parent = nil
+	end)
+	local lastBeatClock = os.clock()
+	local beatCount = 0
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaSections"
@@ -148,18 +178,21 @@ function SectionsView.new(initialTotal: number): SectionsView
 
 	local function build(index: number, sectionType: string, count: number, riseT: number): Rep
 		local entourage = 0
+		local emitsRings, tossesGifts = false, false
 		local descriptor = SectionTypes.descriptors:get(sectionType :: any)
 		if descriptor then
 			entourage = descriptor.entourage
+			emitsRings, tossesGifts = descriptor.emitsRings, descriptor.tossesGifts
 		end
-		local builder = builders:get(sectionType :: any) or puppetBuilder
-		local figures, scales = builder(folder, index, entourage)
-		local badge, badgeGui = makeBadge(figures[1])
+		local builder = builders:get(sectionType :: any) or SectionFigure.puppet
+		local visual = builder(folder, index, entourage)
+		local badge, badgeGui = makeBadge(visual.badgeAnchor)
 		return {
 			index = index,
 			sectionType = sectionType,
-			figures = figures,
-			scales = scales,
+			visual = visual,
+			emitsRings = emitsRings,
+			tossesGifts = tossesGifts,
 			badge = badge,
 			badgeGui = badgeGui,
 			count = count,
@@ -171,9 +204,17 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end
 
 	local function destroyRep(rep: Rep)
-		for _, f in rep.figures do
-			f:destroy()
+		rep.visual:destroy()
+	end
+
+	-- The only way a representative enters `reps`: a live one at the same index is destroyed first,
+	-- so a rebuild can never orphan its Parts (the leak fixed in PR 46).
+	local function place(index: number, rep: Rep)
+		local old = reps[index]
+		if old ~= nil then
+			destroyRep(old)
 		end
+		reps[index] = rep
 	end
 
 	local function clearAll()
@@ -191,7 +232,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local function snap(total: number)
 		clearAll()
 		for _, r in Formation.forTotal(total).plan.representatives do
-			reps[r.index] = build(r.index, r.sectionType, r.count, 1)
+			place(r.index, build(r.index, r.sectionType, r.count, 1))
 		end
 	end
 	snap(initialTotal)
@@ -202,6 +243,23 @@ function SectionsView.new(initialTotal: number): SectionsView
 		indicatorT = 0
 		indicator.Visible = false
 		bits:clear()
+		rings:clear()
+		ringPool:setCount(0)
+		lastBeatClock = os.clock()
+	end
+
+	function view.onShot(_, payload: any)
+		local shot = ClusterFeed.decode(payload)
+		if shot == nil or shot.shot ~= "gift" then
+			return
+		end
+		local now = os.clock()
+		for _, rep in reps do
+			local toss = rep.visual.toss
+			if rep.tossesGifts and toss ~= nil then
+				toss(rep.visual, now)
+			end
+		end
 	end
 
 	local function pivotOf(x: number, z: number): Vector3
@@ -217,7 +275,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 				built[index] = true
 			end
 			for _, r in SectionEvents.toBuild(diff, built) do
-				reps[r.index] = build(r.index, r.sectionType, r.count, 0)
+				place(r.index, build(r.index, r.sectionType, r.count, 0))
 			end
 			for _, r in diff.appeared do -- merged plans re-list shown reps: just refresh their xN
 				local existing = reps[r.index]
@@ -299,15 +357,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 			end
 			local scale = PuppetPose.rise(rep.riseT)
 			local ground = CFrame.new(rep.x, 0, rep.z)
-			for i, figure in rep.figures do
-				local offset = Vector3.zero
-				if i > 1 then
-					local a = (i - 2) / math.max(1, #rep.figures - 1) * math.pi * 2 + math.pi / 2
-					offset = Vector3.new(math.cos(a), 0, math.sin(a)) * ENTOURAGE_RADIUS
-				end
-				local pose = PuppetPose.pose(os.clock(), rep.phase + (i - 1) * 0.25)
-				figure:setPose(ground * CFrame.new(offset), pose, scale * rep.scales[i], intensity)
-			end
+			rep.visual:setPose(ground, os.clock(), rep.phase, scale, intensity)
 			rep.badge.Text = `x{rep.count}`
 			rep.badgeGui.Enabled = rep.count > 1 and rep.riseT >= 1
 		end
@@ -320,14 +370,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 				table.remove(ghosts, i)
 			else
 				local ground = CFrame.new(g.rep.x, 0, g.rep.z)
-				for j, figure in g.rep.figures do
-					figure:setPose(
-						ground,
-						PuppetPose.pose(os.clock(), g.rep.phase),
-						k * g.rep.scales[j],
-						1
-					)
-				end
+				g.rep.visual:setPose(ground, os.clock(), g.rep.phase, k, 1)
 				g.rep.badgeGui.Enabled = false
 			end
 		end
@@ -340,6 +383,38 @@ function SectionsView.new(initialTotal: number): SectionsView
 			if indicatorT <= 0 then
 				indicator.Visible = false
 			end
+		end
+		-- One ring per beat per settled globo, however many beats a slow frame spans.
+		local nowClock = os.clock()
+		local beats = GloboPose.beatsIn(lastBeatClock, nowClock)
+		lastBeatClock = nowClock
+		if beats > 0 then
+			beatCount += beats
+			for _, rep in reps do
+				local origin = rep.visual.ringOrigin
+				if rep.emitsRings and origin ~= nil and rep.riseT >= RING_MIN_RISE then
+					local at = origin(rep.visual)
+					rings:start(clock, GloboPose.RING_SECONDS, {
+						x = at.X,
+						y = at.Y,
+						z = at.Z,
+						scale = PuppetPose.rise(rep.riseT),
+						color = RING_COLORS[GloboPose.ringColorIndex(beatCount, #RING_COLORS)],
+					})
+				end
+			end
+		end
+		local live = rings:active(clock)
+		local items = ringPool:setCount(#live)
+		for i, item in items do
+			local r = live[i]
+			local ring = GloboPose.ring(r.f * GloboPose.RING_SECONDS)
+			local d = 2 * ring.radius * r.data.scale
+			item.part.Position =
+				Vector3.new(r.data.x, r.data.y + ring.rise * r.data.scale, r.data.z)
+			item.gui.Size = UDim2.fromScale(d, d)
+			item.stroke.Color = r.data.color
+			item.stroke.Transparency = 1 - ring.alpha
 		end
 		bits:update(dt)
 		return swirl

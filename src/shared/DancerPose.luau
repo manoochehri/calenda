@@ -1,0 +1,75 @@
+--!strict
+-- Pure dancer animation (issue #20, spec s7): swirling skirts, coordinated steps, and the gift
+-- toss. Angles are radians, lengths studs; the beat comes from Config.music. Steps depend only on
+-- time, so every dancer in a group steps together; only the skirt swirl takes a per-dancer phase.
+local Config = require("./Config")
+
+local DancerPose = {}
+
+DancerPose.HOP_STUDS = 0.35 -- [default]
+DancerPose.FOOT_LIFT = 0.7 -- [default] studs a stepping foot rises
+DancerPose.MAX_SWIRL = 1.6 -- [default] radians the skirt turns each way (about 92 degrees)
+DancerPose.FLARE_MIN = 0.75 -- [default] skirt width at its narrowest, 1 = fully open
+DancerPose.TOSS_SECONDS = 0.4 -- [default] one throw of the basket arm
+DancerPose.SIDE_SPACING = 3.2 -- [default] studs between dancers in a rank
+DancerPose.RANK_DEPTH = 1.5 -- [default] studs each rank stands behind the one before
+DancerPose.FOLLOWER_SCALE = 0.8 -- [default] the dancers behind the lead are a little smaller
+
+local TAU = 2 * math.pi
+
+export type Pose = {
+	hop: number, -- body rises, lands on every step
+	footL: number, -- one foot up at a time
+	footR: number,
+	swirl: number, -- skirt yaw about the waist, radians, both ways
+	flare: number, -- skirt width, FLARE_MIN..1, open on the beat
+	sway: number, -- body lean, radians
+	armSwing: number, -- free arm swing, radians
+}
+export type Toss = { raise: number, lift: number } -- both 0..1
+export type Slot = { dx: number, dz: number, scale: number }
+
+function DancerPose.pose(time: number, swirlPhase: number): Pose
+	local beats = time * Config.music.bpm / 60
+	local step = math.sin(math.pi * beats)
+	return {
+		hop = DancerPose.HOP_STUDS * math.abs(step),
+		footL = DancerPose.FOOT_LIFT * math.max(0, step),
+		footR = DancerPose.FOOT_LIFT * math.max(0, -step),
+		swirl = DancerPose.MAX_SWIRL * math.sin(TAU * (beats / 4 + swirlPhase)),
+		flare = DancerPose.FLARE_MIN
+			+ (1 - DancerPose.FLARE_MIN) * (0.5 + 0.5 * math.cos(TAU * beats)),
+		sway = 0.08 * math.sin(math.pi * beats / 2),
+		armSwing = 0.5 * math.sin(math.pi * beats),
+	}
+end
+
+-- The basket arm's throw, `age` seconds after a gift shot: quick wind-up, peak mid-throw, settle.
+function DancerPose.toss(age: number): Toss
+	if age <= 0 or age >= DancerPose.TOSS_SECONDS then
+		return { raise = 0, lift = 0 }
+	end
+	local s = math.sin(math.pi * age / DancerPose.TOSS_SECONDS)
+	return { raise = s ^ 0.7, lift = s ^ 2 }
+end
+
+-- Where each of `n` dancers of one section stands: the lead first, the rest in a V behind it.
+function DancerPose.formation(n: number): { Slot }
+	local out: { Slot } = {}
+	for i = 1, n do
+		if i == 1 then
+			table.insert(out, { dx = 0, dz = 0, scale = 1 })
+		else
+			local rank = (i - 2) // 2 + 1
+			local side = if i % 2 == 0 then -1 else 1
+			table.insert(out, {
+				dx = side * rank * DancerPose.SIDE_SPACING,
+				dz = -rank * DancerPose.RANK_DEPTH,
+				scale = DancerPose.FOLLOWER_SCALE,
+			})
+		end
+	end
+	return out
+end
+
+return DancerPose
