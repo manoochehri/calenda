@@ -5,23 +5,17 @@
 -- The client sends a steering intent and a replay request, nothing else (Remotes trust model).
 --
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (not run in Studio by the author): see the PR checklist.
-local clientStartedAt = os.clock()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local traceModuleStartedAt = os.clock()
 local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
 local startupTrace = StartupTrace.trace
-startupTrace:recordDuration("require Client.StartupTrace", traceModuleStartedAt, os.clock())
-startupTrace:setStartAt(clientStartedAt)
-startupTrace:mark("Main.client script start", clientStartedAt)
-
-local function timedRequire<T>(from: string, parent: Instance, child: string): T
-	return startupTrace:measure(`require {from}.{child}`, function()
-		return require(parent:WaitForChild(child))
-	end) :: T
+local TIMING = StartupTrace.enabled -- opt-in startup timing (#73): free when false
+local timedRequire = StartupTrace.timedRequire
+if TIMING then
+	startupTrace:mark("Main.client script start")
 end
 
 local Config = StartupTrace.Config
