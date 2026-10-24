@@ -3,6 +3,8 @@
 -- behind and above the lead, looking down about 50 degrees at the lane, so the lead sits low in
 -- the frame with plenty of empty road ahead. The pose is plain numbers; the client turns it into a
 -- CFrame. Values marked [default] are tuning defaults.
+local PortalGeometry = require("./PortalGeometry")
+
 local CameraRig = {}
 
 CameraRig.HEIGHT = 46 -- [default] studs above the road at pullback 1
@@ -19,7 +21,10 @@ CameraRig.PULLBACK_RATE = 2 -- [default] easing rate of the pullback as the para
 -- visible street, and a wider FOV only shrinks the gate text.
 CameraRig.GATE_NEAR = 30 -- [default] studs ahead of the lead of the nearest gate row that must read
 CameraRig.PROP_FRONT = 4 -- [default] how far ahead of the lead's z a prop (entourage) can stand
-CameraRig.TALLEST_PROP = 16 -- [default] GUESS, studs: puppet is 11 (PuppetFigure.HEIGHT); update when #19/#20 (globo, dancers) land
+-- Issue #70: gates are standing portals now, so a gate is itself a prop. Its banner (top
+-- PortalGeometry.TOP = 19) must also stay readable and never be a surprise for the clearance rule:
+-- the tallest prop is the larger of the old guess (16; puppet is 11, PuppetFigure.HEIGHT) and the portal.
+CameraRig.TALLEST_PROP = math.max(16, PortalGeometry.TOP) -- [default] studs
 CameraRig.CLEARANCE = 3 -- [default] studs the sight line must clear a prop by
 CameraRig.LEAD_TOP = 6 -- studs; top of the lead: the player's avatar with accessories (LeadPose.AVATAR_TOP)
 
@@ -98,6 +103,60 @@ function CameraRig.leadClearance(
 		return math.huge
 	end
 	return lineHeight(pose.py, pose.pz, CameraRig.LEAD_TOP, leadZ, propZ) - propHeight
+end
+
+-- Share (0..1) of the screen's HEIGHT taken by a vertical object `studs` tall whose middle is at
+-- (targetY, targetZ), seen from `pose`. The camera looks along +Z, so only y and z matter. A
+-- vertical segment is foreshortened by cos(pitch) (the z part of the unit view direction).
+local function viewBasis(pose: Pose, targetY: number, targetZ: number): (number, number)
+	local dy, dz = pose.ly - pose.py, pose.lz - pose.pz
+	local len = math.sqrt(dy * dy + dz * dz)
+	local uy, uz = dy / len, dz / len
+	local depth = (targetY - pose.py) * uy + (targetZ - pose.pz) * uz
+	return depth, math.abs(uz)
+end
+
+function CameraRig.screenFraction(
+	pose: Pose,
+	targetY: number,
+	targetZ: number,
+	studs: number
+): number
+	local depth, foreshortening = viewBasis(pose, targetY, targetZ)
+	return studs * foreshortening / (2 * depth * math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2)))
+end
+
+-- Inverse: studs tall needed to fill `fraction` of the screen height at that target.
+function CameraRig.studsForScreenFraction(
+	pose: Pose,
+	targetY: number,
+	targetZ: number,
+	fraction: number
+): number
+	local depth, foreshortening = viewBasis(pose, targetY, targetZ)
+	return fraction * 2 * depth * math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2)) / foreshortening
+end
+
+-- True when a banner plane at `portalZ` (its underside at `bottom`, top at `top`) is crossed by the
+-- sight line from the camera to the lead (feet, waist or hat). Only a portal BEHIND the lead can
+-- do it (the lead has just walked through); one ahead never sits between camera and lead.
+function CameraRig.bannerHidesLead(
+	pose: Pose,
+	leadZ: number,
+	portalZ: number,
+	bottom: number,
+	top: number
+): boolean
+	if portalZ >= leadZ or portalZ <= pose.pz then
+		return false
+	end
+	for _, y in { 0, CameraRig.LEAD_TOP / 2, CameraRig.LEAD_TOP } do
+		local h = lineHeight(pose.py, pose.pz, y, leadZ, portalZ)
+		if h >= bottom and h <= top then
+			return true
+		end
+	end
+	return false
 end
 
 -- True when the lead (ground to hat) is inside the vertical field of view with a 5 degree margin.
