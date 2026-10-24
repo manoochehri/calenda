@@ -14,6 +14,7 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
 local RunHooks = require(Shared:WaitForChild("RunHooks"))
 local RunLog = require(Shared:WaitForChild("RunLog"))
+local TickPacer = require(Shared:WaitForChild("TickPacer"))
 
 -- The lead musician is drawn by the client (src/client/CrowdView); no Roblox character is needed,
 -- and one would stand on the road and block the view.
@@ -92,8 +93,9 @@ end)
 RunService.Heartbeat:Connect(function(dt: number)
 	for player, session in sessions do
 		local ok, err = pcall(function()
-			session.accumulator += dt
-			while session.accumulator >= RunDriver.TICK_DT do
+			local steps, carried = TickPacer.plan(session.accumulator, dt, RunDriver.TICK_DT)
+			session.accumulator = carried
+			for _ = 1, steps do
 				for _, e in session.driver:tick(RunDriver.TICK_DT) do
 					eventRemote:FireClient(player, e)
 					if e.kind == "complete" or e.kind == "defeated" then
@@ -102,7 +104,6 @@ RunService.Heartbeat:Connect(function(dt: number)
 						RunLog.print(log)
 					end
 				end
-				session.accumulator -= RunDriver.TICK_DT
 			end
 			session.sinceState += dt
 			if session.sinceState >= STATE_INTERVAL then
@@ -111,8 +112,9 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 		end)
 		if not ok then
-			warn(`Dropping run for {player.Name} after a server tick error: {err}`)
+			warn(`run session dropped after an error: {err}`)
 			sessions[player] = nil
+			logKeeper:release(player)
 		end
 	end
 end)

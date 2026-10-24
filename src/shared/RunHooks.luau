@@ -36,6 +36,8 @@ function RunHooks.new(layout: Level.Layout, config: any?): any
 	end
 
 	hooks.attacks = function(ctx: any)
+		-- attackClusters returns one result per id, in the order given, so results[i] belongs to
+		-- passedClusters[i]; Targeting reports passed clusters in id order, which is the attack order.
 		local ids: { string } = {}
 		for _, id in ctx.passedClusters do
 			table.insert(ids, `c{id}`)
