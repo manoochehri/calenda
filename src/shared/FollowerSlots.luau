@@ -23,7 +23,7 @@ FollowerSlots.MAX_DZ = -3.5 -- [default] stays out of the lead's hitbox (Crossin
 FollowerSlots.SIDEWALK_WIDTH = 6 -- mirrors WorldBuilder: the road is DebugLayout.halfWidth - 6 wide per side
 FollowerSlots.FOLLOWER_MARGIN = 1.15 -- [default] follower half width (0.83) + idle sway (0.3)
 FollowerSlots.BASE_FOOTPRINT = 3.0 -- [default] widest section footprint (SectionScale.footprint, tested <=)
-FollowerSlots.BASE_HOLES = table.freeze({ 4.4, 3.2, 4.9, 4.4, 3.2, 4.9 }) -- scaled for each section's footprint
+FollowerSlots.BASE_HOLES = table.freeze({ 4.4, 3.7, 4.9, 4.4, 3.7, 4.9 }) -- scaled for each section's footprint
 FollowerSlots.BASE_HOLE = 4.9 -- [default] widest reserved hole; individual bases use BASE_HOLES
 -- Half width of the road the parade must stay on (followers and figures never stand on the sidewalk).
 function FollowerSlots.roadHalfWidth(): number

@@ -159,6 +159,25 @@ return {
 		end,
 	},
 	{
+		name = "globo footprint includes carrier puppet skirts",
+		run = function()
+			local GloboPose = require("../src/shared/GloboPose")
+			local carrierSkirtHalfDiagonal = math.sqrt((4.2 / 2) ^ 2 + (3.2 / 2) ^ 2)
+				* SectionScale.GLOBO_CARRIER_SCALE
+			for i = 1, 6 do
+				local scale = SectionScale.scaleOf("globo", i)
+				local need = (
+					GloboPose.CARRIER_RADIUS * SectionScale.GLOBO_CARRIER_FACTOR
+					+ carrierSkirtHalfDiagonal
+				) * scale
+				assert(
+					SectionScale.footprint("globo", i) >= need,
+					`globo {i} footprint {SectionScale.footprint("globo", i)} omits carrier skirts; needs {need}`
+				)
+			end
+		end,
+	},
+	{
 		name = "puppet companions clear the lead puppet skirt",
 		run = function()
 			local halfDiagonal = math.sqrt((4.2 / 2) ^ 2 + (3.2 / 2) ^ 2)

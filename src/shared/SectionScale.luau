@@ -25,6 +25,7 @@ SectionScale.ENTOURAGE_RADIUS = 2.0 -- [default] studs: puppet companions clear 
 SectionScale.PUPPET_ENTOURAGE_SCALE = 0.35 -- [default] scale of companion puppets (SectionFigure)
 SectionScale.PUPPET_HORIZONTAL_SCALE = 0.25 -- [default] x/z scale; keeps the tall figures compact on the ground
 SectionScale.GLOBO_CARRIER_FACTOR = 0.25 -- [default] carriers hug the pole
+SectionScale.GLOBO_CARRIER_SCALE = 0.32 -- [default] mirrors GloboFigure.CARRIER_SCALE
 SectionScale.DANCER_SPREAD = 0.4 -- [default] spacing for the horizontally slim dancers
 SectionScale.DANCER_HORIZONTAL_SCALE = 0.2 -- [default] x/z scale; keeps the chorus inside the section footprint
 SectionScale.DECOR_HALF = 0.4 -- [default] half width after companion horizontal scaling
@@ -62,12 +63,16 @@ function SectionScale.footprint(sectionType: string, index: number): number
 			)
 		end
 	end
+	local puppetHalfDiagonal = math.sqrt((4.2 / 2) ^ 2 + (3.2 / 2) ^ 2)
 	local body = if sectionType == "dancers"
 		then 2.55 * scale * SectionScale.DANCER_HORIZONTAL_SCALE
 		elseif sectionType == "puppet" then math.sqrt((4.2 / 2) ^ 2 + (3.2 / 2) ^ 2)
 			* scale
 			* SectionScale.PUPPET_HORIZONTAL_SCALE
 			* SectionScale.PUPPET_ENTOURAGE_SCALE
+		elseif sectionType == "globo" then puppetHalfDiagonal
+			* scale
+			* SectionScale.GLOBO_CARRIER_SCALE
 		else SectionScale.DECOR_HALF
 	return ring + math.max(body, SectionScale.DECOR_HALF)
 end
