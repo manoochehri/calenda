@@ -353,7 +353,10 @@ return {
 			assert(shotCount < Config.clusterTypes.large.hits, "not filled")
 			assert(#passedIds == 1 and passedIds[1] == 1, "reported exactly once")
 			assert(rs:total() == total, "no credit and no loss here")
-			assert(rs:clusterConsumption("1") == nil, "left unconsumed (attacks are issue #36)")
+			assert(
+				rs:clusterConsumption("1") == nil,
+				"left unconsumed (the attack phase consumes it)"
+			)
 			-- and a passed cluster never receives shots again
 			local more = session:advance(t + 1, 0, "center")
 			assert(#more.shots == 0 and #more.passed == 0, "nothing after passing")

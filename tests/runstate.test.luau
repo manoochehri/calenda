@@ -281,6 +281,57 @@ return {
 		end,
 	},
 	{
+		name = "defeat is recorded once as a defeated event carrying the crowd total as score",
+		run = function()
+			local attackCount = math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local clusters: { RunState.ClusterDef } = {}
+			for i = 1, attackCount do
+				table.insert(clusters, { id = `c{i}`, type = "large" })
+			end
+			local run = RunState.new({
+				seed = 1,
+				automated = true,
+				layout = { gatePairs = {}, clusters = clusters, obstacles = {} },
+				startingTotal = 73,
+			})
+			local ids = {}
+			for i = 1, attackCount do
+				table.insert(ids, `c{i}`)
+			end
+			run:attackClusters(ids)
+			run:attackClusters({ "c1" }) -- ignored after the end
+			local defeats = 0
+			for _, e in run:events() do
+				if e.kind == "defeated" then
+					defeats += 1
+					eq(e.score, 73, "defeated event score")
+					eq(e.before, 73, "defeated event before")
+					eq(e.after, 73, "defeated event after")
+				end
+			end
+			eq(defeats, 1, "exactly one defeated event")
+			local events = run:events()
+			eq(events[#events].kind, "defeated", "defeated is the last event")
+		end,
+	},
+	{
+		name = "defeat() ends the run defeated once, keeps best at zero, and is refused after the end",
+		run = function()
+			local run = RunState.new({
+				seed = 1,
+				automated = true,
+				layout = { gatePairs = {}, clusters = {}, obstacles = {} },
+				startingTotal = 40,
+			})
+			assert(run:defeat().ok, "defeat accepted")
+			eq(run:outcome(), "defeated", "outcome")
+			eq(run:score(), 40, "score")
+			eq(run:best(), 0, "best unchanged")
+			assert(not run:defeat().ok, "second defeat refused")
+			assert(not run:complete().ok, "complete after defeat refused")
+		end,
+	},
+	{
 		name = "obstacle: applies -Config.obstacleLoss once",
 		run = function()
 			local run = make()

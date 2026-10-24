@@ -11,6 +11,7 @@
 -- (3) attacks, (4) end checks (defeat wins over reaching the plaza). The hooks below are the
 -- extension points: #9 plugs targeting/shooting into `shots`, #36 plugs cluster attacks into
 -- `attacks` and HP defeat into `endCheck`.
+-- A defeat is recorded in RunState's log (event "defeated"), so runLog() shows the outcome.
 local Config = require("./Config")
 local Crossing = require("./Crossing")
 local Level = require("./Level")
@@ -232,6 +233,9 @@ function RunDriver.new(opts: Options): RunDriver
 		local defeated = state:outcome() == "defeated"
 			or (hooks.endCheck ~= nil and hooks.endCheck(ctx) == true)
 		if defeated then
+			if state:outcome() == nil then
+				state:defeat() -- an end-check hook ended it: record the outcome in the run log
+			end
 			ended, finalOutcome, finalScore = true, "defeated", state:score() or state:total()
 			table.insert(events, { kind = "defeated", score = finalScore })
 		elseif z1 >= layout.plazaStart then
