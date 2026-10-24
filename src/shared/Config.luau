@@ -34,6 +34,7 @@ export type ConfigType = {
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
 	music: MusicConfig,
+	debug: { startupTiming: boolean },
 	validate: (config: any) -> (boolean, string?),
 }
 
@@ -88,6 +89,9 @@ local function validate(c: any): (boolean, string?)
 		or c.startingTotal ~= math.floor(c.startingTotal)
 	then
 		return false, "startingTotal must be a non-negative integer"
+	end
+	if type(c.debug) ~= "table" or type(c.debug.startupTiming) ~= "boolean" then
+		return false, "debug.startupTiming must be a boolean"
 	end
 	if not isPositive(c.speed) then
 		return false, "speed must be a positive number"
@@ -269,6 +273,9 @@ local config: ConfigType = {
 		-- [default] UNVERIFIED placeholders: empty = silent. Audio must be original or licensed;
 		-- the owner supplies real SoundIds. Order matches musicLayerSections.
 		stemSoundIds = { "", "", "", "" },
+	},
+	debug = {
+		startupTiming = false, -- [default] opt-in local startup trace; no Output logging unless enabled
 	},
 	validate = validate,
 }

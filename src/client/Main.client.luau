@@ -5,36 +5,50 @@
 -- The client sends a steering intent and a replay request, nothing else (Remotes trust model).
 --
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (not run in Studio by the author): see the PR checklist.
+local clientStartedAt = os.clock()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CameraRig = require(Shared:WaitForChild("CameraRig"))
-local Config = require(Shared:WaitForChild("Config"))
-local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
-local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
-local HpBar = require(Shared:WaitForChild("HpBar"))
-local HpExtension = require(Shared:WaitForChild("HpExtension"))
-local InputIntent = require(Shared:WaitForChild("InputIntent"))
-local Remotes = require(Shared:WaitForChild("Remotes"))
-local ResetPlan = require(Shared:WaitForChild("ResetPlan"))
-local RunView = require(Shared:WaitForChild("RunView"))
-local Steering = require(Shared:WaitForChild("Steering"))
-local ViewMap = require(Shared:WaitForChild("ViewMap"))
-local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
+local traceModuleStartedAt = os.clock()
+local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
+local startupTrace = StartupTrace.trace
+startupTrace:recordDuration("require Client.StartupTrace", traceModuleStartedAt, os.clock())
+startupTrace:setStartAt(clientStartedAt)
+startupTrace:mark("Main.client script start", clientStartedAt)
 
-local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
-local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
-local ClusterView = require(script.Parent:WaitForChild("ClusterView"))
-local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
-local EndFlow = require(script.Parent:WaitForChild("EndFlow"))
-local Hud = require(script.Parent:WaitForChild("Hud"))
-local InputController = require(script.Parent:WaitForChild("InputController"))
-local LeadAvatar = require(script.Parent:WaitForChild("LeadAvatar"))
-local MusicPlayer = require(script.Parent:WaitForChild("MusicPlayer"))
-local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
-local ObstacleView = require(script.Parent:WaitForChild("ObstacleView"))
+local function timedRequire<T>(from: string, parent: Instance, child: string): T
+	return startupTrace:measure(`require {from}.{child}`, function()
+		return require(parent:WaitForChild(child))
+	end) :: T
+end
+
+local Config = StartupTrace.Config
+local CameraRig = timedRequire("Shared", Shared, "CameraRig")
+local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
+local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
+local HpBar = timedRequire("Shared", Shared, "HpBar")
+local HpExtension = timedRequire("Shared", Shared, "HpExtension")
+local InputIntent = timedRequire("Shared", Shared, "InputIntent")
+local Remotes = timedRequire("Shared", Shared, "Remotes")
+local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
+local RunView = timedRequire("Shared", Shared, "RunView")
+local Steering = timedRequire("Shared", Shared, "Steering")
+local ViewMap = timedRequire("Shared", Shared, "ViewMap")
+local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
+
+local TouchControls = timedRequire("Client", script.Parent, "TouchControls")
+local Backdrop = timedRequire("Client", script.Parent, "Backdrop")
+local ClusterView = timedRequire("Client", script.Parent, "ClusterView")
+local CrowdView = timedRequire("Client", script.Parent, "CrowdView")
+local EndFlow = timedRequire("Client", script.Parent, "EndFlow")
+local Hud = timedRequire("Client", script.Parent, "Hud")
+local InputController = timedRequire("Client", script.Parent, "InputController")
+local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
+local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
+local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
+local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 
@@ -44,25 +58,45 @@ local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
-Backdrop.build()
+startupTrace:measure("Backdrop.build", Backdrop.build)
 TouchControls.disable()
 
-local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
-	steerRemote:FireServer({ x = x })
+local input = startupTrace:measure("InputController.new", function()
+	return InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
+		steerRemote:FireServer({ x = x })
+	end)
 end)
-local hud = Hud.new(function()
-	replayRemote:FireServer()
+local hud = startupTrace:measure("Hud.new", function()
+	return Hud.new(function()
+		replayRemote:FireServer()
+	end)
 end)
-local crowd = CrowdView.new()
-local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
-local sections = SectionsView.new(Config.startingTotal)
-local clusters = ClusterView.new(DebugLayout)
-local obstacleFeedback = ObstacleView.new(DebugLayout)
-local hitFx = HitFeedback.new() -- hit jolt, screen shake and flash (issue #50)
+local crowd = startupTrace:measure("CrowdView.new (lazy pool setup)", CrowdView.new)
+local leadAvatar = startupTrace:measure("LeadAvatar.new", LeadAvatar.new) -- own avatar is lead (#55)
+local sections = startupTrace:measure("SectionsView.new (lazy pool setup)", function()
+	return SectionsView.new(Config.startingTotal)
+end)
+local clusters = startupTrace:measure("ClusterView.new (lazy pool setup)", function()
+	return ClusterView.new(DebugLayout)
+end)
+local obstacleFeedback = startupTrace:measure("ObstacleView.new (lazy pool setup)", function()
+	return ObstacleView.new(DebugLayout)
+end)
+local hitFx = startupTrace:measure("HitFeedback.new", HitFeedback.new)
 local hudClock = 0
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
-local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
-local music = MusicPlayer.new() -- silent while Config.music.stemSoundIds are empty (issue #21)
+local endFlow = startupTrace:measure("EndFlow.new", EndFlow.new)
+local music = startupTrace:measure("MusicPlayer.new", MusicPlayer.new)
+
+local function finishStartupIfReady()
+	if
+		startupTrace:has("WorldBuilder built")
+		and startupTrace:has("first State received")
+		and startupTrace:has("first CalendaFrame render-step callback")
+	then
+		startupTrace:finish()
+	end
+end
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -82,6 +116,10 @@ end
 stateRemote.OnClientEvent:Connect(function(payload: any)
 	if not looksLikeState(payload) then
 		return
+	end
+	if not startupTrace:has("first State received") then
+		startupTrace:mark("first State received")
+		finishStartupIfReady()
 	end
 	local state = payload :: Remotes.StatePayload
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
@@ -147,6 +185,10 @@ RunService:BindToRenderStep(
 	"CalendaFrame",
 	Enum.RenderPriority.Camera.Value + 1,
 	function(dt: number)
+		if not startupTrace:has("first CalendaFrame render-step callback") then
+			startupTrace:mark("first CalendaFrame render-step callback")
+			finishStartupIfReady()
+		end
 		local state = latest
 		if state == nil then
 			return

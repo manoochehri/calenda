@@ -2,15 +2,29 @@
 -- Client-only presentation for the fixed debug layout (issue #11).
 -- Gameplay stays server-owned; this script only draws the authored course and updates labels
 -- from the server's display-only crowd total.
+local worldBuilderStartedAt = os.clock()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared:WaitForChild("Config"))
-local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
-local GateLabel = require(Shared:WaitForChild("GateLabel"))
-local Remotes = require(Shared:WaitForChild("Remotes"))
-local ViewMap = require(Shared:WaitForChild("ViewMap"))
+local traceModuleStartedAt = os.clock()
+local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
+local startupTrace = StartupTrace.trace
+startupTrace:recordDuration("require Client.StartupTrace", traceModuleStartedAt, os.clock())
+startupTrace:setStartAt(worldBuilderStartedAt)
+startupTrace:mark("WorldBuilder.client script start", worldBuilderStartedAt)
+
+local function timedRequire<T>(from: string, parent: Instance, child: string): T
+	return startupTrace:measure(`require {from}.{child}`, function()
+		return require(parent:WaitForChild(child))
+	end) :: T
+end
+
+local Config = StartupTrace.Config
+local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
+local GateLabel = timedRequire("Shared", Shared, "GateLabel")
+local Remotes = timedRequire("Shared", Shared, "Remotes")
+local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 
 local WORLD_NAME = "CalendaWorld"
 local ROAD_HALF_WIDTH = DebugLayout.halfWidth - 6
@@ -306,4 +320,11 @@ local function buildWorld()
 	end)
 end
 
-buildWorld()
+startupTrace:measure("WorldBuilder.buildWorld", buildWorld)
+startupTrace:mark("WorldBuilder built")
+if
+	startupTrace:has("first State received")
+	and startupTrace:has("first CalendaFrame render-step callback")
+then
+	startupTrace:finish()
+end
