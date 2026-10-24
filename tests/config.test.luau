@@ -165,4 +165,40 @@ return {
 			eq(Config.music.maxSources, 4, "maxSources")
 		end,
 	},
+	{
+		name = "wave and range defaults (issue #7)",
+		run = function()
+			eq(Config.spectators.approachSpeed, 6, "approachSpeed")
+			eq(Config.spectators.centerTolerance, 3, "centerTolerance")
+			eq(Config.firing.range, 60, "firing.range")
+			assert(table.isfrozen(Config.spectators), "spectators frozen")
+		end,
+	},
+	{
+		name = "hp keys are not added here (issue #36)",
+		run = function()
+			assert((Config :: any).hp == nil, "hp belongs to issue #36")
+		end,
+	},
+	expectInvalid("spectators missing", function(c)
+		c.spectators = nil
+	end),
+	expectInvalid("approachSpeed zero", function(c)
+		c.spectators.approachSpeed = 0
+	end),
+	expectInvalid("approachSpeed non-number", function(c)
+		c.spectators.approachSpeed = "fast"
+	end),
+	expectInvalid("approachSpeed infinite", function(c)
+		c.spectators.approachSpeed = math.huge
+	end),
+	expectInvalid("centerTolerance negative", function(c)
+		c.spectators.centerTolerance = -1
+	end),
+	expectInvalid("firing.range zero", function(c)
+		c.firing.range = 0
+	end),
+	expectInvalid("firing.range missing", function(c)
+		c.firing.range = nil
+	end),
 }
