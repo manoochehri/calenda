@@ -13,6 +13,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
+local HpBar = require(Shared:WaitForChild("HpBar"))
+local HpExtension = require(Shared:WaitForChild("HpExtension"))
 local InputIntent = require(Shared:WaitForChild("InputIntent"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local ResetPlan = require(Shared:WaitForChild("ResetPlan"))
@@ -53,6 +56,8 @@ local crowd = CrowdView.new()
 local sections = SectionsView.new(Config.startingTotal)
 local clusters = ClusterView.new(DebugLayout)
 local obstacleFeedback = ObstacleView.new(DebugLayout)
+local hitFx = HitFeedback.new() -- hit jolt, screen shake and flash (issue #50)
+local hudClock = 0
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
 local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
 local music = MusicPlayer.new() -- silent while Config.music.stemSoundIds are empty (issue #21)
@@ -99,6 +104,10 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		handlers.clusters = function()
 			clusters:reset()
 		end
+		handlers.hp = function()
+			hitFx:reset()
+			hud:resetHp()
+		end
 		handlers.obstacles = function()
 			obstacleFeedback:reset()
 		end
@@ -124,7 +133,9 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 		clusters:onCluster(payload)
 		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
 	elseif payload.kind == "attack" then
-		clusters:onAttack(payload) -- hook for issue #36; draws nothing yet
+		clusters:onAttack(payload) -- cartoon bump: flying hats and instrument bits
+		local maxHp = if latest then latest.maxHp else nil
+		hitFx:hit(HitFeedback.intensity(payload.hpBefore, payload.hpAfter, maxHp))
 	end
 end)
 
@@ -158,6 +169,9 @@ RunService:BindToRenderStep(
 			dt,
 			CameraRig.PULLBACK_RATE
 		)
+		hudClock += dt
+		hitFx:step(dt)
+		local hit = hitFx:sample()
 		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
 		local camera = Workspace.CurrentCamera
 		if camera then
@@ -166,9 +180,11 @@ RunService:BindToRenderStep(
 			camera.CFrame = CFrame.lookAt(
 				Vector3.new(pose.px, pose.py, pose.pz),
 				Vector3.new(pose.lx, pose.ly, pose.lz)
-			)
+			) * CFrame.new(hit.shakeX, hit.shakeY, 0) -- decaying screen punch, camera space
 		end
 
+		hud:setHp(HpBar.view(HpExtension.read(state)), hudClock)
+		hud:applyHit(hit)
 		hud:update(
 			fx.view(RunView.hud(state)),
 			InputIntent.hintVisible(t, input:hasSteered(), state.over)

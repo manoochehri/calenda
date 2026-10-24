@@ -1,6 +1,7 @@
 --!strict
 local DefeatPlan = require("../src/shared/DefeatPlan")
 local FinalePlan = require("../src/shared/FinalePlan")
+local HitFeedback = require("../src/shared/HitFeedback")
 local ResetPlan = require("../src/shared/ResetPlan")
 local RunFlow = require("../src/shared/RunFlow")
 local Strings = require("../src/shared/Strings")
@@ -139,6 +140,7 @@ return {
 					"flow",
 					"input",
 					"music",
+					"hp",
 				}
 			do
 				assert(table.find(ResetPlan.items, need) ~= nil, `checklist has {need}`)
@@ -207,6 +209,13 @@ return {
 				resets.flow = (resets.flow or 0) + 1
 				RunFlow.reset(f)
 			end
+			-- Issue #50: a hit still playing when the run ends must not leak into the next one.
+			local hit = HitFeedback.new()
+			handlers.hp = function()
+				resets.hp = (resets.hp or 0) + 1
+				hit:reset()
+			end
+			hit:hit(1)
 			-- Round 1: a big completed run, then replay.
 			playOut(
 				f,
@@ -215,6 +224,8 @@ return {
 			eq(f.phase, "results", "round 1 reached results")
 			ResetPlan.apply(handlers)
 			sameFlow(f, RunFlow.new(), "after replay 1")
+			eq(hit:sample().flash, 0, "hit feedback cleared by replay 1")
+			hit:hit(1)
 			-- Round 2: a defeat, then replay again.
 			playOut(
 				f,
@@ -224,6 +235,7 @@ return {
 			eq(f.tier, 0, "defeat has no tier")
 			ResetPlan.apply(handlers)
 			sameFlow(f, RunFlow.new(), "after replay 2")
+			eq(hit:sample().flash, 0, "hit feedback cleared by replay 2")
 			for _, item in ResetPlan.items do
 				eq(resets[item], 2, `{item} reset once per replay`)
 			end

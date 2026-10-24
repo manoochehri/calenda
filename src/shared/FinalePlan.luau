@@ -57,6 +57,20 @@ function FinalePlan.slot(i: number, n: number, halfWidth: number, depth: number)
 	return dx, dz
 end
 
+FinalePlan.DEFAULT_DEPTH = 160 -- [default] the plaza's full depth, the most a party may spread
+FinalePlan.MIN_DEPTH = 8 -- [default] slot() needs more than its 6 stud lead-in
+FinalePlan.EDGE_MARGIN = 4 -- [default] studs kept free before the end of the street
+
+-- How deep a spread may go from a lead at `leadZ` without leaving the street (issue #50, from the
+-- PR #49 review): the remaining length, not the plaza's full depth.
+function FinalePlan.depthAhead(streetLength: number, leadZ: number): number
+	return math.clamp(
+		streetLength - leadZ - FinalePlan.EDGE_MARGIN,
+		FinalePlan.MIN_DEPTH,
+		FinalePlan.DEFAULT_DEPTH
+	)
+end
+
 function FinalePlan.burstTimes(tier: number): { number }
 	return Beats.evenly(Celebration.profile(tier).bursts, 0.5, FinalePlan.DURATION - 1)
 end

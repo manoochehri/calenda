@@ -15,6 +15,7 @@ ResetPlan.items = table.freeze({
 	"music", -- layered stems: stop, rewind, forget the crossfade schedule (issue #21)
 	"bits", -- confetti and other pooled pieces still in the air
 	"finale", -- plaza dancers, gifts and the finale banner
+	"hp", -- the HP bar, its low warning and any hit shake, flash or jolt in progress (issue #50)
 	"breakup", -- tumbling lead, flying hats and instruments, wandering followers
 	"results", -- the results panel and the new-best flag
 	"flow", -- RunFlow back to its first phase
