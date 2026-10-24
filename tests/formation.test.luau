@@ -53,7 +53,7 @@ return {
 		end,
 	},
 	{
-		name = "slots are compact rows behind the lead, never inside its fixed hitbox",
+		name = "slots are an organic cloud behind the lead, never inside its fixed hitbox",
 		run = function()
 			local hb = Crossing.LEAD_HITBOX
 			for _, total in { 1, 24, 49 } do
@@ -61,49 +61,35 @@ return {
 				distinct(f.slots, 1.5, `total {total}`)
 				for i, s in f.slots do
 					assert(s.dz < -hb.halfDepth, `total {total} slot {i} is behind the lead`)
-					assert(
-						math.abs(s.dx) > hb.halfWidth or s.dz < -hb.halfDepth - 1,
-						`total {total} slot {i} clear of the hitbox`
-					)
-					assert(math.abs(s.dx) <= Formation.PER_ROW * 4, "stays compact sideways")
+					assert(math.abs(s.dx) <= 12, "stays near the lane")
 				end
 			end
 		end,
 	},
 	{
-		name = "rows fill front to back, at most PER_ROW wide, last row centered",
+		name = "no rows: 24 slots do not line up in a few shared rows or columns",
 		run = function()
-			local slots = Formation.slots(8, 1)
-			local rowZ: { [number]: number } = {}
-			local rows = 0
-			for _, s in slots do
-				local key = math.floor(s.dz * 100 + 0.5)
-				rowZ[key] = (rowZ[key] or 0) + 1
+			local rows, cols, n = {}, {}, 0
+			for _, s in Formation.slots(24) do
+				rows[math.floor(s.dz + 0.5)] = true
+				cols[math.floor(s.dx + 0.5)] = true
 			end
-			for _, n in rowZ do
-				rows += 1
-				assert(n <= Formation.PER_ROW, "row too wide")
+			local nr, nc = 0, 0
+			for _ in rows do
+				nr += 1
 			end
-			eq(rows, 2, "8 followers use two rows")
-			-- the second row holds 2 followers, centered on the lead's axis
-			local last = slots[#slots]
-			local prev = slots[#slots - 1]
-			assert(math.abs(last.dx + prev.dx) < 1e-9, "last row is centered")
+			for _ in cols do
+				nc += 1
+			end
+			assert(nr >= 10 and nc >= 12, `looks gridded: {nr} rows, {nc} columns`)
+			eq(n, 0, "unused")
 		end,
 	},
 	{
-		name = "denser formation is tighter",
+		name = "follower k keeps slot k when the count changes",
 		run = function()
-			assert(Formation.spacing(1) < Formation.spacing(0.5), "density 1 tighter than 0.5")
-			local loose, tight = Formation.slots(6, 0.5), Formation.slots(6, 1)
-			assert(math.abs(loose[1].dx) > math.abs(tight[1].dx), "row is wider when loose")
-		end,
-	},
-	{
-		name = "slots depend only on count and density, not on any visual size",
-		run = function()
-			local a, b = Formation.slots(24, 1), Formation.slots(24, 1)
-			for i = 1, 24 do
+			local a, b = Formation.slots(8), Formation.slots(24)
+			for i = 1, 8 do
 				eq(a[i].dx, b[i].dx, "dx")
 				eq(a[i].dz, b[i].dz, "dz")
 			end
@@ -122,17 +108,17 @@ return {
 		end,
 	},
 	{
-		name = "section slots sit behind every possible loose slot and do not overlap",
+		name = "section slots stand inside the crowd, clear of every loose slot, and do not overlap",
 		run = function()
-			local deepestLoose = 0
-			for _, s in Formation.slots(Config.visualBudget.looseAvatars, 0) do
-				deepestLoose = math.min(deepestLoose, s.dz)
-			end
 			local sections = Formation.sectionSlots(6)
 			eq(#sections, 6, "six")
-			distinct(sections, 4, "sections")
+			distinct(sections, 4.5, "sections")
+			local loose = Formation.slots(Config.visualBudget.looseAvatars)
 			for i, s in sections do
-				assert(s.dz < deepestLoose, `section {i} is behind the loose followers`)
+				for j, l in loose do
+					local d = math.sqrt((s.dx - l.dx) ^ 2 + (s.dz - l.dz) ^ 2)
+					assert(d >= 2.5, `section {i} is crowded by follower {j} ({d})`)
+				end
 			end
 			assert(not pcall(Formation.sectionSlots, 7), "over the representative budget")
 		end,

@@ -21,6 +21,8 @@ CameraRig.PULLBACK_RATE = 2 -- [default] easing rate of the pullback as the para
 -- visible street, and a wider FOV only shrinks the gate text.
 CameraRig.GATE_NEAR = 30 -- [default] studs ahead of the lead of the nearest gate row that must read
 CameraRig.PROP_FRONT = 4 -- [default] how far ahead of the lead's z a prop (entourage) can stand
+CameraRig.SECTION_FRONT = -9 -- [default] nearest section base is behind the lead
+CameraRig.SECTION_TALLEST = 24 -- [default] tallest section figure
 -- Issue #70: gates are standing portals now, so a gate is itself a prop. Its banner (top
 -- PortalGeometry.TOP = 19) must also stay readable and never be a surprise for the clearance rule:
 -- the tallest prop is the larger of the old guess (16; puppet is 11, PuppetFigure.HEIGHT) and the portal.

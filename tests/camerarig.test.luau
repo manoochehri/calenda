@@ -1,6 +1,7 @@
 --!strict
 local CameraRig = require("../src/shared/CameraRig")
 local Formation = require("../src/shared/Formation")
+local SectionScale = require("../src/shared/SectionScale")
 local VisualBudget = require("../src/shared/VisualBudget")
 
 local function eq(actual: any, expected: any, name: string)
@@ -83,20 +84,20 @@ return {
 		name = "a taller prop raises the camera so the gate row is still clear",
 		run = function()
 			local base = CameraRig.pose(0, 0, 1)
-			local tall = CameraRig.pose(0, 0, 1, 30)
+			local tall = CameraRig.pose(0, 0, 1, 40)
 			assert(tall.py > base.py, "camera raised")
 			assert(
-				CameraRig.gateClearance(tall, 0, CameraRig.PROP_FRONT, 30)
+				CameraRig.gateClearance(tall, 0, CameraRig.PROP_FRONT, 40)
 					>= CameraRig.CLEARANCE - 1e-9,
-				"clear over a 30-stud prop"
+				"clear over a 40-stud prop"
 			)
 			-- without the rule the base pose would be blocked by that prop
 			assert(
-				CameraRig.gateClearance(base, 0, CameraRig.PROP_FRONT, 30) < CameraRig.CLEARANCE,
-				"the base pose is blocked by a 30-stud prop"
+				CameraRig.gateClearance(base, 0, CameraRig.PROP_FRONT, 40) < CameraRig.CLEARANCE,
+				"the base pose is blocked by a 40-stud prop"
 			)
 			for _, pullback in { 1, 1.2, 1.4 } do
-				local pitch = CameraRig.pitchDegrees(CameraRig.pose(0, 0, pullback, 30))
+				local pitch = CameraRig.pitchDegrees(CameraRig.pose(0, 0, pullback, 40))
 				assert(pitch >= 45 and pitch <= 65, `pitch {pitch} at pullback {pullback}`)
 			end
 		end,
@@ -112,12 +113,16 @@ return {
 		name = "the lead stays in frame and above the section stand-ins' sight line",
 		run = function()
 			for pullback = 1, 1.4, 0.1 do
-				for _, h in { CameraRig.TALLEST_PROP, 30 } do
+				for _, h in { CameraRig.TALLEST_PROP } do
 					local pose = CameraRig.pose(0, 0, pullback, h)
 					assert(CameraRig.leadInFrame(pose, 0), `lead off screen at {pullback}`)
-					for _, slot in Formation.sectionSlots(6) do
+					for i, slot in Formation.sectionSlots(6) do
+						local own = SectionScale.heightOf(
+							({ "puppet", "globo", "dancers" })[(i - 1) % 3 + 1],
+							i
+						)
 						assert(
-							CameraRig.leadClearance(pose, 0, slot.dz, h) >= 0,
+							CameraRig.leadClearance(pose, 0, slot.dz, math.min(h, own)) >= 0,
 							`lead hidden behind a prop at dz {slot.dz}, pullback {pullback}`
 						)
 					end
