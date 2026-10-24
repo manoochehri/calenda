@@ -12,6 +12,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
+local RunLog = require(Shared:WaitForChild("RunLog"))
 
 -- The lead musician is drawn by the client (src/client/CrowdView); no Roblox character is needed,
 -- and one would stand on the road and block the view.
@@ -35,7 +36,11 @@ local stateRemote = makeRemote(Remotes.names.state)
 local eventRemote = makeRemote(Remotes.names.event)
 folder.Parent = ReplicatedStorage
 
-type Session = { driver: RunDriver.RunDriver, sinceState: number }
+type Session = {
+	driver: RunDriver.RunDriver,
+	sinceState: number,
+	logs: { RunLog.StructuredLog },
+}
 local sessions: { [Player]: Session } = {}
 
 local function sendState(player: Player, session: Session)
@@ -47,6 +52,7 @@ local function startRun(player: Player)
 	local session: Session = {
 		driver = RunDriver.new({ layout = DebugLayout, automated = false }),
 		sinceState = 0,
+		logs = {},
 	}
 	sessions[player] = session
 	sendState(player, session)
@@ -72,6 +78,13 @@ replayRemote.OnServerEvent:Connect(function(player: Player)
 	local session = sessions[player]
 	if session and session.driver:replay(os.clock()) then
 		session.sinceState = STATE_INTERVAL -- push the fresh state on the next step
+		local past = session.driver:completedLogs()
+		local last = past[#past]
+		if last then
+			table.insert(session.logs, last)
+			RunLog.store(last)
+			RunLog.print(last)
+		end
 	end
 end)
 
@@ -79,6 +92,12 @@ RunService.Heartbeat:Connect(function(dt: number)
 	for player, session in sessions do
 		for _, e in session.driver:tick(dt) do
 			eventRemote:FireClient(player, e)
+			if e.kind == "complete" or e.kind == "defeated" then
+				local log = session.driver:runLog()
+				table.insert(session.logs, log)
+				RunLog.store(log)
+				RunLog.print(log)
+			end
 		end
 		session.sinceState += dt
 		if session.sinceState >= STATE_INTERVAL then
