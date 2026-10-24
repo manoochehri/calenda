@@ -4,7 +4,9 @@ SHELL := /bin/bash
 ROKIT ?= $(shell command -v rokit 2>/dev/null || echo $(HOME)/.rokit/bin/rokit)
 # Run tools through Rokit's bin dir first (an Aftman-managed rojo may shadow it otherwise).
 # The inline assignment forces a shell, so the PATH override is honoured for every recipe line.
-TOOLS := PATH="$(HOME)/.rokit/bin:$$PATH"
+# Default is $(HOME)/.rokit/bin; if that is absent (custom install), use the dir of `rokit` on PATH.
+ROKIT_BIN ?= $(if $(wildcard $(HOME)/.rokit/bin),$(HOME)/.rokit/bin,$(patsubst %/,%,$(dir $(shell command -v rokit 2>/dev/null))))
+TOOLS := PATH="$(ROKIT_BIN):$$PATH"
 LUAU_DIRS := src tests
 PLACE := build/Calenda.rbxl
 

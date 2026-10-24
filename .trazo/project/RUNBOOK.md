@@ -10,6 +10,9 @@ make setup   # trusts and installs the pinned tools in rokit.toml (rojo, lune, s
 make test    # stylua --check, selene, Lune tests (tests/run.luau), then rojo build -> build/Calenda.rbxl
 ```
 
+The Lune test runner (`tests/run.luau`) reads `tests/` by relative path, so run it from the repo root (`make test-unit` does this).
+Any `rokit.toml` version bump needs security review: `rokit trust` is per repo, not per version, so a compromised future release of a trusted repo would be accepted.
+
 Other targets: `make lint`, `make fmt` (applies stylua), `make build`, `make scan` (secret-pattern grep).
 `build/` is gitignored. Open `build/Calenda.rbxl` in Studio, or run `rojo serve` for live sync.
 
