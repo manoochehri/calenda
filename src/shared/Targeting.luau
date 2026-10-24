@@ -6,8 +6,8 @@
 -- Rules (Amendment 1): eligible = in range (distance <= firing.range), meter not full, not yet
 -- passed (z > leadZ), and already spawned. Steering toward a side prefers eligible targets on that
 -- side (Level.sideOf, which applies spectators.centerTolerance); otherwise, or if that side has none,
--- the nearest to the lead is chosen. No eligible target means no shots. A cluster that reaches the
--- parade unfilled is only REPORTED here (`passed`); the attack and any HP cost are issue #36.
+-- the nearest to the lead is chosen. No eligible target means no shots. Reaching the parade reports
+-- an unfilled cluster in `passed` for the attack phase; later hits to a passed cluster are inert.
 --
 -- Per advance() the order matches the same-tick ordering of Amendment 1: shots land, meters fill
 -- and conversions are credited (RunState.creditCluster, exactly once), then unconverted clusters
@@ -37,7 +37,13 @@ export type HitResult = { hits: number, needed: number, filled: boolean, credit:
 export type Step = { shots: { Shot }, passed: { number } }
 
 export type Session = {
-	advance: (self: Session, t: number, sectionCount: number, steer: Steer) -> Step,
+	advance: (
+		self: Session,
+		t: number,
+		sectionCount: number,
+		steer: Steer,
+		shotPositionTime: number?
+	) -> Step,
 	hit: (self: Session, id: number) -> HitResult,
 	meter: (self: Session, id: number) -> (number, number),
 }
@@ -157,6 +163,9 @@ function Targeting.new(opts: Options): Session
 	function self.hit(_, id: number): HitResult
 		local need = needed[id]
 		assert(need ~= nil, `unknown cluster {id}`)
+		if reported[id] then
+			return { hits = hitsOf[id], needed = need, filled = hitsOf[id] >= need, credit = nil }
+		end
 		if hitsOf[id] >= need then
 			return { hits = need, needed = need, filled = true, credit = nil }
 		end
@@ -187,12 +196,29 @@ function Targeting.new(opts: Options): Session
 		return Targeting.selectTarget(candidatesAt(t), Level.leadZ(t, cfg), steer, cfg)
 	end
 
-	function self.advance(_, t: number, sectionCount: number, steer: Steer): Step
+	function self.advance(
+		_,
+		t: number,
+		sectionCount: number,
+		steer: Steer,
+		shotPositionTime: number?
+	): Step
 		if type(t) ~= "number" or t ~= t or t < 0 then
 			error(`t must be a non-negative number, got {t}`, 2)
 		end
 		if t < lastT then
 			error(`time went backwards: {t} < {lastT}`, 2)
+		end
+		if
+			shotPositionTime ~= nil
+			and (
+				type(shotPositionTime) ~= "number"
+				or shotPositionTime ~= shotPositionTime
+				or shotPositionTime < lastT
+				or shotPositionTime > t
+			)
+		then
+			error(`shot position time must be between {lastT} and {t}`, 2)
 		end
 		lastT = t
 		local interval = 1 / Targeting.fireRate(sectionCount, cfg)
@@ -200,10 +226,11 @@ function Targeting.new(opts: Options): Session
 
 		while nextShot <= t do
 			local at = nextShot
-			local target = pick(at, steer)
+			local positionTime = shotPositionTime or at
+			local target = pick(positionTime, steer)
 			if target == nil and at < t then
 				at = t -- nothing at the scheduled time: retry at the end of this step
-				target = pick(at, steer)
+				target = pick(shotPositionTime or at, steer)
 			end
 			if target == nil then
 				nextShot = t -- no target => no shots, and no banked shots for later
@@ -225,7 +252,7 @@ function Targeting.new(opts: Options): Session
 			nextShot = at + interval
 		end
 
-		-- Clusters that reached the parade unfilled: reported once, no credit, no penalty here.
+		-- Clusters that reached the parade unfilled are reported once for the attack phase.
 		local passed: { number } = {}
 		local z = Level.leadZ(t, cfg)
 		for _, c in clusters do

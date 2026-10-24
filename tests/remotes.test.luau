@@ -43,12 +43,24 @@ return {
 		end,
 	},
 	{
-		name = "decodeSteer ignores extra fields (no totals, ids or amounts are read)",
+		name = "decodeSteer ignores forged state, attack, and event fields",
 		run = function()
 			eq(
-				Remotes.decodeSteer({ x = 1, total = 99999, id = "g1", amount = 5, side = "left" }),
+				Remotes.decodeSteer({
+					x = 1,
+					total = 99999,
+					hp = 0,
+					score = 99999,
+					id = "g1",
+					clusterId = 4,
+					amount = 5,
+					damage = 999,
+					attack = true,
+					kind = "attack",
+					side = "left",
+				}),
 				1,
-				"x only"
+				"only steering x is accepted; forged state/attack fields are ignored"
 			)
 		end,
 	},

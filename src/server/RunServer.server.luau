@@ -32,7 +32,7 @@ local stateRemote = makeRemote(Remotes.names.state)
 local eventRemote = makeRemote(Remotes.names.event)
 folder.Parent = ReplicatedStorage
 
-type Session = { driver: RunDriver.RunDriver, sinceState: number }
+type Session = { driver: RunDriver.RunDriver, sinceState: number, accumulator: number }
 local sessions: { [Player]: Session } = {}
 
 local function sendState(player: Player, session: Session)
@@ -48,6 +48,7 @@ local function startRun(player: Player)
 			hooks = RunHooks.new(DebugLayout),
 		}),
 		sinceState = 0,
+		accumulator = 0,
 	}
 	sessions[player] = session
 	sendState(player, session)
@@ -65,26 +66,37 @@ end)
 steerRemote.OnServerEvent:Connect(function(player: Player, payload: any)
 	local session = sessions[player]
 	if session then
-		session.driver:steer(os.clock(), payload)
+		session.driver:steer(workspace:GetServerTimeNow(), payload)
 	end
 end)
 
 replayRemote.OnServerEvent:Connect(function(player: Player)
 	local session = sessions[player]
-	if session and session.driver:replay(os.clock()) then
+	if session and session.driver:replay(workspace:GetServerTimeNow()) then
 		session.sinceState = STATE_INTERVAL -- push the fresh state on the next step
+		session.accumulator = 0
 	end
 end)
 
 RunService.Heartbeat:Connect(function(dt: number)
 	for player, session in sessions do
-		for _, e in session.driver:tick(dt) do
-			eventRemote:FireClient(player, e)
-		end
-		session.sinceState += dt
-		if session.sinceState >= STATE_INTERVAL then
-			session.sinceState = 0
-			sendState(player, session)
+		local ok, err = pcall(function()
+			session.accumulator += dt
+			while session.accumulator >= RunDriver.TICK_DT do
+				for _, e in session.driver:tick(RunDriver.TICK_DT) do
+					eventRemote:FireClient(player, e)
+				end
+				session.accumulator -= RunDriver.TICK_DT
+			end
+			session.sinceState += dt
+			if session.sinceState >= STATE_INTERVAL then
+				session.sinceState = 0
+				sendState(player, session)
+			end
+		end)
+		if not ok then
+			warn(`Dropping run for {player.Name} after a server tick error: {err}`)
+			sessions[player] = nil
 		end
 	end
 end)

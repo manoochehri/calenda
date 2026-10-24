@@ -21,6 +21,7 @@ local Steering = require("./Steering")
 local RunDriver = {}
 
 RunDriver.MAX_DT = 0.1 -- [default] seconds; a longer frame is simulated as this long
+RunDriver.TICK_DT = 1 / 30 -- shared fixed step for server and validator
 RunDriver.REPLAY_COOLDOWN = 1 -- [default] seconds between accepted replay requests
 
 -- Passed to hooks. `state` is server-only; `emit` queues an event for replication.

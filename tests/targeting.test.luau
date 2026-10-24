@@ -360,6 +360,25 @@ return {
 		end,
 	},
 	{
+		name = "hit after a cluster passed is inert",
+		run = function()
+			local layout = layoutOf({ cluster(1, 16, 20, "large") })
+			local session, rs = newSession(layout)
+			local t = (20 / (Config.speed + Config.spectators.approachSpeed)) + 0.01
+			local step = session:advance(t, 0, "center")
+			assert(#step.passed == 1 and step.passed[1] == 1, "cluster passed")
+			local beforeTotal = rs:total()
+			local beforeEvents = #rs:events()
+			local beforeHits = session:meter(1)
+			local late = session:hit(1)
+			assert(late.hits == beforeHits, "late hit does not change meter")
+			assert(not late.filled and late.credit == nil, "late hit does not credit")
+			assert(rs:total() == beforeTotal, "late hit does not change total")
+			assert(#rs:events() == beforeEvents, "late hit does not log")
+			assert(rs:clusterConsumption("1") == nil, "passed cluster awaits attack")
+		end,
+	},
+	{
 		name = "a cluster that fills just before the lead reaches it converts and is not reported passed",
 		run = function()
 			local layout = layoutOf({ cluster(1, 16, 14.67, "small") })

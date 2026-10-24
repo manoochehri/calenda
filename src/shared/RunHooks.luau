@@ -8,7 +8,8 @@ local Targeting = require("./Targeting")
 
 local RunHooks = {}
 
-function RunHooks.new(layout: Level.Layout): any
+function RunHooks.new(layout: Level.Layout, config: any?): any
+	local cfg = config or Config
 	local targeting: Targeting.Session? = nil
 	local hooks: any = {}
 
@@ -18,6 +19,7 @@ function RunHooks.new(layout: Level.Layout): any
 				layout = layout,
 				runState = ctx.state,
 				runIdPrefix = "c",
+				config = cfg,
 			})
 		end
 		return targeting :: Targeting.Session
@@ -27,7 +29,8 @@ function RunHooks.new(layout: Level.Layout): any
 		local step = session(ctx):advance(
 			ctx.t1,
 			CrowdMath.sectionCount(ctx.state:total()),
-			Level.sideOf(ctx.x, Config)
+			Level.sideOf(ctx.x, cfg),
+			ctx.t0
 		)
 		ctx.passedClusters = step.passed
 	end
