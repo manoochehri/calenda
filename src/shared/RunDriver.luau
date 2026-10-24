@@ -51,7 +51,7 @@ export type Options = {
 	layout: Level.Layout,
 	automated: boolean?,
 	hooks: Hooks?,
-	now: (() -> number)?,
+	now: (() -> number)?, -- event clock forwarded to RunState (server-side only); lets tests use a fake clock
 }
 
 export type Snapshot = Remotes.Snapshot
@@ -66,7 +66,6 @@ export type RunDriver = {
 	events: (self: RunDriver) -> { RunState.Event },
 	replays: (self: RunDriver) -> { RunLog.ReplayEntry },
 	runLog: (self: RunDriver) -> RunLog.StructuredLog,
-	completedLogs: (self: RunDriver) -> { RunLog.StructuredLog },
 }
 
 -- Copies the authored layout into RunState's layout. Fresh tables only: nothing is shared with
@@ -147,7 +146,6 @@ function RunDriver.new(opts: Options): RunDriver
 	local steerLimiter = Steering.newLimiter(Steering.MESSAGES_PER_SECOND, Steering.BURST)
 	local lastReplay: number? = nil
 	local replays: { RunLog.ReplayEntry } = {}
-	local completed: { RunLog.StructuredLog } = {}
 
 	local self = {} :: RunDriver
 
@@ -246,12 +244,12 @@ function RunDriver.new(opts: Options): RunDriver
 			return false
 		end
 		lastReplay = now :: number
-		local priorLog = RunLog.fromEvents(state:events(), {
-			replays = { { time = now :: number } },
-			replayed = true,
-		})
-		table.insert(completed, priorLog)
+		-- The replay is recorded as an event on the NEXT run's log (runLog().replays); the finished
+		-- run is logged once, when it ends. History is capped so a long session cannot grow it.
 		table.insert(replays, { time = now :: number })
+		while #replays > RunLog.MAX_LOGS_PER_PLAYER do
+			table.remove(replays, 1)
+		end
 		state:reset()
 		time, z, x, target = 0, 0, 0, 0
 		ended, finalOutcome, finalScore = false, nil, nil
@@ -288,10 +286,6 @@ function RunDriver.new(opts: Options): RunDriver
 
 	function self.runLog(_): RunLog.StructuredLog
 		return RunLog.fromEvents(state:events(), { replays = replays })
-	end
-
-	function self.completedLogs(_): { RunLog.StructuredLog }
-		return table.clone(completed)
 	end
 
 	return self

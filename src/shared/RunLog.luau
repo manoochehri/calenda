@@ -67,10 +67,10 @@ export type StructuredLog = {
 
 export type BuildOptions = {
 	replays: { ReplayEntry }?,
-	replayed: boolean?,
 }
 
-local storedLogs: { StructuredLog } = {}
+-- [default] Most finished-run logs kept per player; the spec gives no value. Older logs are dropped.
+RunLog.MAX_LOGS_PER_PLAYER = 5
 
 function RunLog.fromEvents(events: { RunState.Event }, options: BuildOptions?): StructuredLog
 	local seed = 0
@@ -175,6 +175,8 @@ function RunLog.fromEvents(events: { RunState.Event }, options: BuildOptions?): 
 				after = e.after,
 			})
 		elseif e.kind == "complete" or e.kind == "defeated" then
+			-- NOTE: RunState records only "complete". "defeated" is RESERVED for issue #36 (defeat/HP);
+			-- nothing produces it yet, so a defeated run currently has completion = nil. Not tested.
 			local outcome = if e.kind == "defeated" then "defeated" else "completed"
 			completion = {
 				outcome = outcome,
@@ -205,7 +207,7 @@ function RunLog.fromEvents(events: { RunState.Event }, options: BuildOptions?): 
 	end
 
 	local replayCount = #replaysCopy
-	local isReplay = replayCount > 0 or (options ~= nil and options.replayed == true)
+	local isReplay = replayCount > 0
 
 	return {
 		seed = seed,
@@ -264,16 +266,50 @@ function RunLog.print(log: StructuredLog)
 	print(RunLog.format(log))
 end
 
-function RunLog.store(log: StructuredLog)
-	table.insert(storedLogs, log)
-end
+-- Per-player log keeper. NOT module-global: the caller owns the instance, holds at most
+-- MAX_LOGS_PER_PLAYER logs per key (newest kept) and must call release(key) on PlayerRemoving.
+export type Keeper = {
+	add: (self: Keeper, key: any, log: StructuredLog) -> (),
+	get: (self: Keeper, key: any) -> { StructuredLog },
+	count: (self: Keeper, key: any) -> number,
+	release: (self: Keeper, key: any) -> (),
+	players: (self: Keeper) -> number,
+}
 
-function RunLog.getStored(): { StructuredLog }
-	return table.clone(storedLogs)
-end
-
-function RunLog.clearStored()
-	storedLogs = {}
+function RunLog.newKeeper(): Keeper
+	local byKey: { [any]: { StructuredLog } } = {}
+	local self = {} :: Keeper
+	function self.add(_, key: any, log: StructuredLog)
+		local list = byKey[key]
+		if list == nil then
+			list = {}
+			byKey[key] = list
+		end
+		local l = list :: { StructuredLog }
+		table.insert(l, log)
+		while #l > RunLog.MAX_LOGS_PER_PLAYER do
+			table.remove(l, 1)
+		end
+	end
+	function self.get(_, key: any): { StructuredLog }
+		local list = byKey[key]
+		return if list then table.clone(list) else {}
+	end
+	function self.count(_, key: any): number
+		local list = byKey[key]
+		return if list then #list else 0
+	end
+	function self.release(_, key: any)
+		byKey[key] = nil
+	end
+	function self.players(_): number
+		local n = 0
+		for _ in byKey do
+			n += 1
+		end
+		return n
+	end
+	return self
 end
 
 return RunLog

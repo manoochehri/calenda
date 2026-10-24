@@ -39,9 +39,9 @@ folder.Parent = ReplicatedStorage
 type Session = {
 	driver: RunDriver.RunDriver,
 	sinceState: number,
-	logs: { RunLog.StructuredLog },
 }
 local sessions: { [Player]: Session } = {}
+local logKeeper = RunLog.newKeeper() -- last few finished-run logs per player; released on leave
 
 local function sendState(player: Player, session: Session)
 	stateRemote:FireClient(player, Remotes.encodeState(session.driver:snapshot()))
@@ -52,7 +52,6 @@ local function startRun(player: Player)
 	local session: Session = {
 		driver = RunDriver.new({ layout = DebugLayout, automated = false }),
 		sinceState = 0,
-		logs = {},
 	}
 	sessions[player] = session
 	sendState(player, session)
@@ -65,6 +64,7 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	sessions[player] = nil -- drops the driver and its RunState
+	logKeeper:release(player)
 end)
 
 steerRemote.OnServerEvent:Connect(function(player: Player, payload: any)
@@ -78,13 +78,6 @@ replayRemote.OnServerEvent:Connect(function(player: Player)
 	local session = sessions[player]
 	if session and session.driver:replay(os.clock()) then
 		session.sinceState = STATE_INTERVAL -- push the fresh state on the next step
-		local past = session.driver:completedLogs()
-		local last = past[#past]
-		if last then
-			table.insert(session.logs, last)
-			RunLog.store(last)
-			RunLog.print(last)
-		end
 	end
 end)
 
@@ -94,8 +87,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			eventRemote:FireClient(player, e)
 			if e.kind == "complete" or e.kind == "defeated" then
 				local log = session.driver:runLog()
-				table.insert(session.logs, log)
-				RunLog.store(log)
+				logKeeper:add(player, log)
 				RunLog.print(log)
 			end
 		end

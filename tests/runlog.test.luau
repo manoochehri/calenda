@@ -212,27 +212,55 @@ return {
 		end,
 	},
 	{
-		name = "local store: stores structured logs in-memory without player data",
+		name = "per-player cap: a keeper holds at most MAX_LOGS_PER_PLAYER logs, newest kept",
 		run = function()
-			RunLog.clearStored()
-			eq(#RunLog.getStored(), 0, "initially empty")
-
+			local keeper = RunLog.newKeeper()
 			local state = makeRunState(false)
 			state:complete()
-			local log = RunLog.fromEvents(state:events())
-
-			RunLog.store(log)
-			local stored = RunLog.getStored()
-			eq(#stored, 1, "stored 1 log")
-			eq(stored[1].seed, 42, "stored log seed")
-			-- Ensure no user/player identifiers exist
-			local raw = stored[1] :: any
-			eq(raw.userId, nil, "no userId")
-			eq(raw.userName, nil, "no userName")
-			eq(raw.player, nil, "no player")
-
-			RunLog.clearStored()
-			eq(#RunLog.getStored(), 0, "cleared")
+			local n = RunLog.MAX_LOGS_PER_PLAYER * 3
+			for i = 1, n do
+				local log = RunLog.fromEvents(state:events())
+				log.start = i -- marker so we can tell which survived
+				keeper:add("p1", log)
+				assert(
+					keeper:count("p1") <= RunLog.MAX_LOGS_PER_PLAYER,
+					`count {keeper:count("p1")} exceeds cap after add {i}`
+				)
+			end
+			eq(keeper:count("p1"), RunLog.MAX_LOGS_PER_PLAYER, "full at the cap")
+			local kept = keeper:get("p1")
+			eq(kept[#kept].start, n, "newest kept")
+			eq(kept[1].start, n - RunLog.MAX_LOGS_PER_PLAYER + 1, "oldest kept is the Nth newest")
+			-- a second player has an independent list
+			keeper:add("p2", RunLog.fromEvents(state:events()))
+			eq(keeper:count("p2"), 1, "independent per player")
+		end,
+	},
+	{
+		name = "cleanup: release frees a player's logs (PlayerRemoving)",
+		run = function()
+			local keeper = RunLog.newKeeper()
+			local state = makeRunState(false)
+			state:complete()
+			keeper:add("p1", RunLog.fromEvents(state:events()))
+			keeper:add("p2", RunLog.fromEvents(state:events()))
+			keeper:release("p1")
+			eq(keeper:count("p1"), 0, "p1 released")
+			eq(#keeper:get("p1"), 0, "p1 list empty")
+			eq(keeper:count("p2"), 1, "p2 untouched")
+			eq(keeper:players(), 1, "one player still held")
+			keeper:release("p2")
+			eq(keeper:players(), 0, "nothing retained")
+			keeper:release("never-seen") -- no error
+		end,
+	},
+	{
+		name = "no module-global store: RunLog exposes no store/getStored/clearStored",
+		run = function()
+			local raw = RunLog :: any
+			eq(raw.store, nil, "no store")
+			eq(raw.getStored, nil, "no getStored")
+			eq(raw.clearStored, nil, "no clearStored")
 		end,
 	},
 	{
@@ -328,13 +356,38 @@ return {
 			assert(driver:replay(replayTime), "replay accepted")
 			eq(driver:outcome(), nil, "outcome reset after replay")
 
-			-- Driver's past completed logs record the replay
-			local completed = driver:completedLogs()
-			eq(#completed, 1, "1 completed log preserved")
-			local pastLog = completed[1]
-			eq(pastLog.replay, true, "past log flagged as replayed")
-			eq(pastLog.replayCount, 1, "past log replayCount is 1")
-			eq(pastLog.replays[1].time, replayTime, "replay timestamp recorded")
+			-- No second copy of the finished run is kept; the replay is an event on the NEXT run.
+			eq((driver :: any).completedLogs, nil, "driver keeps no completed-log list")
+			local nextLog = driver:runLog()
+			eq(nextLog.replay, true, "next run's log is flagged as following a replay")
+			eq(nextLog.replayCount, 1, "next run's log replayCount is 1")
+			eq(nextLog.replays[1].time, replayTime, "replay timestamp recorded")
+			eq(nextLog.completion, nil, "next run has not completed")
+		end,
+	},
+	{
+		name = "replay history is capped across repeated replays",
+		run = function()
+			local driver = RunDriver.new({ layout = driverFixture(), automated = true })
+			local replays = RunLog.MAX_LOGS_PER_PLAYER * 3
+			local t = 0
+			for i = 1, replays do
+				for _ = 1, math.ceil(20 / DT) do
+					driver:tick(DT)
+					if driver:outcome() ~= nil then
+						break
+					end
+				end
+				eq(driver:outcome(), "completed", `run {i} completed`)
+				t += 10 -- past the replay cooldown
+				assert(driver:replay(t), `replay {i} accepted`)
+				assert(
+					#driver:replays() <= RunLog.MAX_LOGS_PER_PLAYER,
+					`replay list {#driver:replays()} exceeds cap`
+				)
+			end
+			eq(#driver:replays(), RunLog.MAX_LOGS_PER_PLAYER, "at the cap")
+			eq(driver:replays()[#driver:replays()].time, t, "newest replay kept")
 		end,
 	},
 }
