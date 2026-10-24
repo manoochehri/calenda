@@ -12,8 +12,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CameraRig = require(Shared:WaitForChild("CameraRig"))
-local Formation = require(Shared:WaitForChild("Formation"))
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Effects = require(Shared:WaitForChild("Effects"))
