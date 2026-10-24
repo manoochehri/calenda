@@ -2,6 +2,7 @@
 -- Production gameplay hooks connecting target selection to RunState and parade HP.
 -- Pure: the server supplies the RunState and replicates the emitted events.
 local Config = require("./Config")
+local ClusterFeed = require("./ClusterFeed")
 local CrowdMath = require("./CrowdMath")
 local Level = require("./Level")
 local Targeting = require("./Targeting")
@@ -33,6 +34,13 @@ function RunHooks.new(layout: Level.Layout, config: any?): any
 			ctx.t0
 		)
 		ctx.passedClusters = step.passed
+		-- One display-only event per landed shot; the server sends it to the owning player only.
+		for _, shot in step.shots do
+			local payload = ClusterFeed.encode(shot)
+			if payload ~= nil then
+				ctx.emit(payload)
+			end
+		end
 	end
 
 	hooks.attacks = function(ctx: any)

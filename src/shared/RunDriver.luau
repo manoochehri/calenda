@@ -24,6 +24,9 @@ local RunDriver = {}
 
 RunDriver.MAX_DT = 0.1 -- [default] seconds; a longer frame is simulated as this long
 RunDriver.TICK_DT = 1 / 30 -- shared fixed step for server and validator
+-- Hard cap on "cluster" events one tick may return. The fire rate is at most 12 shots/s, so a
+-- 0.1 s frame carries about 2; the cap only matters if a hook misbehaves. Excess is dropped.
+RunDriver.MAX_CLUSTER_EVENTS_PER_TICK = 8 -- [default]
 RunDriver.REPLAY_COOLDOWN = 1 -- [default] seconds between accepted replay requests
 
 -- Passed to hooks. `state` is server-only; `emit` queues an event for replication.
@@ -36,6 +39,8 @@ export type DriverEvent = {
 	hpBefore: number?,
 	hpAfter: number?,
 	score: number?,
+	hits: number?, -- cluster: meter value after the shot, integer 0..1000
+	shot: ("note" | "gift")?, -- cluster: visual variant
 }
 export type TickContext = {
 	t0: number,
@@ -173,6 +178,7 @@ function RunDriver.new(opts: Options): RunDriver
 
 	function self.tick(_, dt: any): { DriverEvent }
 		local events: { DriverEvent } = {}
+		local clusterEvents = 0
 		if ended or not isFinite(dt) or (dt :: number) <= 0 then
 			return events
 		end
@@ -189,6 +195,12 @@ function RunDriver.new(opts: Options): RunDriver
 			x = x0,
 			state = state,
 			emit = function(e: DriverEvent)
+				if e.kind == "cluster" then
+					if clusterEvents >= RunDriver.MAX_CLUSTER_EVENTS_PER_TICK then
+						return
+					end
+					clusterEvents += 1
+				end
 				table.insert(events, e)
 			end,
 			passedClusters = {},

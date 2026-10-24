@@ -5,8 +5,8 @@
 -- has. The client never sends anything back. `decode` treats the payload as untrusted-shaped data.
 --
 -- Wire shape: { kind = "cluster", id = <layout cluster id>, hits = <int>, shot = "note" | "gift" }
--- The server side is a one-liner in the shots hook: `for _, s in step.shots do
--- ctx.emit(ClusterFeed.encode(s)) end` (see the PR; RunHooks belongs to PR #43).
+-- The server side is in RunHooks.shots: each Targeting shot is encoded (and validated) and emitted
+-- to the owning player only.
 export type Shot = { id: number, hits: number, shot: "note" | "gift" }
 export type Payload = { kind: string, id: number, hits: number, shot: string }
 
@@ -33,9 +33,21 @@ function ClusterFeed.decode(payload: any): Shot?
 	return { id = id, hits = hits, shot = shot }
 end
 
--- Server side: a Targeting.Shot (fields targetId, hits, kind) becomes the wire payload.
-function ClusterFeed.encode(s: { targetId: number, hits: number, kind: string }): Payload
-	return { kind = "cluster", id = s.targetId, hits = s.hits, shot = s.kind }
+-- Server side: a Targeting.Shot (fields targetId, hits, kind) becomes the wire payload. Validated
+-- like decode: returns nil for anything out of shape (unknown kind, bad id, hits outside 0..MAX_HITS)
+-- so the server never replicates a value the client would drop.
+function ClusterFeed.encode(s: { targetId: number, hits: number, kind: string }): Payload?
+	if type(s) ~= "table" then
+		return nil
+	end
+	local id, hits, kind = s.targetId, s.hits, s.kind
+	if not isWholeNumber(id, 1, 1e9) or not isWholeNumber(hits, 0, ClusterFeed.MAX_HITS) then
+		return nil
+	end
+	if kind ~= "note" and kind ~= "gift" then
+		return nil
+	end
+	return { kind = "cluster", id = id, hits = hits, shot = kind }
 end
 
 return ClusterFeed

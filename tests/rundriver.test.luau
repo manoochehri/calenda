@@ -422,7 +422,9 @@ return {
 			local events: { RunDriver.DriverEvent } = {}
 			for _ = 1, 100 do
 				for _, event in d:tick(DT) do
-					table.insert(events, event)
+					if event.kind ~= "cluster" then -- shot events (#48) are covered by shotevents.test
+						table.insert(events, event)
+					end
 				end
 				if d:outcome() ~= nil then
 					break
