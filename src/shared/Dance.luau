@@ -77,6 +77,14 @@ function Dance.pose(move: string, beat: number, amplitude: number): (number, num
 		arm = DanceConfig.maxArmRadians * (0.4 + 0.4 * math.max(0, downbeat))
 		hop = math.max(0, downbeat) * DanceConfig.maxHopStuds * 0.35
 		sway = wave * DanceConfig.maxSwayRadians * 0.55
+	elseif move == "finale" then
+		-- The plaza finale is a sustained full-out party. Each bar's first beat lands a
+		-- synchronized jump and arm lift; the body turns and sways between those downbeats.
+		local barPulse = math.cos(TAU * beat / Config.music.beatsPerBar)
+		hop = DanceConfig.maxHopStuds * (0.65 + 0.35 * math.max(0, barPulse))
+		arm = DanceConfig.maxArmRadians * (0.7 + 0.3 * math.max(0, barPulse))
+		sway = wave * DanceConfig.maxSwayRadians
+		spin = DanceConfig.maxSpinRadians * math.sin(TAU * beat / 8)
 	else -- march, and safe fallback for a malformed move key
 		hop = math.abs(wave) * DanceConfig.maxHopStuds * 0.5
 		arm = wave * DanceConfig.maxArmRadians * 0.3

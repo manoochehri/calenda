@@ -114,6 +114,21 @@ return {
 		end,
 	},
 	{
+		name = "finale pose is full-out at each bar downbeat and stays within configured bounds",
+		run = function()
+			for _, beat in { 0, 4, 8, 12 } do
+				local hop, sway, arm, spin = Dance.pose("finale", beat, DanceConfig.maxAmplitude)
+				expect(hop >= DanceConfig.maxHopStuds, `finale hop is full at downbeat {beat}`)
+				expect(
+					arm >= DanceConfig.maxArmRadians * 0.6,
+					`finale arms rise at downbeat {beat}`
+				)
+				expect(math.abs(sway) <= DanceConfig.maxJointRadians, "finale sway is bounded")
+				expect(math.abs(spin) <= DanceConfig.maxJointRadians, "finale spin is bounded")
+			end
+		end,
+	},
+	{
 		name = "section choreography adds a four bar puppet bow and chorus arm rise",
 		run = function()
 			local verse = PuppetPose.pose(1, 0)

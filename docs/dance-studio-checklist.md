@@ -11,7 +11,8 @@ amplitude bounds and event accents; they do not establish how the figures read o
    but arms, skirts, poles and figures stay within their intended bounds. At high intensity, verify
    hops feel deliberate rather than like a faster marching run.
 4. Trigger a gate, cluster conversion, attack, completion and defeat in a debug run. Confirm the
-   parade accents each event once, reactions settle back into the beat, and defeat remains readable.
+   parade accents each event once, the plaza party jumps and turns on the beat, confetti bursts land
+   on bar downbeats, reactions settle back into the beat, and defeat remains readable.
 5. Repeat with the largest authored parade. Confirm the visual budget still caps logical section
    representatives at six and loose follower avatars at 24, and look for frame-time spikes on target
    mobile hardware. No mobile performance result is claimed by this checklist.

@@ -11,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Celebration = require(Shared:WaitForChild("Celebration"))
 local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local Dance = require(Shared:WaitForChild("Dance"))
 local DefeatPlan = require(Shared:WaitForChild("DefeatPlan"))
 local FinalePlan = require(Shared:WaitForChild("FinalePlan"))
 local Strings = require(Shared:WaitForChild("Strings"))
@@ -286,13 +287,17 @@ function EndScene.new(): EndScene
 			local d = dancers[i]
 			local x = d.sx + (d.tx - d.sx) * reach
 			local z = d.sz + (d.tz - d.sz) * reach
-			-- hopping party in the finale; a lazy waddle in the breakup
-			local hop = if kind == "finale"
-				then math.abs(math.sin(clock * 7 + i)) * 1.2
-				else math.abs(math.sin(clock * 4 + i)) * 0.4 * (1 - (wanderT or 0) * 0.5)
-			d.model:PivotTo(
-				CFrame.new(x, 1.3 + hop, z) * CFrame.Angles(0, 0, math.sin(clock * 5 + i) * 0.08)
-			)
+			local hop, sway, spin = 0, 0, 0
+			if kind == "finale" then
+				local partyHop, partySway, _, partySpin =
+					Dance.pose("finale", elapsed * Config.music.bpm / 60, 1.5)
+				hop, sway, spin = partyHop, partySway, partySpin
+			else
+				hop = 0.4 * math.abs(math.sin(clock * 4 + i)) * (1 - (wanderT or 0) * 0.5)
+				sway = 0.08 * math.sin(clock * 5 + i)
+			end
+			local side = if i % 2 == 0 then 1 else -1
+			d.model:PivotTo(CFrame.new(x, 1.3 + hop, z) * CFrame.Angles(0, spin, sway * side))
 		end
 
 		for _, g in gifts do
