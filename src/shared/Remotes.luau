@@ -45,7 +45,8 @@ export type EventPayload = {
 	hpAfter: number?,
 	score: number?,
 	hits: number?, -- cluster: meter value after the shot, integer 0..1000 (ClusterFeed)
-	shot: string?, -- cluster: "note" | "gift"
+	shot: string?, -- cluster, miss: "note" | "gift"
+	n: number?, -- miss: shot number, integer 1..1000000 (ClusterFeed); look only
 }
 
 local EVENT_KINDS: { [string]: boolean } = {
@@ -53,6 +54,7 @@ local EVENT_KINDS: { [string]: boolean } = {
 	obstacle = true,
 	complete = true,
 	cluster = true,
+	miss = true, -- continuous-fire shot with no target (ADR 0004); display only
 	attack = true,
 	defeated = true,
 }

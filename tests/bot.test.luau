@@ -272,7 +272,7 @@ return {
 			-- Level says cluster `a.id` is at or behind the lead from tReach on; the driver must attack on
 			-- the tick that contains tReach (within one tick).
 			local tReach
-			for k = 0, 3000 do
+			for k = 0, 12000 do -- 20 s: the first no-input attack is later at the 6/s rate (ADR 0004)
 				local t = k / 600
 				if Level.clusterPosition(DebugLayout, a.id, t).z <= Level.leadZ(t) then
 					tReach = t
@@ -290,7 +290,8 @@ return {
 	{
 		name = "missed wave: an unconverted cluster attacks once, never credits, never lowers the total",
 		run = function()
-			-- Three clusters arrive together; base fire (3/s, one target at a time) cannot convert all.
+			-- Three clusters arrive together; base fire (6/s, one target at a time, ADR 0004) cannot convert
+			-- all of them: 3 + 3 + 8 hits need 2.3 s, they reach the lead in under 2 s.
 			local clusters: { Level.Cluster } = {}
 			for i = 1, 3 do
 				table.insert(clusters, {
@@ -298,7 +299,7 @@ return {
 					wave = 1,
 					type = if i == 1 then "large" else "small",
 					spawnTime = 0,
-					spawn = { x = if i == 2 then 16 else -16, z = 70 + i },
+					spawn = { x = if i == 2 then 16 else -16, z = 40 + i },
 					path = {},
 				})
 			end

@@ -145,6 +145,10 @@ local function validate(c: any): (boolean, string?)
 	if f.cap < f.base then
 		return false, "firing.cap must be >= firing.base"
 	end
+	-- Every shot is one replicated event (ADR 0004), so the rate is bounded by the 30 Hz server tick.
+	if f.cap > 30 then
+		return false, "firing.cap must be <= 30 (one shot event per 30 Hz server tick)"
+	end
 	if not isPositive(f.range) then
 		return false, "firing.range must be a positive number"
 	end
@@ -254,9 +258,11 @@ local config: ConfigType = {
 	obstacleLoss = 10, -- [spec s9]
 	speed = 16, -- [default] studs/second; spec gives no value
 	firing = {
-		base = 3, -- [spec s4] min(cap, base + perSection * sectionCount)
-		cap = 12, -- [spec s4]
-		perSection = 1, -- [spec s4]
+		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
+		-- rate = min(cap, base + perSection * sectionCount) shots/s. One line each to retune.
+		base = 6, -- [default] was 3 in spec s4
+		cap = 20, -- [default] was 12 in spec s4; validate() bounds it by the 30 Hz server tick
+		perSection = 1, -- [spec s4] kept by Amendment 2
 		range = 60, -- [default] studs along the street from the lead; spec (Amendment 1) names the key only
 	},
 	spectators = {

@@ -173,6 +173,9 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	elseif payload.kind == "cluster" then
 		clusters:onCluster(payload)
 		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
+	elseif payload.kind == "miss" then
+		clusters:onMiss(payload) -- continuous fire with no target: flies on and fades (issue #67)
+		sections:onShot(payload) -- a miss can be a gift shot too: dancers toss
 	elseif payload.kind == "attack" then
 		-- Cartoon bump of flying bits; false for a duplicate event, which must not re-shake.
 		if clusters:onAttack(payload) then

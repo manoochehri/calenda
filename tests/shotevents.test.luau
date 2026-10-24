@@ -79,9 +79,16 @@ return {
 		end,
 	},
 	{
-		name = "nothing is emitted when there is no target in range",
+		name = "with no target in range every event is a bounded display-only miss",
 		run = function()
-			eq(#shotsFor(layoutWith(900), 0, 1), 0, "events with out-of-range cluster")
+			local events = shotsFor(layoutWith(900), 0, 1)
+			assert(#events >= 6, "continuous fire keeps shooting")
+			for i, e in events do
+				eq(ClusterFeed.decode(e), nil, `event {i} is not a hit`)
+				local m = ClusterFeed.decodeMiss(e)
+				assert(m ~= nil, `event {i} is a valid miss`)
+				eq(m.n, i, "shot number")
+			end
 		end,
 	},
 	{

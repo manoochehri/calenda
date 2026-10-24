@@ -173,3 +173,24 @@ Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave r
 **Gates stay stationary in the lane**; the gate pair rules (§6) are unchanged.
 
 **Feel reference:** Mob Control. A dense, readable swarm; a bar with a large number above each group (the excitement meter with its hit count). Reference only; no copying of assets, branding or UI.
+
+
+---
+
+## Amendment 2 — Continuous fire (owner decision, 2026-10-24)
+
+Owner feedback, twice: "the shooting should just be continuous" and "the projectiles are weak and seldom". Recorded in [ADR 0004](../.trazo/project/adr/0004-continuous-fire.md).
+
+Supersedes, where they conflict: §3 ("No target means no projectile spam"), §4 (starter firing rate 3 and the `min(12, 3 + sectionCount)` curve), and Amendment 1's targeting line "No eligible target means no shots". Everything not listed here is unchanged: eligibility, side preference, credit-once, meters, the gift cadence, the same-tick ordering, server authority, crowd math (§5), gates (§6), sections (§7), budgets (§8), the −10 obstacle and parade HP.
+
+**Firing is continuous.**
+- The parade shoots at the firing-rate curve whether or not anything is in range. The curve is `min(firing.cap, firing.base + firing.perSection * sectionCount)` shots per second with the new named defaults `firing.base = 6` (was 3), `firing.cap = 20` (was 12) and `firing.perSection = 1` (kept). Each is one Config line; `firing.cap` is validated to be at most 30, the server tick rate, because every shot is one replicated event.
+- A shot with an eligible target (Amendment 1 targeting, unchanged) goes to it and **counts as a hit**: one meter hit, credit-once, gift cadence unchanged (every fourth shot once a dancer section exists, counted over all shots, hit or miss).
+- A shot with **no eligible target** still fires, straight ahead, as a **miss**: visual only. A miss never fills a meter, credits, damages, consumes a cluster or changes `crowdTotal` or HP, and it is not a gameplay event. It is replicated to the owning player only as a lightweight, bounded, display-only `miss` Event (shot kind and shot number only; no id, position or reward), validated when encoded and again when decoded.
+- The same-tick order (Amendment 1) and server authority are unchanged: shots (hits and misses) are phase 1.
+
+**Balance.** Doubling the base rate changes conversion speed, so the HP and recruit balance evidence is stale: the #17 ladder must be re-run after this lands. The fixed debug layout was retuned only enough to keep the Amendment 1 checks true (no-input run defeated, competent run completed with HP left); its numbers are provisional.
+
+**Presentation.** Shots are bigger and readable (a glowing core, a short trail, a muzzle pop at the lead, an impact burst and squash on the target group, distinct note / heart / snack looks); misses fly off into the distance and fade. All pooled with hard caps; every knob is a named `[default]` constant in `ShotLook`. In-engine feel is unverified until a Studio pass.
+
+**Checks.** Rate curve at 0, 1, 9 and 100 sections; misses never credit, damage or consume; hits still credit once; the gift cadence is unchanged; a fixed clock is deterministic; per-tick event caps hold at the top rate.
