@@ -20,13 +20,16 @@ CameraRig.PULLBACK_RATE = 2 -- [default] easing rate of the pullback as the para
 -- props up to 30 studs). Widening the FOV is deliberately not used: pullback already scales the
 -- visible street, and a wider FOV only shrinks the gate text.
 CameraRig.GATE_NEAR = 30 -- [default] studs ahead of the lead of the nearest gate row that must read
-CameraRig.PROP_FRONT = 4 -- [default] how far ahead of the lead's z a prop (entourage) can stand
-CameraRig.SECTION_FRONT = -9 -- [default] nearest section base is behind the lead
-CameraRig.SECTION_TALLEST = 24 -- [default] tallest section figure
--- Issue #70: gates are standing portals now, so a gate is itself a prop. Its banner (top
--- PortalGeometry.TOP = 19) must also stay readable and never be a surprise for the clearance rule:
--- the tallest prop is the larger of the old guess (16; puppet is 11, PuppetFigure.HEIGHT) and the portal.
-CameraRig.TALLEST_PROP = math.max(16, PortalGeometry.TOP) -- [default] studs
+-- Sections (issue #68) stand INSIDE the crowd, at least 9 studs behind the lead (FollowerSlots.BASES;
+-- a test ties SECTION_FRONT to the nearest base). SECTION_TALLEST covers SectionScale.tallest() (about 23).
+CameraRig.SECTION_FRONT = -9 -- [default] studs ahead of the lead's z (negative = behind) of the section props
+CameraRig.SECTION_TALLEST = 24 -- [default] studs: the tallest section figure
+-- Issue #70/#82: gates are standing portals whose banner leans back on a hinge at its underside. The
+-- prop that can hide the next row is the banner's FAR TOP CORNER: PortalGeometry.TOP (about 17.4)
+-- studs up and 2 * BANNER_CENTER_DZ (= 6) studs ahead of the portal plane. Gates have their own term;
+-- pose raises the camera to the larger of the section and gate heights (at pullback 1, 1.2, 1.4 the
+-- gate term needs about 45.9, 50.0 and 54.1 against the curve heights 46, 55.2 and 64.4).
+CameraRig.GATE_FRONT = 2 * PortalGeometry.BANNER_CENTER_DZ -- studs ahead of the lead's z of that corner
 CameraRig.CLEARANCE = 3 -- [default] studs the sight line must clear a prop by
 CameraRig.LEAD_TOP = 6 -- studs; top of the lead: the player's avatar with accessories (LeadPose.AVATAR_TOP)
 
@@ -53,23 +56,24 @@ local function lineHeight(
 end
 
 -- Lowest camera height at which the line to the gate row clears a prop of `propHeight` standing
--- PROP_FRONT ahead of the lead, with the camera `back` studs behind the lead.
-function CameraRig.minHeightForGate(back: number, propHeight: number): number
+-- SECTION_FRONT ahead of the lead, with the camera `back` studs behind the lead.
+function CameraRig.minHeightForGate(back: number, propHeight: number, front: number?): number
 	local dGate = CameraRig.GATE_NEAR + back
-	local dProp = CameraRig.PROP_FRONT + back
+	local dProp = (front or CameraRig.SECTION_FRONT) + back
 	return (propHeight + CameraRig.CLEARANCE) * dGate / (dGate - dProp)
 end
 
 -- `pullback` is VisualBudget's cameraPullback multiplier (1 for a small party, up to 1.4).
 -- Scaling height and distance together keeps the pitch constant. `propHeight` (default
--- TALLEST_PROP) is the tallest prop the next gate row must stay visible behind: the camera is
+-- SECTION_TALLEST) is the tallest prop the next gate row must stay visible behind: the camera is
 -- raised only when the curve height would not clear it.
 function CameraRig.pose(leadX: number, leadZ: number, pullback: number, propHeight: number?): Pose
 	local x = leadX * CameraRig.FOLLOW_X
 	local back = CameraRig.BACK * pullback
 	local height = math.max(
 		CameraRig.HEIGHT * pullback,
-		CameraRig.minHeightForGate(back, propHeight or CameraRig.TALLEST_PROP)
+		CameraRig.minHeightForGate(back, propHeight or CameraRig.SECTION_TALLEST),
+		CameraRig.minHeightForGate(back, PortalGeometry.TOP, CameraRig.GATE_FRONT)
 	)
 	return {
 		px = x,

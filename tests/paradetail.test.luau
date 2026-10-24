@@ -1,10 +1,11 @@
 --!strict
+local FollowerSlots = require("../src/shared/FollowerSlots")
 local Formation = require("../src/shared/Formation")
 local ParadeTail = require("../src/shared/ParadeTail")
 
 return {
 	{
-		name = "parade tail is the deepest drawn loose follower or section representative",
+		name = "parade tail is the deepest drawn loose follower or section representative (a section reaches its footprint past its base)",
 		run = function()
 			for _, total in { 0, 24, 49, 50, 300, 10000 } do
 				local formation = Formation.forTotal(total)
@@ -13,7 +14,7 @@ return {
 					expected = math.max(expected, -slot.dz)
 				end
 				for _, slot in formation.sections do
-					expected = math.max(expected, -slot.dz)
+					expected = math.max(expected, -slot.dz + FollowerSlots.BASE_FOOTPRINT)
 				end
 				assert(
 					ParadeTail.depth(total) == expected,

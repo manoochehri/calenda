@@ -47,6 +47,7 @@ type Avatar = {
 	look: FollowerLook.Look,
 	lastClock: number,
 	steps: number,
+	seen: boolean,
 }
 
 export type CrowdView = {
@@ -159,6 +160,7 @@ local function buildFollower(parent: Instance): Avatar
 		look = FollowerLook.of(0),
 		lastClock = 0,
 		steps = 0,
+		seen = false,
 	}
 end
 
@@ -207,18 +209,8 @@ function CrowdView.new(): CrowdView
 	local absent = 0
 	local ring = buildRing(folder)
 
-	local pool = Pool.new(function(): Avatar
-		return buildFollower(folder)
-	end, function(avatar: Avatar)
-		avatar.id = -1 -- restyled on the first frame it is shown
-		for _, p in avatar.pieces do
-			p.part.Parent = folder
-		end
-	end, function(avatar: Avatar)
-		for _, p in avatar.pieces do
-			p.part.Parent = nil
-		end
-	end)
+	local live: { [number]: Avatar } = {} -- drawn avatars by follower id
+	local free: { Avatar } = {} -- hidden, ready for reuse
 
 	local dust: Effects.Effects<{ x: number, z: number }> = Effects.new(FollowerLook.DUST_CAP)
 	local dustPool = Pool.new(function(): Part
@@ -238,6 +230,44 @@ function CrowdView.new(): CrowdView
 	local lastLeadZ: number? = nil
 
 	local view = {} :: CrowdView
+
+	local breathNow = 1 -- crowd breathing scale of the frame being drawn
+
+	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
+		local avatar = live[id]
+		if avatar == nil then
+			avatar = table.remove(free) or buildFollower(folder)
+			restyle(avatar, id, clock)
+			for _, p in avatar.pieces do
+				p.part.Parent = folder
+			end
+			live[id] = avatar
+		end
+		avatar.seen = true
+		local look = avatar.look
+		local march = FollowerLook.march(look, clock)
+		local hop, sy, sxz = y, 1, 1
+		if marching then
+			hop += march.y
+			sy, sxz = march.squashY, march.squashXZ
+			if FollowerLook.footfall(look, avatar.lastClock, clock) then
+				avatar.steps += 1
+				if FollowerLook.raisesDust(id, avatar.steps) then
+					dust:start(clock, FollowerLook.DUST_SECONDS, { x = x, z = z })
+				end
+			end
+		else
+			hop += 0.6 * march.y -- runners and leavers keep their own hop
+		end
+		avatar.lastClock = clock
+		local k = look.scale * breathNow
+		local base = CFrame.new(ViewMap.x(x), hop, z)
+			* CFrame.Angles(0, 0, FollowerLook.lean(ViewMap.x(vx)))
+		for _, p in avatar.pieces do
+			p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
+			p.part.CFrame = base * CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
+		end
+	end
 
 	function view.onEvent(_, payload: any, t: number)
 		local hint = FollowerSource.fromEvent(DebugLayout, payload, t)
@@ -284,56 +314,27 @@ function CrowdView.new(): CrowdView
 			* CFrame.Angles(0, 0, math.pi / 2)
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
-		type Item = { id: number, x: number, z: number, vx: number, y: number, marching: boolean }
-		local items: { Item } = {}
+		breathNow = FollowerLook.breath(clock)
+		-- Avatars are keyed by follower id: one follower leaving never restyles the others.
+		for _, avatar in live do
+			avatar.seen = false
+		end
 		for _, m in frame.members do
-			table.insert(
-				items,
-				{ id = m.id, x = m.x, z = m.z, vx = m.vx, y = m.y, marching = true }
-			)
+			draw(m.id, m.x, m.z, m.vx, m.y, true)
 		end
 		for _, r in frame.runners do
-			table.insert(
-				items,
-				{ id = r.id, x = r.x, z = r.z, vx = r.vx, y = r.y, marching = false }
-			)
+			draw(r.id, r.x, r.z, r.vx, r.y, false)
 		end
 		for _, l in frame.leavers do
-			table.insert(
-				items,
-				{ id = l.id, x = l.x, z = l.z, vx = l.vx, y = l.y, marching = false }
-			)
+			draw(l.id, l.x, l.z, l.vx, l.y, false)
 		end
-
-		local breath = FollowerLook.breath(clock)
-		local avatars = pool:setCount(#items)
-		for i, avatar in avatars do
-			local item = items[i]
-			if avatar.id ~= item.id then
-				restyle(avatar, item.id, clock)
-			end
-			local look = avatar.look
-			local march = FollowerLook.march(look, clock)
-			local hop, sy, sxz = item.y, 1, 1
-			if item.marching then
-				hop += march.y
-				sy, sxz = march.squashY, march.squashXZ
-				if FollowerLook.footfall(look, avatar.lastClock, clock) then
-					avatar.steps += 1
-					if FollowerLook.raisesDust(item.id, avatar.steps) then
-						dust:start(clock, FollowerLook.DUST_SECONDS, { x = item.x, z = item.z })
-					end
+		for id, avatar in live do
+			if not avatar.seen then
+				live[id] = nil
+				for _, p in avatar.pieces do
+					p.part.Parent = nil
 				end
-			else
-				hop += 0.6 * march.y -- runners and leavers keep their own hop
-			end
-			avatar.lastClock = clock
-			local k = look.scale * breath
-			local base = CFrame.new(ViewMap.x(item.x), hop, item.z)
-				* CFrame.Angles(0, 0, FollowerLook.lean(ViewMap.x(item.vx)))
-			for _, p in avatar.pieces do
-				p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
-				p.part.CFrame = base * CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
+				table.insert(free, avatar)
 			end
 		end
 
