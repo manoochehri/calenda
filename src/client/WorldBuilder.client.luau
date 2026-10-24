@@ -10,6 +10,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local GateLabel = require(Shared:WaitForChild("GateLabel"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local StreetTheme = require(Shared:WaitForChild("StreetTheme"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local WORLD_NAME = "CalendaWorld"
@@ -17,6 +18,10 @@ local ROAD_HALF_WIDTH = DebugLayout.halfWidth - 6
 local SIDEWALK_WIDTH = 6
 local GATE_WIDTH = DebugLayout.halfWidth * 0.8
 local GATE_DEPTH = 6
+
+local function themeColor(rgb: StreetTheme.RGB): Color3
+	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+end
 
 type GateText = { operation: TextLabel, result: TextLabel }
 
@@ -186,10 +191,10 @@ local function addCone(parent: Instance, name: string, x: number, z: number)
 	end
 
 	-- Three shrinking primitive cylinders read as a friendly striped traffic cone.
-	cylinder("Base", 0.12, 0.2, 0.9, Color3.fromRGB(245, 111, 38))
-	cylinder("Body", 0.4, 0.36, 0.56, Color3.fromRGB(255, 130, 45))
-	cylinder("Stripe", 0.43, 0.08, 0.6, Color3.fromRGB(255, 245, 225))
-	cylinder("Tip", 0.68, 0.2, 0.28, Color3.fromRGB(255, 130, 45))
+	cylinder("Base", 0.12, 0.2, 0.9, themeColor(StreetTheme.palette.cone))
+	cylinder("Body", 0.4, 0.36, 0.56, themeColor(StreetTheme.palette.cone))
+	cylinder("Stripe", 0.43, 0.08, 0.6, themeColor(StreetTheme.palette.cream))
+	cylinder("Tip", 0.68, 0.2, 0.28, themeColor(StreetTheme.palette.cone))
 end
 
 local function addObstacle(parent: Instance, obstacleId: number, side: "left" | "right", z: number)
@@ -229,9 +234,9 @@ local function buildWorld()
 	world.Name = WORLD_NAME
 	world.Parent = Workspace
 
-	local roadColor = Color3.fromRGB(57, 61, 72)
-	local sidewalkColor = Color3.fromRGB(184, 164, 134)
-	local plazaColor = Color3.fromRGB(194, 133, 93)
+	local roadColor = themeColor(StreetTheme.palette.road)
+	local sidewalkColor = themeColor(StreetTheme.palette.sidewalk)
+	local plazaColor = themeColor(StreetTheme.palette.plaza)
 	local streetEnd = DebugLayout.plazaStart
 	local sidewalkCenter = ROAD_HALF_WIDTH + SIDEWALK_WIDTH / 2
 
@@ -255,7 +260,7 @@ local function buildWorld()
 			`RoadMark{z}`,
 			Vector3.new(0.45, 0.03, 24),
 			Vector3.new(0, 0.02, z),
-			Color3.fromRGB(225, 215, 185),
+			themeColor(StreetTheme.palette.roadLine),
 			Enum.Material.SmoothPlastic
 		)
 	end
