@@ -30,6 +30,8 @@ export type DriverEvent = {
 	side: string?,
 	before: number?,
 	after: number?,
+	hpBefore: number?,
+	hpAfter: number?,
 	score: number?,
 }
 export type TickContext = {
@@ -40,11 +42,13 @@ export type TickContext = {
 	x: number,
 	state: RunState.RunState,
 	emit: (DriverEvent) -> (),
+	passedClusters: { number },
 }
 export type Hooks = {
 	shots: ((TickContext) -> ())?, -- phase 1, before the lead moves (issue #9)
 	attacks: ((TickContext) -> ())?, -- phase 3, after gates and the obstacle (issue #36)
 	endCheck: ((TickContext) -> boolean)?, -- phase 4, true = the run ends defeated (issue #36)
+	reset: (() -> ())?, -- clear per-run hook state when replay begins
 }
 export type Options = { layout: Level.Layout, automated: boolean?, hooks: Hooks? }
 
@@ -174,6 +178,7 @@ function RunDriver.new(opts: Options): RunDriver
 			emit = function(e: DriverEvent)
 				table.insert(events, e)
 			end,
+			passedClusters = {},
 		}
 
 		-- (1) shots land, meters fill, conversions credited (issue #9)
@@ -212,9 +217,10 @@ function RunDriver.new(opts: Options): RunDriver
 		end
 
 		-- (4) end checks: defeat wins over reaching the plaza on the same tick
-		local defeated = hooks.endCheck ~= nil and hooks.endCheck(ctx) == true
+		local defeated = state:outcome() == "defeated"
+			or (hooks.endCheck ~= nil and hooks.endCheck(ctx) == true)
 		if defeated then
-			ended, finalOutcome, finalScore = true, "defeated", state:total()
+			ended, finalOutcome, finalScore = true, "defeated", state:score() or state:total()
 			table.insert(events, { kind = "defeated", score = finalScore })
 		elseif z1 >= layout.plazaStart then
 			local r = state:complete()
@@ -234,6 +240,9 @@ function RunDriver.new(opts: Options): RunDriver
 		end
 		lastReplay = now :: number
 		state:reset()
+		if hooks.reset then
+			hooks.reset()
+		end
 		time, z, x, target = 0, 0, 0, 0
 		ended, finalOutcome, finalScore = false, nil, nil
 		return true
@@ -245,6 +254,8 @@ function RunDriver.new(opts: Options): RunDriver
 			z = z,
 			x = x,
 			total = state:total(),
+			hp = state:hp(),
+			maxHp = Config.hp.max,
 			best = state:best(),
 			outcome = finalOutcome,
 			score = finalScore,

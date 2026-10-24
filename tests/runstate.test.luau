@@ -23,6 +23,7 @@ local layout: RunState.Layout = {
 	clusters = {
 		{ id = "c1", type = "small" },
 		{ id = "c2", type = "large" },
+		{ id = "c3", type = "small" },
 	},
 	obstacles = { { id = "o1" }, { id = "o2" } },
 }
@@ -270,6 +271,7 @@ return {
 			eq(run:hp(), 0, "HP clamps at zero")
 			eq(run:outcome(), "defeated", "defeated outcome")
 			eq(run:score(), 73, "defeat score is current crowd total")
+			eq(run:best(), 0, "defeat does not update session best")
 			local before = snapshot(run)
 			local later = run:attackCluster(`c{attackCount}`)
 			reject(later.ok, later.reason, run, before, "attack after defeat")
@@ -330,6 +332,8 @@ return {
 			for _ = 1, 3 do
 				run:resolveGate("g1", -3)
 				run:creditCluster("c1")
+				run:attackCluster("c3")
+				run:attackCluster("c3")
 				run:hitObstacle("o1")
 				run:resolveGate("g2", 3)
 				run:creditCluster("c2")
@@ -337,9 +341,13 @@ return {
 				run:resolveGate("g1", 3)
 				run:creditCluster("c1")
 			end
-			-- 10 +20 (g1 left)=30, +5=35, -10=25, g2 right +20=45, +15=60, -10=50
 			eq(run:total(), 50, "total")
-			eq(#run:events(), 1 + 6, "one event per consumed item plus run_start")
+			eq(
+				run:hp(),
+				Config.hp.max - Config.clusterTypes.small.attackDamage,
+				"one attack applied"
+			)
+			eq(#run:events(), 1 + 7, "one event per consumed item plus run_start")
 		end,
 	},
 	{

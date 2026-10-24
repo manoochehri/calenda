@@ -12,6 +12,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
+local RunHooks = require(Shared:WaitForChild("RunHooks"))
 
 local STATE_INTERVAL = 0.1 -- seconds between State snapshots per player (about 10 Hz)
 
@@ -41,7 +42,11 @@ end
 local function startRun(player: Player)
 	-- The layout is the authored constant; nothing from the client reaches the driver's setup.
 	local session: Session = {
-		driver = RunDriver.new({ layout = DebugLayout, automated = false }),
+		driver = RunDriver.new({
+			layout = DebugLayout,
+			automated = false,
+			hooks = RunHooks.new(DebugLayout),
+		}),
 		sinceState = 0,
 	}
 	sessions[player] = session

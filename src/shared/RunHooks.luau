@@ -1,0 +1,60 @@
+--!strict
+-- Production gameplay hooks connecting target selection to RunState and parade HP.
+-- Pure: the server supplies the RunState and replicates the emitted events.
+local Config = require("./Config")
+local CrowdMath = require("./CrowdMath")
+local Level = require("./Level")
+local Targeting = require("./Targeting")
+
+local RunHooks = {}
+
+function RunHooks.new(layout: Level.Layout): any
+	local targeting: Targeting.Session? = nil
+	local hooks: any = {}
+
+	local function session(ctx: any): Targeting.Session
+		if targeting == nil then
+			targeting = Targeting.new({
+				layout = layout,
+				runState = ctx.state,
+				runIdPrefix = "c",
+			})
+		end
+		return targeting :: Targeting.Session
+	end
+
+	hooks.shots = function(ctx: any)
+		local step = session(ctx):advance(
+			ctx.t1,
+			CrowdMath.sectionCount(ctx.state:total()),
+			Level.sideOf(ctx.x, Config)
+		)
+		ctx.passedClusters = step.passed
+	end
+
+	hooks.attacks = function(ctx: any)
+		for _, id in ctx.passedClusters do
+			local result = ctx.state:attackCluster(`c{id}`)
+			if result.ok then
+				ctx.emit({
+					kind = "attack",
+					id = id,
+					hpBefore = result.hpBefore,
+					hpAfter = result.hpAfter,
+				})
+			end
+		end
+	end
+
+	hooks.endCheck = function(ctx: any): boolean
+		return ctx.state:outcome() == "defeated"
+	end
+
+	hooks.reset = function()
+		targeting = nil
+	end
+
+	return hooks
+end
+
+return RunHooks

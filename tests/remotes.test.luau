@@ -60,11 +60,15 @@ return {
 				z = 20.123456,
 				x = -3.987,
 				total = 42,
+				hp = 83,
+				maxHp = 100,
 				outcome = nil,
 				score = nil,
 				best = 7,
 			})
 			eq(p.total, 42, "total")
+			eq(p.hp, 83, "hp")
+			eq(p.maxHp, 100, "maxHp")
 			eq(p.best, 7, "best")
 			eq(p.over, false, "over")
 			assert(math.abs(p.z - 20.12) < 0.006, "z rounded")
@@ -74,19 +78,22 @@ return {
 				z = 1440,
 				x = 0,
 				total = 100,
+				hp = 0,
+				maxHp = 100,
 				outcome = "completed",
 				score = 100,
 				best = 100,
 			})
 			eq(p2.over, true, "over")
 			eq(p2.outcome, "completed", "outcome")
+			eq(p2.hp, 0, "defeated HP")
 			eq(p2.score, 100, "score")
 		end,
 	},
 	{
 		name = "event kinds are the closed set the server may emit",
 		run = function()
-			for _, kind in { "gate", "obstacle", "complete" } do
+			for _, kind in { "gate", "obstacle", "complete", "attack", "defeated" } do
 				assert(Remotes.isEventKind(kind), kind)
 			end
 			assert(not Remotes.isEventKind("credit_everything"), "unknown")

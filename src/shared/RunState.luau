@@ -38,13 +38,15 @@ export type Result = {
 	before: number?,
 	after: number?,
 	score: number?,
+	hpBefore: number?,
+	hpAfter: number?,
 }
 
 -- Spec s12 Record: run start/seed, first recruitment, gate choice with before/after totals,
 -- first assembly, obstacle losses, completion/final total.
 export type Event = {
 	index: number,
-	kind: string, -- run_start | gate | cluster_credit | obstacle | complete
+	kind: string, -- run_start | gate | cluster_credit | obstacle | cluster_attack | complete
 	time: number,
 	seed: number,
 	automated: boolean,
@@ -55,15 +57,20 @@ export type Event = {
 	score: number?,
 	firstRecruit: boolean?,
 	firstAssembly: boolean?,
+	hpBefore: number?,
+	hpAfter: number?,
+	outcome: Outcome?,
 }
 
 export type RunState = {
 	resolveGate: (self: RunState, pairId: any, leadX: any) -> Result,
 	creditCluster: (self: RunState, id: any) -> Result,
+	attackCluster: (self: RunState, id: any) -> Result,
 	hitObstacle: (self: RunState, id: any) -> Result,
 	complete: (self: RunState) -> Result,
 	reset: (self: RunState, seed: number?) -> (),
 	total: (self: RunState) -> number,
+	hp: (self: RunState) -> number,
 	isComplete: (self: RunState) -> boolean,
 	outcome: (self: RunState) -> Outcome?,
 	score: (self: RunState) -> number?,
@@ -147,6 +154,7 @@ local function new(opts: Options): RunState
 	-- Per-run state. Everything below is replaced wholesale by reset().
 	local seed = opts.seed
 	local crowdTotal = startTotal
+	local paradeHp = Config.hp.max
 	local outcome: Outcome? = nil
 	local finalScore: number? = nil
 	local usedGates: { [string]: boolean } = {}
@@ -187,6 +195,7 @@ local function new(opts: Options): RunState
 	local function start(newSeed: number)
 		seed = newSeed
 		crowdTotal = startTotal
+		paradeHp = Config.hp.max
 		outcome = nil
 		finalScore = nil
 		usedGates = {}
@@ -310,6 +319,43 @@ local function new(opts: Options): RunState
 		return { ok = true, before = before, after = after }
 	end
 
+	function self.attackCluster(_, id: any): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		if not isId(id) then
+			return reject("invalid cluster id")
+		end
+		local cluster = clusters[id]
+		if cluster == nil then
+			return reject("unknown cluster")
+		end
+		if usedClusters[id] ~= nil then
+			return reject(`cluster already {usedClusters[id]}`)
+		end
+		local before = paradeHp
+		paradeHp = math.max(0, paradeHp - Config.clusterTypes[cluster.type].attackDamage)
+		usedClusters[id] = "attacked"
+		if paradeHp == 0 then
+			outcome = "defeated"
+			finalScore = crowdTotal
+		end
+		record("cluster_attack", crowdTotal, crowdTotal, {
+			id = id,
+			hpBefore = before,
+			hpAfter = paradeHp,
+			outcome = outcome,
+		})
+		return {
+			ok = true,
+			before = before,
+			after = paradeHp,
+			hpBefore = before,
+			hpAfter = paradeHp,
+		}
+	end
+
 	function self.complete(_): Result
 		local blocked = guard()
 		if blocked then
@@ -331,6 +377,9 @@ local function new(opts: Options): RunState
 
 	function self.total(_)
 		return crowdTotal
+	end
+	function self.hp(_)
+		return paradeHp
 	end
 	function self.isComplete(_)
 		return outcome == "completed"

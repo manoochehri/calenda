@@ -46,6 +46,7 @@ export type Options = {
 	layout: Level.Layout,
 	runState: RunState.RunState,
 	config: any?, -- tests may pass a modified copy of Config
+	runIdPrefix: string?, -- RunDriver's RunState names clusters with a `c` prefix
 }
 
 local Targeting = {}
@@ -125,6 +126,7 @@ function Targeting.new(opts: Options): Session
 	local layout = opts.layout
 	local runState = opts.runState
 	local cfg = opts.config or Config
+	local runIdPrefix = opts.runIdPrefix or ""
 
 	local hitsOf: { [number]: number } = {}
 	local credited: { [number]: boolean } = {}
@@ -162,7 +164,7 @@ function Targeting.new(opts: Options): Session
 		local credit: RunState.Result? = nil
 		if hitsOf[id] >= need and not credited[id] then
 			credited[id] = true
-			credit = runState:creditCluster(tostring(id))
+			credit = runState:creditCluster(`{runIdPrefix}{id}`)
 		end
 		return { hits = hitsOf[id], needed = need, filled = hitsOf[id] >= need, credit = credit }
 	end
