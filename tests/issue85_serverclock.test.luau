@@ -54,15 +54,17 @@ end
 type Trace = { z: { number }, x: { number }, camX: { number }, camZ: { number }, err: { number } }
 
 -- Runs the client render loop. `mode` "old" is the pre-#85 Main logic; "clock" is ServerClock.
-local function run(mode: string, duration: number, sc: Scenario): Trace
+local function run(mode: string, duration: number, sc: Scenario, renderFps: number?): Trace
+	local fps = renderFps or FPS
+	local dt = 1 / fps
 	local pk = packets(duration, sc)
 	local nextPacket = 1
 	local clock = ServerClock.new()
 	local latest: any, receivedAt = nil, 0
 	local drawnX = 0
 	local tr: Trace = { z = {}, x = {}, camX = {}, camZ = {}, err = {} }
-	for f = 1, math.floor(duration * FPS) do
-		local serverNow = f * DT
+	for f = 1, math.floor(duration * fps) do
+		local serverNow = f * dt
 		local now = serverNow + CLIENT_OFFSET
 		while nextPacket <= #pk and pk[nextPacket].arrival <= serverNow do
 			local s = pk[nextPacket].state
@@ -77,7 +79,7 @@ local function run(mode: string, duration: number, sc: Scenario): Trace
 			else
 				x, z = clock:sample(now, SPEED, MAX_Z)
 			end
-			drawnX = CameraRig.smooth(drawnX, x, DT, 8) -- Main's CAMERA_X_RATE
+			drawnX = CameraRig.smooth(drawnX, x, dt, 8) -- Main's CAMERA_X_RATE
 			local pose = CameraRig.pose(ViewMap.x(drawnX), z, 1)
 			table.insert(tr.z, z)
 			table.insert(tr.x, drawnX)
@@ -176,6 +178,25 @@ for _, mode in { "clock" } do
 		end,
 	})
 end
+
+table.insert(cases, {
+	name = "lead and camera stay smooth at the 30 FPS owner-validation target under jitter",
+	run = function()
+		local fps = 30
+		local tr = run("clock", 8, { jitter = 0.03, steerAt = STEER.steerAt }, fps)
+		local nominalX = Config.speed / fps
+		local from, to = math.floor(3.7 * fps), math.floor(4.4 * fps)
+		local hi, lo = stepRatios(tr.x, from, to, nominalX)
+		assert(lo > 0, "lead should be moving laterally")
+		local ripple = (hi - lo) / ((hi + lo) / 2)
+		assert(ripple <= 0.05, `30 FPS lead x step ripple {ripple}`)
+		local chi, clo = stepRatios(tr.camX, from, to, nominalX)
+		local cameraRipple = (chi - clo) / ((chi + clo) / 2)
+		assert(cameraRipple <= 0.05, `30 FPS camera x step ripple {cameraRipple}`)
+		local zHi, zLo = stepRatios(tr.z, 45, #tr.z, Config.speed / fps)
+		assert(zHi <= 1.05 and zLo >= 0.95, `30 FPS z steps {zLo}..{zHi} x nominal`)
+	end,
+})
 
 table.insert(cases, {
 	name = "baseline: today's x path ripples at 10 Hz (documents the defect)",
