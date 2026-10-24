@@ -74,6 +74,12 @@ return {
 			StartFlow.play(f)
 			eq(f.phase, "playing", "local Play accepted")
 			eq(StartFlow.shouldUpdateMusic(f), true, "ready State can update music during count-in")
+			StartFlow.serverPhase(f, "ready")
+			eq(
+				StartFlow.shouldUpdateMusic(f),
+				true,
+				"server ready State after Jugar keeps music updating"
+			)
 			StartFlow.serverPhase(f, "over")
 			eq(StartFlow.shouldUpdateMusic(f), false, "results are not the ready window")
 		end,
