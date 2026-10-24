@@ -286,6 +286,7 @@ RunService:BindToRenderStep(
 			return -- server clock, input and presentation stay paused behind the title screen
 		end
 		local now = os.clock()
+		debug.profilebegin("Calenda/ClockAndInput")
 		local x, z, t
 		if Config.debug.rawExtrapolation then
 			x, z, t =
@@ -296,6 +297,9 @@ RunService:BindToRenderStep(
 
 		input:step(dt, now)
 		drawnX = CameraRig.smooth(drawnX, x, dt, CAMERA_X_RATE)
+		debug.profileend()
+
+		debug.profilebegin("Calenda/CrowdAndSections")
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
@@ -311,6 +315,9 @@ RunService:BindToRenderStep(
 			hasAvatar,
 			leadAvatar:fallbackGrace()
 		)
+		debug.profileend()
+
+		debug.profilebegin("Calenda/AudioAndEffects")
 		leadZNow = z
 		music:setPeak(fx.musicIntensity)
 		music:setDucked(fx.defeated)
@@ -318,7 +325,9 @@ RunService:BindToRenderStep(
 		sfx:update(total, music:intensity(), dt, now)
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
+		debug.profileend()
 
+		debug.profilebegin("Calenda/CameraAndHud")
 		local plan = VisualBudget.allocate(total)
 		pullback = CameraRig.smooth(
 			pullback,
@@ -355,6 +364,7 @@ RunService:BindToRenderStep(
 			fx.view(RunView.hud(state)),
 			InputIntent.hintVisible(t, input:hasSteered(), state.over)
 		)
+		debug.profileend()
 	end
 )
 
