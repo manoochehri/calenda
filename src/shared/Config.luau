@@ -266,7 +266,7 @@ local config: ConfigType = {
 		{ kind = "multiply", value = 2 },
 	},
 	obstacleLoss = 10, -- [spec s9]
-	speed = 16, -- [default] studs/second; spec gives no value
+	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
 		-- rate = min(cap, base + perSection * sectionCount) shots/s. One line each to retune.
