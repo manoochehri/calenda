@@ -148,7 +148,17 @@ RunService:BindToRenderStep(
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
 		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift)
-		crowd:update(drawnX, z, fx.crowdTotal, dt, swirl, fx.tumble, fx.lift, hasAvatar)
+		crowd:update(
+			drawnX,
+			z,
+			fx.crowdTotal,
+			dt,
+			swirl,
+			fx.tumble,
+			fx.lift,
+			hasAvatar,
+			leadAvatar:fallbackGrace()
+		)
 		leadZNow = z
 		music:update(total, now)
 		clusters:update(t, drawnX, z, dt)

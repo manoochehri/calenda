@@ -34,6 +34,8 @@ export type LeadAvatar = {
 		tumble: number?,
 		lift: number?
 	) -> boolean,
+	-- Seconds without an avatar before the stand-in block may show (LeadPose.graceFor).
+	fallbackGrace: (self: LeadAvatar) -> number,
 }
 
 local LeadAvatar = {}
@@ -66,12 +68,33 @@ function LeadAvatar.new(): LeadAvatar
 	local root: BasePart? = nil
 	local standing = 3
 	local clock = 0
+	local hadAvatar = false -- an avatar has been in place at least once this session
 	local generation = 0 -- bumps on every (re)attach so a stale load never claims the lead
 	local connections: { RBXScriptConnection } = {}
+
+	local current: Model? = nil
+
+	-- The old body stays where it stood (anchored) until the server removes it; hide it locally.
+	local function hide(character: Model?)
+		if character == nil then
+			return
+		end
+		local function conceal(inst: Instance)
+			if inst:IsA("BasePart") then
+				inst.LocalTransparencyModifier = 1
+			end
+		end
+		for _, d in character:GetDescendants() do
+			conceal(d)
+		end
+		character.DescendantAdded:Connect(conceal) -- dies with the character when it is destroyed
+	end
 
 	local function detach()
 		generation += 1
 		root = nil
+		hide(current)
+		current = nil
 		for _, c in connections do
 			c:Disconnect()
 		end
@@ -80,6 +103,7 @@ function LeadAvatar.new(): LeadAvatar
 
 	local function attach(character: Model)
 		detach()
+		current = character
 		local mine = generation
 		task.spawn(function()
 			local humanoid = character:WaitForChild("Humanoid", WAIT) :: Humanoid?
@@ -100,6 +124,12 @@ function LeadAvatar.new(): LeadAvatar
 			table.insert(connections, character.DescendantAdded:Connect(freeze))
 			hrp.Anchored = true
 			standing = LeadPose.rootHeight(humanoid.RigType.Name, humanoid.HipHeight, hrp.Size.Y)
+			if humanoid.Health <= 0 then
+				detach() -- already dead when we got here: never lead with a corpse
+				return
+			end
+			root = hrp -- in place before the (possibly slow) animation setup below
+			hadAvatar = true
 
 			-- A reset or removal ends this lead; CharacterAdded brings the next one.
 			table.insert(
@@ -134,18 +164,19 @@ function LeadAvatar.new(): LeadAvatar
 					track:Play()
 				end
 			end
-			if mine == generation then
-				root = hrp
-			end
 		end)
 	end
 
-	player.CharacterAdded:Connect(attach)
+	player.CharacterAdded:Connect(attach) -- lives as long as the player's client; no destroy path
 	if player.Character then
 		attach(player.Character)
 	end
 
 	local view = {} :: LeadAvatar
+
+	function view.fallbackGrace(_)
+		return LeadPose.graceFor(hadAvatar, Players.RespawnTime)
+	end
 
 	function view.update(
 		_,

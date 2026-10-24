@@ -61,6 +61,22 @@ return {
 		end,
 	},
 	{
+		name = "grace: plain 3 s for the join case, respawn time plus 3 s once an avatar has existed",
+		run = function()
+			near(LeadPose.graceFor(false, 5), LeadPose.FALLBACK_GRACE, "join, never loaded")
+			near(LeadPose.graceFor(true, 5), 5 + LeadPose.FALLBACK_GRACE, "after a reset")
+			near(LeadPose.graceFor(true, 0), LeadPose.FALLBACK_GRACE, "instant respawn")
+			assert(
+				not LeadPose.showFallback(false, 6, LeadPose.graceFor(true, 5)),
+				"no flash in respawn"
+			)
+			assert(
+				LeadPose.showFallback(false, 8, LeadPose.graceFor(true, 5)),
+				"gives up eventually"
+			)
+		end,
+	},
+	{
 		name = "absence counts up without an avatar and resets the moment one is present",
 		run = function()
 			local a = 0

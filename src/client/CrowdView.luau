@@ -42,7 +42,8 @@ export type CrowdView = {
 		swirl: number?,
 		tumble: number?, -- issue #16: lead roll in radians (the defeat breakup)
 		lift: number?, -- issue #16: studs the lead hops during the tumble
-		hasAvatar: boolean? -- issue #55: the player's avatar is in place as the lead
+		hasAvatar: boolean?, -- issue #55: the player's avatar is in place as the lead
+		fallbackGrace: number? -- seconds without an avatar before the stand-in block shows
 	) -> (),
 }
 
@@ -180,7 +181,8 @@ function CrowdView.new(): CrowdView
 		swirl: number?,
 		tumble: number?,
 		lift: number?,
-		hasAvatar: boolean?
+		hasAvatar: boolean?,
+		fallbackGrace: number?
 	)
 		clock += dt
 		absent = LeadPose.absence(absent, hasAvatar == true, dt)
@@ -189,7 +191,7 @@ function CrowdView.new(): CrowdView
 			layout = Formation.forTotal(total)
 		end
 
-		if LeadPose.showFallback(hasAvatar == true, absent) then
+		if LeadPose.showFallback(hasAvatar == true, absent, fallbackGrace) then
 			local pose = LeadPose.at(leadX, leadZ, clock, lift or 0, BLOCK_STANDING)
 			lead.Parent = folder
 			lead:PivotTo(CFrame.new(pose.x, pose.y, pose.z) * CFrame.Angles(tumble or 0, 0, 0))

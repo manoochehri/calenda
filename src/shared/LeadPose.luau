@@ -43,9 +43,19 @@ function LeadPose.absence(previous: number, hasAvatar: boolean, dt: number): num
 	return previous + dt
 end
 
+-- Seconds without an avatar before the block shows: plain FALLBACK_GRACE for the join case (no
+-- character has loaded yet), but after a reset or removal the server's respawn (Players.RespawnTime)
+-- must be waited out first so the block never flashes.
+function LeadPose.graceFor(hadAvatar: boolean, respawnTime: number): number
+	if hadAvatar then
+		return math.max(respawnTime, 0) + LeadPose.FALLBACK_GRACE
+	end
+	return LeadPose.FALLBACK_GRACE
+end
+
 -- The primitive block shows only when no avatar has been available for the whole grace period.
-function LeadPose.showFallback(hasAvatar: boolean, absent: number): boolean
-	return (not hasAvatar) and absent >= LeadPose.FALLBACK_GRACE
+function LeadPose.showFallback(hasAvatar: boolean, absent: number, grace: number?): boolean
+	return (not hasAvatar) and absent >= (grace or LeadPose.FALLBACK_GRACE)
 end
 
 return LeadPose

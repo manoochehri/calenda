@@ -61,6 +61,35 @@ local function startRun(player: Player)
 	sendState(player, session)
 end
 
+-- Cosmetic only (issue #55, ADR 0003): the world is built on the client, so the server's copy of a
+-- player's character has no floor at spawn. Anchor it and make it non-colliding so it cannot fall
+-- to FallenPartsDestroyHeight and respawn in a loop. No gameplay state; the lead hitbox stays the
+-- fixed Crossing hitbox. The client drives its own copy as the lead (src/client/LeadAvatar).
+local function pinCharacter(character: Model)
+	local root = character:WaitForChild("HumanoidRootPart", 10)
+	if root and root:IsA("BasePart") then
+		root.Anchored = true
+	end
+	for _, d in character:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+		end
+	end
+end
+
+Players.PlayerAdded:Connect(function(player: Player)
+	player.CharacterAdded:Connect(pinCharacter)
+	if player.Character then
+		task.spawn(pinCharacter, player.Character)
+	end
+end)
+for _, player in Players:GetPlayers() do
+	player.CharacterAdded:Connect(pinCharacter)
+	if player.Character then
+		task.spawn(pinCharacter, player.Character)
+	end
+end
+
 Players.PlayerAdded:Connect(startRun)
 for _, player in Players:GetPlayers() do
 	startRun(player)
