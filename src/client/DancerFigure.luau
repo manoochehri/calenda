@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DancerPose = require(Shared:WaitForChild("DancerPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 local FigureParts = require(script.Parent:WaitForChild("FigureParts"))
 local SectionFigure = require(script.Parent:WaitForChild("SectionFigure"))
@@ -119,7 +120,11 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 			local pose = DancerPose.pose(time, phase + (i - 1) * 0.12)
 			local hop = pose.hop * math.min(intensity, 1.5)
 			local frame = ground
-				* CFrame.new(slot.dx * scale, 0, slot.dz * scale)
+				* CFrame.new(
+					slot.dx * scale * SectionScale.DANCER_SPREAD,
+					0,
+					slot.dz * scale * SectionScale.DANCER_SPREAD
+				)
 				* CFrame.Angles(0, 0, pose.sway)
 			FigureParts.place(d.legL, frame, CFrame.new(-0.6, 1.3 + pose.footL + hop, 0), s)
 			FigureParts.place(d.legR, frame, CFrame.new(0.6, 1.3 + pose.footR + hop, 0), s)

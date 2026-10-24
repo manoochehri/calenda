@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 local PuppetFigure = require(script.Parent:WaitForChild("PuppetFigure"))
 
@@ -31,7 +32,6 @@ export type Visual = {
 export type Builder = (parent: Instance, index: number, entourage: number) -> Visual
 
 local ENTOURAGE_SCALE = 0.35 -- [default]
-local ENTOURAGE_RADIUS = 3.2 -- [default] studs around the puppet (it stands inside the crowd now)
 
 local SectionFigure = {}
 
@@ -58,7 +58,7 @@ function SectionFigure.puppet(parent: Instance, index: number, entourage: number
 			local offset = Vector3.zero
 			if i > 1 then
 				local a = (i - 2) / math.max(1, #figures - 1) * math.pi * 2 + math.pi / 2
-				offset = Vector3.new(math.cos(a), 0, math.sin(a)) * ENTOURAGE_RADIUS
+				offset = Vector3.new(math.cos(a), 0, math.sin(a)) * SectionScale.ENTOURAGE_RADIUS
 			end
 			local pose = PuppetPose.pose(time, phase + (i - 1) * 0.25)
 			figure:setPose(ground * CFrame.new(offset), pose, scale * scales[i], intensity)

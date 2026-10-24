@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GloboPose = require(Shared:WaitForChild("GloboPose"))
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 local FigureParts = require(script.Parent:WaitForChild("FigureParts"))
 local PuppetFigure = require(script.Parent:WaitForChild("PuppetFigure"))
@@ -142,7 +143,17 @@ function GloboFigure.new(parent: Instance, index: number, carriers: number): Sec
 			local o = offsets[i]
 			local bob = pose.carrierStep * 0.3 * s
 			local walk = PuppetPose.pose(time, phase + i * 0.31)
-			person:setPose(ground * CFrame.new(o.dx * s, bob, o.dz * s), walk, s * CARRIER_SCALE, 1)
+			person:setPose(
+				ground
+					* CFrame.new(
+						o.dx * s * SectionScale.GLOBO_CARRIER_FACTOR,
+						bob,
+						o.dz * s * SectionScale.GLOBO_CARRIER_FACTOR
+					),
+				walk,
+				s * CARRIER_SCALE,
+				1
+			)
 		end
 	end
 
