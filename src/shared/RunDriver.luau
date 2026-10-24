@@ -32,6 +32,11 @@ RunDriver.TICK_DT = 1 / 30 -- shared fixed step for server and validator
 -- 20 events/s in practice (see PR for bytes).
 RunDriver.MAX_CLUSTER_EVENTS_PER_TICK = 8 -- [default]
 RunDriver.REPLAY_COOLDOWN = 1 -- [default] seconds between accepted replay requests
+-- Start (issue #72): a ready run begins on one client request. Attempts are rate limited on the
+-- server clock; START_COOLDOWN is defence in depth after an accepted Start.
+RunDriver.START_COOLDOWN = 1 -- [default] seconds
+RunDriver.START_PER_SECOND = 1 -- [default] refill rate of the Start limiter
+RunDriver.START_BURST = 2 -- [default] attempts in a burst
 
 -- Passed to hooks. `state` is server-only; `emit` queues an event for replication.
 export type DriverEvent = {
@@ -67,6 +72,7 @@ export type Options = {
 	layout: Level.Layout,
 	automated: boolean?,
 	hooks: Hooks?,
+	startReady: boolean?, -- true: begin "ready" (paused) until start(); default begins "running"
 	now: (() -> number)?, -- event clock forwarded to RunState (server-side only); lets tests use a fake clock
 }
 
@@ -76,6 +82,8 @@ export type RunDriver = {
 	steer: (self: RunDriver, now: any, payload: any) -> boolean,
 	tick: (self: RunDriver, dt: any) -> { DriverEvent },
 	replay: (self: RunDriver, now: any) -> boolean,
+	start: (self: RunDriver, now: any) -> boolean,
+	phase: (self: RunDriver) -> "ready" | "running" | "over",
 	snapshot: (self: RunDriver) -> Snapshot,
 	total: (self: RunDriver) -> number,
 	outcome: (self: RunDriver) -> string?,
@@ -161,12 +169,15 @@ function RunDriver.new(opts: Options): RunDriver
 	local finalScore: number? = nil
 	local steerLimiter = Steering.newLimiter(Steering.MESSAGES_PER_SECOND, Steering.BURST)
 	local lastReplay: number? = nil
+	local started = opts.startReady ~= true -- false = "ready": paused, nothing advances or logs
+	local startLimiter = Steering.newLimiter(RunDriver.START_PER_SECOND, RunDriver.START_BURST)
+	local lastStart: number? = nil
 	local replays: { RunLog.ReplayEntry } = {}
 
 	local self = {} :: RunDriver
 
 	function self.steer(_, now: any, payload: any): boolean
-		if not steerLimiter.allow(now) then
+		if not started or not steerLimiter.allow(now) then
 			return false
 		end
 		local want = Remotes.decodeSteer(payload)
@@ -184,7 +195,7 @@ function RunDriver.new(opts: Options): RunDriver
 	function self.tick(_, dt: any): { DriverEvent }
 		local events: { DriverEvent } = {}
 		local clusterEvents = 0
-		if ended or not isFinite(dt) or (dt :: number) <= 0 then
+		if not started or ended or not isFinite(dt) or (dt :: number) <= 0 then
 			return events
 		end
 		local step = math.min(dt :: number, RunDriver.MAX_DT)
@@ -265,7 +276,7 @@ function RunDriver.new(opts: Options): RunDriver
 
 	-- Replay starts a fresh run. Refused mid-run, rate limited, never trusts the caller's time.
 	function self.replay(_, now: any): boolean
-		if not ended or not isFinite(now) then
+		if not started or not ended or not isFinite(now) then
 			return false
 		end
 		if lastReplay ~= nil and (now :: number) - lastReplay < RunDriver.REPLAY_COOLDOWN then
@@ -287,8 +298,30 @@ function RunDriver.new(opts: Options): RunDriver
 		return true
 	end
 
+	-- Start (issue #72): only a "ready" run starts, once. Reads no client data: the caller passes
+	-- the SERVER clock. A second Start while running, or after the end (Replay's job), is ignored.
+	function self.start(_, now: any): boolean
+		if not startLimiter.allow(now) or started or ended then
+			return false
+		end
+		if lastStart ~= nil and (now :: number) - lastStart < RunDriver.START_COOLDOWN then
+			return false
+		end
+		lastStart = now :: number
+		started = true
+		return true
+	end
+
+	function self.phase(_): "ready" | "running" | "over"
+		if not started then
+			return "ready"
+		end
+		return if ended then "over" else "running"
+	end
+
 	function self.snapshot(_): Snapshot
 		return {
+			phase = self:phase(),
 			time = time,
 			z = z,
 			x = x,

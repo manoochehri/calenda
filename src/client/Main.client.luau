@@ -2,7 +2,8 @@
 -- Client entry point (issues #10, #13): wires the server's State/Event remotes to the camera, the
 -- input controller, the crowd view and the HUD. Everything it decides comes from pure, Lune-tested
 -- modules in ReplicatedStorage.Shared; this file only connects Roblox services.
--- The client sends a steering intent and a replay request, nothing else (Remotes trust model).
+-- The client sends a steering intent, a replay request and one payload-free Start request
+-- after the loading screen is ready (Remotes trust model).
 --
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (not run in Studio by the author): see the PR checklist.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,6 +30,8 @@ local Remotes = timedRequire("Shared", Shared, "Remotes")
 local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
 local RunView = timedRequire("Shared", Shared, "RunView")
 local ServerClock = timedRequire("Shared", Shared, "ServerClock")
+local StartFlow = timedRequire("Shared", Shared, "StartFlow")
+local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
@@ -45,17 +48,68 @@ local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
 local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
 local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
+local StartupScreen = timedRequire("Client", script.Parent, "StartupScreen")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 
 local remotes = ReplicatedStorage:WaitForChild(Remotes.folderName)
 local steerRemote = remotes:WaitForChild(Remotes.names.steer) :: RemoteEvent
 local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
+local startRemote = remotes:WaitForChild(Remotes.names.start) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
+local startupFlow = StartFlow.new()
+local startupProgress = StartupProgress.new({ "client", "street", "world", "server" })
+local startupScreen: StartupScreen.Screen
+local function updateProgress()
+	local fraction = StartupProgress.fraction(startupProgress)
+	StartFlow.progress(startupFlow, fraction)
+	startupScreen:setProgress(fraction)
+	if startupFlow.phase == "title" then
+		startupScreen:showTitle()
+	end
+end
+local function onPlay()
+	if StartFlow.play(startupFlow) then
+		startupScreen:hide()
+		startRemote:FireServer()
+	end
+end
+startupScreen = StartupScreen.new(onPlay)
+startupScreen:setMessage("Cargando el desfile...")
+
+-- Register both server listeners before the first ready State can unlock the title. The only
+-- client message that starts the run is the user's single, payload-free Play request.
+local listenersReady = false
+local function markClientReady()
+	if listenersReady then
+		return
+	end
+	listenersReady = true
+	StartupProgress.report(startupProgress, "client", 1)
+	updateProgress()
+end
+local function markWorldReady()
+	if StartupProgress.report(startupProgress, "world", 1) then
+		updateProgress()
+	end
+end
+
+-- The world builder is a sibling LocalScript. Observe its concrete model rather than advancing
+-- the progress bar by elapsed time or pretending a frame has loaded.
+task.spawn(function()
+	while Workspace:FindFirstChild("CalendaWorld") == nil do
+		RunService.Heartbeat:Wait()
+	end
+	markWorldReady()
+end)
+
 local stepAt = startupTrace:begin()
-Backdrop.build()
+Backdrop.build(function(fraction: number)
+	StartupProgress.report(startupProgress, "street", fraction)
+	updateProgress()
+end)
 stepAt = startupTrace:lap("Backdrop.build", stepAt)
 TouchControls.disable()
 
@@ -124,6 +178,13 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		StartupTrace.finishIfReady()
 	end
 	local state = payload :: Remotes.StatePayload
+	if Remotes.isPhase(state.phase) then
+		StartFlow.serverPhase(startupFlow, state.phase)
+		if state.phase == "ready" then
+			StartupProgress.report(startupProgress, "server", 1)
+		end
+		updateProgress()
+	end
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
 		-- Replay checklist (issue #16): ResetPlan warns (never throws) if an item is missing here.
 		local handlers = endFlow:resetHandlers()
@@ -207,6 +268,9 @@ RunService:BindToRenderStep(
 		if state == nil then
 			return
 		end
+		if state.phase == "ready" then
+			return -- server clock, input and presentation stay paused behind the title screen
+		end
 		local now = os.clock()
 		local x, z, t
 		if Config.debug.rawExtrapolation then
@@ -279,3 +343,7 @@ RunService:BindToRenderStep(
 		)
 	end
 )
+
+-- State/Event listeners and the render loop are now attached. Start stays withheld until both
+-- actual world builders and the server's paused State are ready.
+markClientReady()

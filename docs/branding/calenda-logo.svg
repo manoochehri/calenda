@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Calenda</title>
+  <desc id="desc">Original festival logo with papel picado, a puppet silhouette and a globo.</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FAD232"/>
+      <stop offset=".52" stop-color="#F48228"/>
+      <stop offset="1" stop-color="#E85496"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(90 20)">
+    <path d="M15 35 Q270 15 525 36 T1035 34" fill="none" stroke="#FAF2E2" stroke-width="7"/>
+    <g stroke="#FAF2E2" stroke-width="5">
+      <path d="M75 38v22M205 30v25M335 33v22M465 38v22M595 34v22M725 39v22M855 34v22M985 37v22"/>
+    </g>
+    <g>
+      <path d="M44 60h65v59l-32 18-33-18z" fill="#E85496"/><path d="M57 76h39v22H57z" fill="#FAF2E2"/>
+      <path d="M174 53h65v59l-32 18-33-18z" fill="#F48228"/><circle cx="206" cy="82" r="12" fill="#FAF2E2"/>
+      <path d="M304 55h65v59l-32 18-33-18z" fill="#FAD232"/><path d="M318 83h37" stroke="#FAF2E2" stroke-width="8"/>
+      <path d="M434 60h65v59l-32 18-33-18z" fill="#3CB46E"/><circle cx="466" cy="85" r="10" fill="#FAF2E2"/>
+      <path d="M564 56h65v59l-32 18-33-18z" fill="#3C8CE6"/><path d="M578 82h37" stroke="#FAF2E2" stroke-width="8"/>
+      <path d="M694 61h65v59l-32 18-33-18z" fill="#965AC8"/><circle cx="726" cy="87" r="11" fill="#FAF2E2"/>
+      <path d="M824 56h65v59l-32 18-33-18z" fill="#E85496"/><path d="M838 82h37" stroke="#FAF2E2" stroke-width="8"/>
+      <path d="M954 59h65v59l-32 18-33-18z" fill="#F48228"/><circle cx="986" cy="84" r="11" fill="#FAF2E2"/>
+    </g>
+  </g>
+  <g fill="#482E52" stroke="#FAF2E2" stroke-linejoin="round">
+    <path d="M80 230h1020v96H80z" stroke-width="10"/>
+    <text x="590" y="303" text-anchor="middle" font-family="Trebuchet MS,Arial,sans-serif" font-size="116" font-weight="900" letter-spacing="5" fill="url(#gold)" stroke="#482E52" stroke-width="15" paint-order="stroke">CALENDA</text>
+  </g>
+  <g transform="translate(1000 165)">
+    <circle cx="64" cy="46" r="40" fill="#3C8CE6" stroke="#FAF2E2" stroke-width="7"/>
+    <path d="M64 86v59" stroke="#FAF2E2" stroke-width="7"/>
+    <path d="M64 142q0 18 19 18" fill="none" stroke="#FAF2E2" stroke-width="7"/>
+  </g>
+</svg>
