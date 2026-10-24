@@ -203,11 +203,12 @@ function EndScene.new(): EndScene
 				local d = dancers[i]
 				local a = i / shown * math.pi * 2
 				d.sx, d.sz = at.X + math.cos(a) * 3, at.Z + math.sin(a) * 3
+				-- The room left ahead of the lead, not the plaza's full depth (issue #50).
 				local dx, dz = FinalePlan.slot(
 					i,
 					shown,
 					DebugLayout.halfWidth,
-					DebugLayout.streetLength - DebugLayout.plazaStart
+					FinalePlan.depthAhead(DebugLayout.streetLength, at.Z)
 				)
 				d.tx, d.tz =
 					math.clamp(at.X + dx, -DebugLayout.halfWidth + 2, DebugLayout.halfWidth - 2),
@@ -240,7 +241,12 @@ function EndScene.new(): EndScene
 			local due = FinalePlan.due(prev, elapsed, tier)
 			local perBurst = Celebration.profile(tier).confettiPerBurst
 			for _ = 1, due.bursts do
-				local dx, dz = FinalePlan.slot(math.random(1, 24), 24, DebugLayout.halfWidth, 60)
+				local dx, dz = FinalePlan.slot(
+					math.random(1, 24),
+					24,
+					DebugLayout.halfWidth,
+					math.min(60, FinalePlan.depthAhead(DebugLayout.streetLength, center.Z))
+				)
 				bits:burst(
 					"confetti",
 					Vector3.new(

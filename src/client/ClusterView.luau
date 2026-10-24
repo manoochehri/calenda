@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
+local ClusterEvents = require(Shared:WaitForChild("ClusterEvents"))
 local ClusterVisual = require(Shared:WaitForChild("ClusterVisual"))
 local MeterDisplay = require(Shared:WaitForChild("MeterDisplay"))
 local Effects = require(Shared:WaitForChild("Effects"))
@@ -16,6 +17,8 @@ local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
 local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
+
+local Bits = require(script.Parent:WaitForChild("Bits"))
 
 -- Spectators are warm orange against the gray road and blue followers: one mass, strong contrast.
 local SPECTATOR_COLOR = Color3.fromRGB(255, 120, 40)
@@ -33,6 +36,16 @@ local CHEER_RATE = 12 -- [default] radians/second
 local PROJECTILE_CAPACITY = 16 -- [default] live shots; extras are simply not drawn
 local FLOAT_CAPACITY = 6 -- [default]
 local FLOAT_SECONDS = 1.1 -- [default]
+-- Issue #50: the cartoon bump when an unfilled cluster reaches the parade. Hats and instrument
+-- bits fly up and tumble: playful, no gore.
+local BUMP_BITS = 7 -- [default] pieces per attack (Bits.MAX still bounds the total)
+local BUMP_SPREAD = 5 -- [default] studs
+local BUMP_COLORS = {
+	Color3.fromRGB(255, 200, 40),
+	Color3.fromRGB(235, 70, 90),
+	Color3.fromRGB(70, 160, 255),
+	Color3.fromRGB(255, 255, 255),
+}
 local RUNNER_POOL = ClusterVisual.MAX_VISIBLE_CLUSTERS * ClusterVisual.RUNNERS
 
 type Member = { body: Part, head: Part }
@@ -48,7 +61,7 @@ type Group = {
 
 export type ClusterView = {
 	onCluster: (self: ClusterView, payload: any) -> (),
-	onAttack: (self: ClusterView, payload: any) -> (),
+	onAttack: (self: ClusterView, payload: any) -> boolean, -- false for a duplicate event
 	reset: (self: ClusterView) -> (),
 	update: (self: ClusterView, t: number, leadX: number, leadZ: number, dt: number) -> (),
 }
@@ -204,6 +217,11 @@ function ClusterView.new(layout: any): ClusterView
 		f.part.Parent = nil
 	end)
 
+	local bits = Bits.new(folder)
+	local shotBudget = ClusterEvents.budget(ClusterEvents.EVENTS_PER_FRAME)
+	local attackBudget = ClusterEvents.budget(ClusterEvents.ATTACKS_PER_FRAME)
+	local attacked = ClusterEvents.dedupe()
+
 	local clock, lastT, lastLeadX, lastLeadZ = 0, 0, 0, 0
 	local currentPositions: { [number]: { x: number, z: number } } = {}
 	local view = {} :: ClusterView
@@ -214,12 +232,29 @@ function ClusterView.new(layout: any): ClusterView
 			return
 		end
 		local result = tracker:shot(shot, lastT)
-		if not result.accepted then
-			return
+		local at = currentPositions[shot.id]
+		-- The tracker above is always fed, so a flood never loses a fill. Only the visuals are
+		-- budgeted (issue #60); the +N plays on the first fill whatever else is suppressed.
+		local plan = ClusterEvents.plan({
+			accepted = result.accepted,
+			alreadyFilled = result.alreadyFilled,
+			filled = result.filled,
+			reward = result.reward,
+			visible = at ~= nil,
+			inBudget = shotBudget:take(),
+		})
+		if plan.float and result.reward then
+			floats:start(clock, FLOAT_SECONDS, {
+				x = result.x,
+				z = result.z,
+				text = string.format("+%d", result.reward),
+			})
+		end
+		if not plan.projectile or at == nil then
+			return -- over budget, a duplicate, or a cluster that is gone: no projectile
 		end
 		local variant = FeedbackMath.variant(shot.shot, shot.hits)
-		local at = currentPositions[shot.id]
-		local dist = if at then math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2) else 40
+		local dist = math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2)
 		flights:start(clock, FeedbackMath.flightSeconds(dist), {
 			id = shot.id,
 			variant = variant,
@@ -230,30 +265,48 @@ function ClusterView.new(layout: any): ClusterView
 		if variant ~= "note" then
 			catches[shot.id] = clock + FeedbackMath.flightSeconds(dist)
 		end
-		if result.filled and result.reward then
-			floats:start(clock, FLOAT_SECONDS, {
-				x = result.x,
-				z = result.z,
-				text = string.format("+%d", result.reward),
-			})
-		end
 	end
 
-	-- Hook for issue #36: an unfilled cluster reaching the parade sends an "attack" Event (bump,
-	-- flying hats, screen punch, HP jolt). Nothing is drawn here until that PR defines it.
-	function view.onAttack(_, _payload: any) end
+	-- An unfilled cluster reached the parade (issue #50): a cartoon bump of flying hats and
+	-- instrument bits at the lead. The HP bar, shake and flash are driven by Main from the same
+	-- Event. A repeated event for the same cluster, or a flood, plays nothing extra.
+	function view.onAttack(_, payload: any): boolean
+		if type(payload) ~= "table" then
+			return false
+		end
+		local id = if type(payload.id) == "number" then payload.id else nil
+		if not attacked:first(id) then
+			return false -- a duplicate event: nothing again, not even the HP shake
+		end
+		if not attackBudget:take() then
+			return true
+		end
+		bits:burst(
+			"prop",
+			Vector3.new(ViewMap.x(lastLeadX), 3, lastLeadZ),
+			BUMP_BITS,
+			BUMP_SPREAD,
+			BUMP_COLORS
+		)
+		return true
+	end
 
 	function view.reset(_)
 		tracker:reset()
 		groups:setCount(0) -- hides every slot, which clears its bar
 		flights:clear()
 		floats:clear()
+		bits:clear()
+		attacked:reset()
 		table.clear(catches)
 		currentPositions = {}
 	end
 
 	function view.update(_, t: number, leadX: number, leadZ: number, dt: number)
 		clock += dt
+		shotBudget:newFrame()
+		attackBudget:newFrame()
+		bits:update(dt)
 		lastT, lastLeadX, lastLeadZ = t, leadX, leadZ
 		local views = tracker:views(t, leadX, leadZ)
 

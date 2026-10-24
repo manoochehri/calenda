@@ -25,8 +25,14 @@ export type View = {
 	members: number, -- spectators to draw in the group
 	runners: { Runner }, -- spectators running into the parade (cheering phase only)
 }
-export type ShotResult =
-	{ accepted: boolean, filled: boolean, reward: number?, x: number, z: number }
+export type ShotResult = {
+	accepted: boolean,
+	filled: boolean,
+	alreadyFilled: boolean,
+	reward: number?,
+	x: number,
+	z: number,
+}
 export type Tracker = {
 	shot: (self: Tracker, s: { id: number, hits: number, shot: string }, t: number) -> ShotResult,
 	views: (self: Tracker, t: number, leadX: number, leadZ: number) -> { View },
@@ -80,11 +86,12 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 	function self.shot(_, s, t): ShotResult
 		local c = byId[s.id]
 		if c == nil or type(t) ~= "number" or t ~= t or t < 0 then
-			return { accepted = false, filled = false, x = 0, z = 0 }
+			return { accepted = false, filled = false, alreadyFilled = false, x = 0, z = 0 }
 		end
 		local need = needed(c)
 		-- Replicated counts only ever raise the meter, so a late or duplicate event is harmless.
 		hits[s.id] = math.min(need, math.max(hits[s.id] or 0, s.hits))
+		local alreadyFilled = filledAt[s.id] ~= nil
 		local firstFill = false
 		if hits[s.id] >= need and filledAt[s.id] == nil then
 			filledAt[s.id] = t
@@ -95,6 +102,7 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 		return {
 			accepted = true,
 			filled = firstFill,
+			alreadyFilled = alreadyFilled,
 			reward = if firstFill then cfg.clusterTypes[c.type].reward else nil,
 			x = at.x,
 			z = at.z,

@@ -7,7 +7,7 @@ local Bits = {}
 Bits.MAX = 90 -- [default] pieces alive at once; the oldest is recycled first
 local GRAVITY = 40 -- [default] studs/second^2
 
-export type Kind = "confetti" | "dust" | "dancer"
+export type Kind = "confetti" | "dust" | "dancer" | "prop"
 type Bit = {
 	part: Part,
 	vx: number,
@@ -83,6 +83,12 @@ function Bits.new(parent: Instance): Bits
 				b.vx, b.vy, b.vz =
 					math.cos(a) * r * 2.5, 2 + math.random() * 4, math.sin(a) * r * 2.5
 				b.total = 0.45 + math.random() * 0.2
+			elseif kind == "prop" then -- a flying hat or instrument piece (issue #50): tumbles, no gore
+				p.Shape = Enum.PartType.Block
+				p.Size = Vector3.new(1.3, 0.7 + math.random() * 0.8, 1.3)
+				p.Transparency = 0
+				b.vx, b.vy, b.vz = math.cos(a) * r * 3, 18 + math.random() * 8, math.sin(a) * r * 3
+				b.total = 0.9 + math.random() * 0.3
 			else -- dancer: a small colored figure-ball hopping away
 				p.Shape = Enum.PartType.Ball
 				p.Size = Vector3.one * 1.4
