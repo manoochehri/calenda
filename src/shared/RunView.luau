@@ -1,0 +1,69 @@
+--!strict
+-- Pure view helpers over the replicated State payload (issues #10, #13). The client renders the
+-- end of a run from `over`/`outcome` in State, not only from Event: State repeats at 10 Hz, so a
+-- listener that connects late still recovers the end (PR #42 review note on issue #10).
+local CrowdMath = require("./CrowdMath")
+local Remotes = require("./Remotes")
+local Strings = require("./Strings")
+
+export type Hud = {
+	counter: string, -- exact crowd total
+	detail: string, -- "Sueltos 20 · Secciones 2": the exact loose count and the section count
+	showEnd: boolean,
+	endTitle: string,
+	score: string,
+	best: string,
+}
+
+local RunView = {}
+
+RunView.MAX_EXTRAPOLATION = 0.35 -- [default] seconds of dead reckoning past the last State
+
+function RunView.wholeTotal(v: any): number
+	if type(v) ~= "number" or v ~= v or v < 0 or v == math.huge then
+		return 0
+	end
+	return math.floor(v)
+end
+
+function RunView.hud(state: Remotes.StatePayload): Hud
+	local total = RunView.wholeTotal(state.total)
+	local title = Strings.ended
+	if state.outcome == "completed" then
+		title = Strings.completed
+	elseif state.outcome == "defeated" then
+		title = Strings.defeated
+	end
+	return {
+		counter = string.format("%d", total),
+		detail = `{Strings.loose} {CrowdMath.looseFollowers(total)} · {Strings.sections} {CrowdMath.sectionCount(
+			total
+		)}`,
+		showEnd = state.over == true,
+		endTitle = title,
+		score = `{Strings.score}: {string.format("%d", RunView.wholeTotal(state.score or total))}`,
+		best = `{Strings.best}: {string.format("%d", RunView.wholeTotal(state.best))}`,
+	}
+end
+
+-- Dead-reckons the lead between 10 Hz States: z and t advance at `speed` for at most
+-- MAX_EXTRAPOLATION seconds, never past `maxZ`, and not at all once the run is over.
+function RunView.leadPosition(
+	state: Remotes.StatePayload,
+	secondsSinceState: number,
+	speed: number,
+	maxZ: number
+): (number, number, number)
+	if state.over then
+		return state.x, state.z, state.t
+	end
+	local dt = math.clamp(secondsSinceState, 0, RunView.MAX_EXTRAPOLATION)
+	return state.x, math.min(maxZ, state.z + speed * dt), state.t + dt
+end
+
+-- Run time only goes forward inside a run; going backwards means the server replayed.
+function RunView.isNewRun(previousT: number?, t: number): boolean
+	return previousT == nil or t < previousT
+end
+
+return RunView

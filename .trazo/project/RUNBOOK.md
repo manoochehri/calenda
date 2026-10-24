@@ -16,6 +16,10 @@ Any `rokit.toml` version bump needs security review: `rokit trust` is per repo, 
 Other targets: `make lint`, `make fmt` (applies stylua), `make build`, `make scan` (secret-pattern grep).
 `build/` is gitignored. Open `build/Calenda.rbxl` in Studio, or run `rojo serve` for live sync.
 
+## Studio (manual)
+Open an EMPTY place (File > New > no Baseplate template; a Baseplate is coplanar with the street and hides the backdrop), then from the repo root: `~/.rokit/bin/rojo serve default.project.json`, connect with the Rojo plugin, Play Solo.
+Note: `RunServer` sets `Players.CharacterAutoLoads = false` (server only, nothing replicated): no Roblox character spawns, the lead is drawn by the client (`src/client/CrowdView`). A feature that needs a character must revisit this.
+
 ## Parallel work (git worktrees)
 ```bash
 git fetch origin && git worktree add .worktrees/<name> -b <name> origin/main
