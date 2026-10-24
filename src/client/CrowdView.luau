@@ -1,5 +1,7 @@
 --!strict
--- The lead musician and the pooled follower avatars (issue #13), drawn from primitive Parts.
+-- The ring under the lead, the pooled follower avatars (issue #13), and a primitive block that
+-- stands in for the lead ONLY when the player's own avatar (src/client/LeadAvatar, issue #55) has
+-- not been available for LeadPose.FALLBACK_GRACE seconds.
 -- Where each avatar stands comes from the pure Formation module; how many are drawn comes from
 -- the visual budget through VisualBudget. The exact count is shown by the HUD, not by this view.
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
@@ -9,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Formation = require(Shared:WaitForChild("Formation"))
+local LeadPose = require(Shared:WaitForChild("LeadPose"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
@@ -22,8 +25,9 @@ local RING_COLOR = Color3.fromRGB(80, 235, 255)
 local FOLLOWER_COLOR = Color3.fromRGB(45, 120, 235)
 
 local FOLLOW_RATE = 9 -- [default] how fast an avatar eases toward its slot
-local BOB_HEIGHT = 0.25 -- [default] studs
-local BOB_RATE = 9 -- [default] radians/second
+local BOB_HEIGHT = 0.25 -- [default] studs (followers)
+local BOB_RATE = 9 -- [default] radians/second (followers)
+local BLOCK_STANDING = 1.5 -- studs: centre height of the stand-in block
 
 type Avatar = { model: Model, x: number, z: number, fresh: boolean }
 
@@ -37,7 +41,8 @@ export type CrowdView = {
 		dt: number,
 		swirl: number?,
 		tumble: number?, -- issue #16: lead roll in radians (the defeat breakup)
-		lift: number? -- issue #16: studs the lead hops during the tumble
+		lift: number?, -- issue #16: studs the lead hops during the tumble
+		hasAvatar: boolean? -- issue #55: the player's avatar is in place as the lead
 	) -> (),
 }
 
@@ -146,7 +151,9 @@ function CrowdView.new(): CrowdView
 	folder.Name = "CalendaCrowd"
 	folder.Parent = Workspace
 
-	local lead = buildLead(folder) -- always present, even at zero followers (spec s3)
+	local lead = buildLead(folder) -- stand-in only; the avatar is the lead (spec s3, issue #55)
+	lead.Parent = nil
+	local absent = 0
 	local ring = buildRing(folder)
 
 	local pool = Pool.new(function(): Avatar
@@ -172,21 +179,23 @@ function CrowdView.new(): CrowdView
 		dt: number,
 		swirl: number?,
 		tumble: number?,
-		lift: number?
+		lift: number?,
+		hasAvatar: boolean?
 	)
 		clock += dt
+		absent = LeadPose.absence(absent, hasAvatar == true, dt)
 		if total ~= cachedTotal then
 			cachedTotal = total
 			layout = Formation.forTotal(total)
 		end
 
-		lead:PivotTo(
-			CFrame.new(
-				ViewMap.x(leadX),
-				1.5 + BOB_HEIGHT * math.abs(math.sin(clock * BOB_RATE)) + (lift or 0),
-				leadZ
-			) * CFrame.Angles(tumble or 0, 0, 0)
-		)
+		if LeadPose.showFallback(hasAvatar == true, absent) then
+			local pose = LeadPose.at(leadX, leadZ, clock, lift or 0, BLOCK_STANDING)
+			lead.Parent = folder
+			lead:PivotTo(CFrame.new(pose.x, pose.y, pose.z) * CFrame.Angles(tumble or 0, 0, 0))
+		else
+			lead.Parent = nil
+		end
 		ring.CFrame = CFrame.new(ViewMap.x(leadX), 0.12, leadZ) * CFrame.Angles(0, 0, math.pi / 2)
 
 		local avatars = pool:setCount(#layout.slots)
