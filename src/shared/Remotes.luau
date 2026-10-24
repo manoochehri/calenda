@@ -44,6 +44,8 @@ export type EventPayload = {
 	hpBefore: number?,
 	hpAfter: number?,
 	score: number?,
+	hits: number?, -- cluster: meter value after the shot, integer 0..1000 (ClusterFeed)
+	shot: string?, -- cluster: "note" | "gift"
 }
 
 local EVENT_KINDS: { [string]: boolean } = {
