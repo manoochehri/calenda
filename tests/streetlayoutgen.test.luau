@@ -16,6 +16,23 @@ local result = StreetLayoutGen.generate(info, theme, 54)
 
 type Box = { cx: number, cy: number, cz: number, sx: number, sy: number, sz: number }
 
+local function reyBounds(rey: StreetLayoutGen.Rey): Box
+	return {
+		cx = rey.x,
+		cy = 1,
+		cz = rey.z + 0.15,
+		sx = 1.5,
+		sy = 2,
+		sz = 2.4,
+	}
+end
+
+local function overlaps(a: Box, b: Box): boolean
+	return math.abs(a.cx - b.cx) * 2 < a.sx + b.sx
+		and math.abs(a.cy - b.cy) * 2 < a.sy + b.sy
+		and math.abs(a.cz - b.cz) * 2 < a.sz + b.sz
+end
+
 -- Slab test: does the segment a->b hit the axis-aligned box?
 local function hits(a: { number }, b: { number }, box: Box): boolean
 	local lo = { box.cx - box.sx / 2, box.cy - box.sy / 2, box.cz - box.sz / 2 }
@@ -48,14 +65,7 @@ local function allBoxes(r: StreetLayoutGen.Result): { Box }
 			table.insert(boxes, p)
 		end
 	end
-	table.insert(boxes, {
-		cx = r.rey.x,
-		cy = 1,
-		cz = r.rey.z + 0.45,
-		sx = 1.5,
-		sy = 1.9,
-		sz = 1.8,
-	})
+	table.insert(boxes, reyBounds(r.rey))
 	for _, s in r.flags do
 		table.insert(boxes, {
 			cx = s.x,
@@ -292,6 +302,33 @@ return {
 				"Rey stays on the forecourt"
 			)
 			assert(rey.z > 0 and rey.z < info.plazaStart, "Rey appears along the street")
+		end,
+	},
+	{
+		name = "Rey's full bounds stay in clear forecourt space across layout seeds",
+		run = function()
+			for seed = 1, 64 do
+				local layout = StreetLayoutGen.generate(info, theme, seed)
+				local bounds = reyBounds(layout.rey)
+				for _, f in layout.facades do
+					local boxes = StreetLayoutGen.facadeBoxes(f)
+					for _, structure in boxes do
+						assert(
+							not overlaps(bounds, structure),
+							`seed {seed}: Rey overlaps facade/roof {f.id}`
+						)
+					end
+					local roof = boxes[2]
+					local sharesStreetDepth = math.abs(bounds.cz - roof.cz) * 2
+						< bounds.sz + roof.sz
+					local sharesRoofFootprint = math.abs(bounds.cx - roof.cx) * 2
+						< bounds.sx + roof.sx
+					assert(
+						not (sharesStreetDepth and sharesRoofFootprint),
+						`seed {seed}: Rey's full footprint sits under roof cap {f.id}`
+					)
+				end
+			end
 		end,
 	},
 	{

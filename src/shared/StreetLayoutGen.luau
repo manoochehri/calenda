@@ -117,6 +117,9 @@ export type LayoutInfo = { streetLength: number, plazaStart: number, halfWidth: 
 
 StreetLayoutGen.FLAG_CELL_PX = 32 -- canvas pixels per flag cell
 StreetLayoutGen.FLAG_CANVAS_H = 76
+StreetLayoutGen.ROOF_CAP_DEPTH_EXTRA = 2
+StreetLayoutGen.ROOF_CAP_INNER_SHIFT = 1
+StreetLayoutGen.ROOF_CAP_WIDTH_EXTRA = 0.8
 local PARTS_PER_MODULE = 3 -- wall + cornice + at most one balcony
 local GUI_PER_WINDOW, GUI_PER_DOOR, GUI_PER_ARCH, GUI_PER_BALCONY, GUI_TRIM = 3, 3, 3, 2, 2
 
@@ -299,12 +302,12 @@ function StreetLayoutGen.facadeBoxes(f: Facade): {
 	local boxes = {
 		{ cx = f.x, cy = f.height / 2, cz = f.z, sx = f.depth, sy = f.height, sz = f.width },
 		{
-			cx = f.x + toward,
+			cx = f.x + toward * StreetLayoutGen.ROOF_CAP_INNER_SHIFT,
 			cy = f.height + 0.75,
 			cz = f.z,
-			sx = f.depth + 2,
+			sx = f.depth + StreetLayoutGen.ROOF_CAP_DEPTH_EXTRA,
 			sy = 1.5,
-			sz = f.width + 0.8,
+			sz = f.width + StreetLayoutGen.ROOF_CAP_WIDTH_EXTRA,
 		},
 	}
 	for _, b in f.balconies do
@@ -667,8 +670,18 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 	-- Keep Rey on the forecourt beyond the sidewalk, randomly placed along the run. The seeded
 	-- position makes replays/recorded layouts reproducible while still varying with the layout seed.
 	local reySide = if rng() < 0.5 then -1 else 1
+	local reyHalfWidth = 0.75
+	local lampHalfWidth = 0.8 -- the lamp lantern is 1.6 studs wide
+	local minReyX = math.max(
+		info.halfWidth + reyHalfWidth + 0.05,
+		l.lampX + lampHalfWidth + reyHalfWidth + 0.05
+	)
+	local roofInnerEdge = l.facadeInset
+		- StreetLayoutGen.ROOF_CAP_DEPTH_EXTRA / 2
+		- StreetLayoutGen.ROOF_CAP_INNER_SHIFT
+	local maxReyX = roofInnerEdge - reyHalfWidth - 0.05
 	local rey = {
-		x = reySide * (info.halfWidth + 3.5 + rng() * 2.5),
+		x = reySide * (minReyX + rng() * math.max(0, maxReyX - minReyX)),
 		z = 40 + rng() * math.max(1, info.plazaStart - 80),
 	}
 

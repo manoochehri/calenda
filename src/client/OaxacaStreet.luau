@@ -144,7 +144,11 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 	local cornice = newPart(
 		root,
 		`Cornice{f.id}`,
-		Vector3.new(f.depth + 2, theme.heights.roofExtra, f.width + 0.8),
+		Vector3.new(
+			f.depth + StreetLayoutGen.ROOF_CAP_DEPTH_EXTRA,
+			theme.heights.roofExtra,
+			f.width + StreetLayoutGen.ROOF_CAP_WIDTH_EXTRA
+		),
 		f.x,
 		f.height + theme.heights.roofExtra / 2,
 		f.z,
@@ -153,7 +157,7 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 		false -- cornices and balconies cast no shadows: about 560 casters is too heavy on a phone
 	)
 	-- A broad physical roof cap projects toward the street and beyond both side walls.
-	cornice.Position += Vector3.new(toward, 0, 0)
+	cornice.Position += Vector3.new(toward * StreetLayoutGen.ROOF_CAP_INNER_SHIFT, 0, 0)
 
 	local gui = surfaceGui(wall, innerFace(viewX), Vector2.new(f.width * PPS, f.height * PPS))
 	local trim, accent, glass = color(f.trim), color(f.accent), color(theme.palette.glass)
