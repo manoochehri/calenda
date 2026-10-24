@@ -19,6 +19,7 @@ local RunView = require(Shared:WaitForChild("RunView"))
 local Steering = require(Shared:WaitForChild("Steering"))
 local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
 
+local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
 local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
 local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
@@ -34,6 +35,7 @@ local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
 Backdrop.build()
+TouchControls.disable()
 
 local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
 	steerRemote:FireServer({ x = x })
@@ -93,9 +95,10 @@ RunService:BindToRenderStep(
 
 		input:step(dt, now)
 		drawnX = CameraRig.smooth(drawnX, x, dt, CAMERA_X_RATE)
-		crowd:update(drawnX, z, state.total, dt)
+		local total = RunView.wholeTotal(state.total)
+		crowd:update(drawnX, z, total, dt)
 
-		local plan = VisualBudget.allocate(math.max(0, math.floor(state.total)))
+		local plan = VisualBudget.allocate(total)
 		pullback = CameraRig.smooth(pullback, plan.cameraPullback, dt, PULLBACK_RATE)
 		local pose = CameraRig.pose(drawnX, z, pullback)
 		local camera = Workspace.CurrentCamera

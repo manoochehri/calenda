@@ -62,6 +62,21 @@ return {
 		end,
 	},
 	{
+		name = "wholeTotal floors and clamps any value to something Formation accepts",
+		run = function()
+			eq(RunView.wholeTotal(-3), 0, "negative")
+			eq(RunView.wholeTotal(12.7), 12, "fractional")
+			eq(RunView.wholeTotal(0 / 0), 0, "nan")
+			eq(RunView.wholeTotal(math.huge), 0, "inf")
+			eq(RunView.wholeTotal("5"), 0, "not a number")
+			eq(RunView.wholeTotal(10000), 10000, "exact")
+			local Formation = require("../src/shared/Formation")
+			for _, bad in { -3, 12.7, 0 / 0, math.huge } do
+				Formation.forTotal(RunView.wholeTotal(bad)) -- must not error
+			end
+		end,
+	},
+	{
 		name = "leadPosition extrapolates z and t between states, but not once over",
 		run = function()
 			local x, z, t = RunView.leadPosition(state({ z = 64, t = 4 }), 0.05, 16, 1440)

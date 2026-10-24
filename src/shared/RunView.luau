@@ -19,7 +19,7 @@ local RunView = {}
 
 RunView.MAX_EXTRAPOLATION = 0.35 -- [default] seconds of dead reckoning past the last State
 
-local function wholeTotal(v: any): number
+function RunView.wholeTotal(v: any): number
 	if type(v) ~= "number" or v ~= v or v < 0 or v == math.huge then
 		return 0
 	end
@@ -27,7 +27,7 @@ local function wholeTotal(v: any): number
 end
 
 function RunView.hud(state: Remotes.StatePayload): Hud
-	local total = wholeTotal(state.total)
+	local total = RunView.wholeTotal(state.total)
 	local title = Strings.ended
 	if state.outcome == "completed" then
 		title = Strings.completed
@@ -41,8 +41,8 @@ function RunView.hud(state: Remotes.StatePayload): Hud
 		)}`,
 		showEnd = state.over == true,
 		endTitle = title,
-		score = `{Strings.score}: {string.format("%d", wholeTotal(state.score or total))}`,
-		best = `{Strings.best}: {string.format("%d", wholeTotal(state.best))}`,
+		score = `{Strings.score}: {string.format("%d", RunView.wholeTotal(state.score or total))}`,
+		best = `{Strings.best}: {string.format("%d", RunView.wholeTotal(state.best))}`,
 	}
 end
 
