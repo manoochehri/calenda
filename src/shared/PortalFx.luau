@@ -13,7 +13,7 @@ export type Plan = {
 local PortalFx = {}
 
 PortalFx.DURATION = 1.1 -- [default] seconds for the flash and the ring
-PortalFx.CONFETTI = 36 -- [default] pieces per pass; client Bits.MAX is 90 and recycles the oldest
+PortalFx.CONFETTI = 24 -- [default] pieces per pass; GateView has its own Bits pool (cap 90) and section bursts share the screen
 PortalFx.DIM_MAX = 0.6 -- [default] extra banner transparency of the portal not taken
 PortalFx.DIM_SECONDS = 0.3 -- [default] time to reach DIM_MAX
 PortalFx.PULSE_FAR = 110 -- [default] studs ahead at which the next row starts to pulse
@@ -21,8 +21,9 @@ PortalFx.PULSE_NEAR = 30 -- [default] studs ahead at which the pulse is stronges
 PortalFx.PULSE_SCALE = 0.05 -- [default] banner scale change at full pulse: subtle
 PortalFx.FADE_MAX = 0.8 -- [default] banner transparency while it would hide the lead
 -- The lead is `dz` studs past the portal plane. Keep the banner faded until the deepest drawn
--- follower or section has cleared, then ease it back in over the final 2.5 studs.
-local FADE_IN_FROM, FADE_IN_TO, FADE_OUT_FROM, FADE_OUT_TO = -0.5, 0.5, 10.5, 13
+-- follower or section has cleared, then ease it back in over the final 2.5 studs. (Issue #82: the leaning banner hides the lead out to
+-- 15 studs past the plane, so the lead-only hold is 15.5.)
+local FADE_IN_FROM, FADE_IN_TO, FADE_OUT_FROM, FADE_OUT_TO = -0.5, 0.5, 15.5, 18
 
 local function smooth(x: number): number
 	local t = math.clamp(x, 0, 1)

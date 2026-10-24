@@ -164,6 +164,34 @@ return {
 		end,
 	},
 	{
+		name = "issue 82: a leaning banner (top away from the camera) is seen more face-on than a vertical one",
+		run = function()
+			local pose = CameraRig.pose(0, 0, 1)
+			local flat = CameraRig.screenFraction(pose, 12, 33, 5)
+			local lean = CameraRig.screenFraction(pose, 12, 33, 5, math.rad(30))
+			assert(lean > flat * 1.3, "about 1.5x taller on screen")
+			assert(
+				CameraRig.screenFraction(pose, 12, 33, 5, 0) == flat,
+				"lean 0 is the vertical case"
+			)
+			local back = CameraRig.studsForScreenFraction(pose, 12, 33, lean, math.rad(30))
+			assert(math.abs(back - 5) < 1e-9, "inverse with lean")
+		end,
+	},
+	{
+		name = "issue 82: with a lean the banner cannot hide a lead that has not reached its plane",
+		run = function()
+			local pose = CameraRig.pose(0, 0, 1)
+			local lean = math.rad(30)
+			assert(not CameraRig.bannerHidesLead(pose, 0, 5, 7, 17.4, lean), "portal ahead")
+			assert(CameraRig.bannerHidesLead(pose, 0, -3, 7, 17.4, lean), "just past")
+			assert(
+				not CameraRig.bannerHidesLead(pose, 0, -3, 7, 17.4, lean, 0.5),
+				"tiny subject is below the underside"
+			)
+		end,
+	},
+	{
 		name = "issue 70: a banner hides the lead only while the lead is just past it",
 		run = function()
 			local pose = CameraRig.pose(0, 0, 1)
