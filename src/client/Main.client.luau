@@ -12,14 +12,14 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
 local startupTrace = StartupTrace.trace
-local TIMING = StartupTrace.enabled -- opt-in startup timing (#73): free when false
+local TIMING = StartupTrace.enabled -- opt-in startup timing (#73): every call below is free when false
 local timedRequire = StartupTrace.timedRequire
 if TIMING then
 	startupTrace:mark("Main.client script start")
 end
 
-local Config = StartupTrace.Config
 local CameraRig = timedRequire("Shared", Shared, "CameraRig")
+local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
 local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
 local HpBar = timedRequire("Shared", Shared, "HpBar")
@@ -41,6 +41,7 @@ local Hud = timedRequire("Client", script.Parent, "Hud")
 local InputController = timedRequire("Client", script.Parent, "InputController")
 local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
 local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
+local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
 local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
 
@@ -52,45 +53,45 @@ local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
-startupTrace:measure("Backdrop.build", Backdrop.build)
+local stepAt = startupTrace:begin()
+Backdrop.build()
+stepAt = startupTrace:lap("Backdrop.build", stepAt)
 TouchControls.disable()
 
-local input = startupTrace:measure("InputController.new", function()
-	return InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
-		steerRemote:FireServer({ x = x })
-	end)
+local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
+	steerRemote:FireServer({ x = x })
 end)
-local hud = startupTrace:measure("Hud.new", function()
-	return Hud.new(function()
-		replayRemote:FireServer()
-	end)
+stepAt = startupTrace:lap("InputController.new", stepAt)
+local music = MusicPlayer.new() -- silent while no music ids are set (issues #21, #62)
+stepAt = startupTrace:lap("MusicPlayer.new", stepAt)
+local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
+stepAt = startupTrace:lap("SfxPlayer.new", stepAt)
+local hud = Hud.new(function()
+	replayRemote:FireServer()
+	sfx:play("replayClick", music:intensity(), os.clock())
 end)
-local crowd = startupTrace:measure("CrowdView.new (lazy pool setup)", CrowdView.new)
-local leadAvatar = startupTrace:measure("LeadAvatar.new", LeadAvatar.new) -- own avatar is lead (#55)
-local sections = startupTrace:measure("SectionsView.new (lazy pool setup)", function()
-	return SectionsView.new(Config.startingTotal)
-end)
-local clusters = startupTrace:measure("ClusterView.new (lazy pool setup)", function()
-	return ClusterView.new(DebugLayout)
-end)
-local obstacleFeedback = startupTrace:measure("ObstacleView.new (lazy pool setup)", function()
-	return ObstacleView.new(DebugLayout)
-end)
-local hitFx = startupTrace:measure("HitFeedback.new", HitFeedback.new)
+stepAt = startupTrace:lap("Hud.new", stepAt)
+local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here
+stepAt = startupTrace:lap("CrowdView.new", stepAt)
+local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
+stepAt = startupTrace:lap("LeadAvatar.new", stepAt)
+local sections = SectionsView.new(Config.startingTotal)
+stepAt = startupTrace:lap("SectionsView.new", stepAt)
+local clusters = ClusterView.new(DebugLayout)
+stepAt = startupTrace:lap("ClusterView.new", stepAt)
+local obstacleFeedback = ObstacleView.new(DebugLayout)
+stepAt = startupTrace:lap("ObstacleView.new", stepAt)
+local hitFx = HitFeedback.new() -- hit jolt, screen shake and flash (issue #50)
+stepAt = startupTrace:lap("HitFeedback.new", stepAt)
 local hudClock = 0
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
-local endFlow = startupTrace:measure("EndFlow.new", EndFlow.new)
-local music = startupTrace:measure("MusicPlayer.new", MusicPlayer.new)
+local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
+startupTrace:lap("EndFlow.new", stepAt)
 
-local function finishStartupIfReady()
-	if
-		startupTrace:has("WorldBuilder built")
-		and startupTrace:has("first State received")
-		and startupTrace:has("first CalendaFrame render-step callback")
-	then
-		startupTrace:finish()
-	end
-end
+-- Startup timing (#73): true until the mark is taken, then a single boolean test per frame/event.
+-- Always false when the flag is off, so the render step and State handler skip all of it.
+local awaitingFirstState = TIMING
+local awaitingFirstFrame = TIMING
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -111,9 +112,10 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 	if not looksLikeState(payload) then
 		return
 	end
-	if not startupTrace:has("first State received") then
+	if awaitingFirstState then
+		awaitingFirstState = false
 		startupTrace:mark("first State received")
-		finishStartupIfReady()
+		StartupTrace.finishIfReady()
 	end
 	local state = payload :: Remotes.StatePayload
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
@@ -134,6 +136,10 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		end
 		handlers.music = function()
 			music:reset()
+		end
+		handlers.audio = function()
+			music:resetAudio()
+			sfx:reset()
 		end
 		handlers.clusters = function()
 			clusters:reset()
@@ -156,6 +162,7 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	if type(payload) ~= "table" then
 		return
 	end
+	sfx:onEvent(payload, music:intensity(), os.clock())
 	if payload.kind == "gate" then
 		hud:pop()
 	elseif payload.kind == "obstacle" then
@@ -179,9 +186,10 @@ RunService:BindToRenderStep(
 	"CalendaFrame",
 	Enum.RenderPriority.Camera.Value + 1,
 	function(dt: number)
-		if not startupTrace:has("first CalendaFrame render-step callback") then
+		if awaitingFirstFrame then
+			awaitingFirstFrame = false
 			startupTrace:mark("first CalendaFrame render-step callback")
-			finishStartupIfReady()
+			StartupTrace.finishIfReady()
 		end
 		local state = latest
 		if state == nil then
@@ -209,7 +217,10 @@ RunService:BindToRenderStep(
 			leadAvatar:fallbackGrace()
 		)
 		leadZNow = z
+		music:setPeak(fx.musicIntensity)
+		music:setDucked(fx.defeated)
 		music:update(total, now)
+		sfx:update(total, music:intensity(), dt, now)
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
 

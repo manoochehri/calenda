@@ -5,6 +5,7 @@ export type Recorder = {
 	enabled: boolean,
 	begin: (self: Recorder) -> number,
 	span: (self: Recorder, label: string, startedAt: number) -> (),
+	lap: (self: Recorder, label: string, startedAt: number) -> number,
 	setStartAt: (self: Recorder, at: number) -> (),
 	mark: (self: Recorder, label: string, at: number?) -> (),
 	recordDuration: (self: Recorder, label: string, startedAt: number, endedAt: number) -> (),
@@ -25,6 +26,9 @@ local DISABLED: Recorder = {
 		return 0
 	end,
 	span = function(_, _label, _startedAt) end,
+	lap = function(_, _label, _startedAt)
+		return 0
+	end,
 	setStartAt = function(_, _at) end,
 	mark = function(_, _label, _at) end,
 	recordDuration = function(_, _label, _beganAt, _endedAt) end,
@@ -97,6 +101,13 @@ function StartupTiming.new(
 
 	function recorder.span(_, label: string, beganAt: number)
 		recorder.recordDuration(recorder, label, beganAt, clock())
+	end
+
+	-- Records a span and returns its end time, so consecutive steps need one call each.
+	function recorder.lap(_, label: string, beganAt: number): number
+		local endedAt = clock()
+		recorder.recordDuration(recorder, label, beganAt, endedAt)
+		return endedAt
 	end
 
 	function recorder.has(_, label: string): boolean

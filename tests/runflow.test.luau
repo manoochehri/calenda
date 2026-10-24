@@ -140,6 +140,7 @@ return {
 					"flow",
 					"input",
 					"music",
+					"audio",
 					"hp",
 				}
 			do

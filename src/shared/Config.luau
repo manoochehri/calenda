@@ -12,6 +12,7 @@ export type MusicConfig = {
 	fadeBars: number,
 	maxSources: number,
 	stemSoundIds: { string },
+	trackSoundId: string?, -- single-track mode (issue #62): one looped asset, empty = off
 }
 export type ConfigType = {
 	sectionSize: number,
@@ -35,6 +36,8 @@ export type ConfigType = {
 	musicLayerSections: { number },
 	music: MusicConfig,
 	debug: { startupTiming: boolean },
+	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
+	sfx: { [string]: string }, -- sound effect asset ids by slot, empty = silent (issue #62)
 	validate: (config: any) -> (boolean, string?),
 }
 
@@ -203,6 +206,16 @@ local function validate(c: any): (boolean, string?)
 			return false, `music.stemSoundIds[{i}] must be a string`
 		end
 	end
+	if m.trackSoundId ~= nil and type(m.trackSoundId) ~= "string" then
+		return false, "music.trackSoundId must be a string"
+	end
+	if c.sfx ~= nil then
+		for slot, id in c.sfx do
+			if type(id) ~= "string" then
+				return false, `sfx.{slot} must be a string`
+			end
+		end
+	end
 
 	local d = c.durations
 	if
@@ -273,6 +286,27 @@ local config: ConfigType = {
 		-- [default] UNVERIFIED placeholders: empty = silent. Audio must be original or licensed;
 		-- the owner supplies real SoundIds. Order matches musicLayerSections.
 		stemSoundIds = { "", "", "", "" },
+		-- [default] UNVERIFIED single-track mode (issue #62): ONE looped asset id used instead of the
+		-- stems; it grows with the parade through SoundEffects. Empty = off. Stems win if both are set.
+		trackSoundId = "",
+	},
+	audio = require("./AudioTuning"),
+	-- [default] UNVERIFIED sound effect asset ids by slot (issue #62). Empty = silent; never invent
+	-- ids. Owner supplies licensed or original audio (issue #30). See docs/audio-setup.md.
+	sfx = {
+		gatePop = "",
+		convert = "",
+		sparkle = "",
+		shotLaunch = "",
+		shotImpact = "",
+		obstacleThud = "",
+		attackBonk = "",
+		hpHit = "",
+		sectionRise = "",
+		finalePeak = "",
+		defeatBreakup = "",
+		replayClick = "",
+		crowdLoop = "", -- looping crowd ambience whose volume follows the follower count
 	},
 	debug = {
 		startupTiming = false, -- [default] opt-in local startup trace; no Output logging unless enabled

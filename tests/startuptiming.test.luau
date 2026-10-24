@@ -86,12 +86,17 @@ return {
 			end)
 			local startedAt = trace:begin()
 			trace:span("x", startedAt)
+			eq(trace:lap("lap", startedAt), 0, "lap result")
 			trace:mark("y")
 			trace:recordDuration("z", 0, 1)
 			trace:setStartAt(-1)
-			eq(trace:measure("m", function()
-				return 7
-			end), 7, "measure result")
+			eq(
+				trace:measure("m", function()
+					return 7
+				end),
+				7,
+				"measure result"
+			)
 			eq(trace:has("y"), false, "has")
 			eq(trace:finish("timeout"), false, "finish")
 			eq(trace.enabled, false, "enabled flag")
@@ -115,6 +120,9 @@ return {
 			trace:span("GateView.new", startedAt)
 			eq(trace:has("GateView.new"), true, "has recorded")
 			eq(trace:has("other"), false, "has missing")
+			now = 2
+			eq(trace:lap("next", 1.75), 2, "lap returns its end time")
+			eq(trace:has("next"), true, "has lap")
 			trace:finish()
 			assert(string.find(output[1], "GateView.new (0.750s)", 1, true), output[1])
 		end,
