@@ -18,7 +18,7 @@ Other targets: `make lint`, `make fmt` (applies stylua), `make build`, `make sca
 
 ## Studio (manual)
 Open an EMPTY place (File > New > no Baseplate template; a Baseplate is coplanar with the street and hides the backdrop), then from the repo root: `~/.rokit/bin/rojo serve default.project.json`, connect with the Rojo plugin, Play Solo.
-Note: `RunServer` sets `Players.CharacterAutoLoads = false` (server only, nothing replicated): no Roblox character spawns, the lead is drawn by the client (`src/client/CrowdView`). A feature that needs a character must revisit this.
+Note: the lead musician is the player's own Roblox avatar (ADR 0003): the server leaves `Players.CharacterAutoLoads` at its default, and the client (`src/client/LeadAvatar`) anchors the local character, holds it at the server-driven lead position and plays the walk; the primitive block in `src/client/CrowdView` is only a fallback when no character loads for 3 s. The server never reads the character (the lead hitbox is the fixed Crossing hitbox).
 
 ## Parallel work (git worktrees)
 ```bash
