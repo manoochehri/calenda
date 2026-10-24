@@ -12,6 +12,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
+local RunLog = require(Shared:WaitForChild("RunLog"))
 
 -- The lead musician is drawn by the client (src/client/CrowdView); no Roblox character is needed,
 -- and one would stand on the road and block the view.
@@ -35,8 +36,12 @@ local stateRemote = makeRemote(Remotes.names.state)
 local eventRemote = makeRemote(Remotes.names.event)
 folder.Parent = ReplicatedStorage
 
-type Session = { driver: RunDriver.RunDriver, sinceState: number }
+type Session = {
+	driver: RunDriver.RunDriver,
+	sinceState: number,
+}
 local sessions: { [Player]: Session } = {}
+local logKeeper = RunLog.newKeeper() -- last few finished-run logs per player; released on leave
 
 local function sendState(player: Player, session: Session)
 	stateRemote:FireClient(player, Remotes.encodeState(session.driver:snapshot()))
@@ -59,6 +64,7 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	sessions[player] = nil -- drops the driver and its RunState
+	logKeeper:release(player)
 end)
 
 steerRemote.OnServerEvent:Connect(function(player: Player, payload: any)
@@ -79,6 +85,11 @@ RunService.Heartbeat:Connect(function(dt: number)
 	for player, session in sessions do
 		for _, e in session.driver:tick(dt) do
 			eventRemote:FireClient(player, e)
+			if e.kind == "complete" or e.kind == "defeated" then
+				local log = session.driver:runLog()
+				logKeeper:add(player, log)
+				RunLog.print(log)
+			end
 		end
 		session.sinceState += dt
 		if session.sinceState >= STATE_INTERVAL then

@@ -15,6 +15,7 @@ local Config = require("./Config")
 local Crossing = require("./Crossing")
 local Level = require("./Level")
 local Remotes = require("./Remotes")
+local RunLog = require("./RunLog")
 local RunState = require("./RunState")
 local Steering = require("./Steering")
 
@@ -46,7 +47,12 @@ export type Hooks = {
 	attacks: ((TickContext) -> ())?, -- phase 3, after gates and the obstacle (issue #36)
 	endCheck: ((TickContext) -> boolean)?, -- phase 4, true = the run ends defeated (issue #36)
 }
-export type Options = { layout: Level.Layout, automated: boolean?, hooks: Hooks? }
+export type Options = {
+	layout: Level.Layout,
+	automated: boolean?,
+	hooks: Hooks?,
+	now: (() -> number)?, -- event clock forwarded to RunState (server-side only); lets tests use a fake clock
+}
 
 export type Snapshot = Remotes.Snapshot
 
@@ -57,6 +63,9 @@ export type RunDriver = {
 	snapshot: (self: RunDriver) -> Snapshot,
 	total: (self: RunDriver) -> number,
 	outcome: (self: RunDriver) -> string?,
+	events: (self: RunDriver) -> { RunState.Event },
+	replays: (self: RunDriver) -> { RunLog.ReplayEntry },
+	runLog: (self: RunDriver) -> RunLog.StructuredLog,
 }
 
 -- Copies the authored layout into RunState's layout. Fresh tables only: nothing is shared with
@@ -126,6 +135,7 @@ function RunDriver.new(opts: Options): RunDriver
 		seed = layout.seed,
 		automated = opts.automated == true,
 		layout = RunDriver.toRunLayout(opts.layout),
+		now = opts.now,
 	})
 	local bound = Steering.bound(layout.halfWidth)
 
@@ -135,6 +145,7 @@ function RunDriver.new(opts: Options): RunDriver
 	local finalScore: number? = nil
 	local steerLimiter = Steering.newLimiter(Steering.MESSAGES_PER_SECOND, Steering.BURST)
 	local lastReplay: number? = nil
+	local replays: { RunLog.ReplayEntry } = {}
 
 	local self = {} :: RunDriver
 
@@ -233,6 +244,12 @@ function RunDriver.new(opts: Options): RunDriver
 			return false
 		end
 		lastReplay = now :: number
+		-- The replay is recorded as an event on the NEXT run's log (runLog().replays); the finished
+		-- run is logged once, when it ends. History is capped so a long session cannot grow it.
+		table.insert(replays, { time = now :: number })
+		while #replays > RunLog.MAX_LOGS_PER_PLAYER do
+			table.remove(replays, 1)
+		end
 		state:reset()
 		time, z, x, target = 0, 0, 0, 0
 		ended, finalOutcome, finalScore = false, nil, nil
@@ -257,6 +274,18 @@ function RunDriver.new(opts: Options): RunDriver
 
 	function self.outcome(_): string?
 		return finalOutcome
+	end
+
+	function self.events(_): { RunState.Event }
+		return state:events()
+	end
+
+	function self.replays(_): { RunLog.ReplayEntry }
+		return table.clone(replays)
+	end
+
+	function self.runLog(_): RunLog.StructuredLog
+		return RunLog.fromEvents(state:events(), { replays = replays })
 	end
 
 	return self
