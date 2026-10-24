@@ -8,12 +8,20 @@
 local Config = require("./Config")
 local MusicLayers = require("./MusicLayers")
 
-export type Ramp = { from: number, to: number, start: number, duration: number }
+-- `prev` is the ramp this one replaced: it keeps running until `start`, so the level never steps.
+export type Ramp = {
+	from: number,
+	to: number,
+	start: number,
+	duration: number,
+	prev: Ramp?,
+}
 export type Mixer = {
 	cfg: MusicLayers.Cfg,
 	sections: number?, -- last section count scheduled; nil until set
 	target: { string }, -- audible layers the schedule is heading to
 	ramps: { [string]: Ramp },
+	out: { [string]: number }, -- reused by gains(): copy values, do not keep the table
 }
 
 local MusicMixer = {}
@@ -29,11 +37,16 @@ function MusicMixer.new(cfg: MusicLayers.Cfg?): Mixer
 		sections = nil,
 		target = {},
 		ramps = {},
+		out = {},
 	}
 end
 
 local function rampGain(r: Ramp, t: number): number
-	if t <= r.start then
+	-- (recursive through `prev`, which is only kept while it is still needed)
+	if t < r.start then
+		if r.prev then
+			return rampGain(r.prev, t)
+		end
 		return r.from
 	end
 	if t >= r.start + r.duration then
@@ -68,7 +81,16 @@ function MusicMixer.setSections(m: Mixer, sectionCount: number, now: number)
 		local old = m.ramps[f.layer]
 		-- Start from wherever the layer will be at the fade's start (continues a fade in progress).
 		local from = if old then rampGain(old, f.startTime) else 0
+		local prev: Ramp? = nil
+		if old and now < old.start + old.duration then
+			-- Still pending or in progress: let it run on until the new ramp starts (no step).
+			prev = old
+			if old.start <= now then
+				prev = { from = old.from, to = old.to, start = old.start, duration = old.duration }
+			end
+		end
 		m.ramps[f.layer] = {
+			prev = prev,
 			from = from,
 			to = if f.action == "in" then 1 else 0,
 			start = f.startTime,
@@ -79,7 +101,7 @@ end
 
 -- Gain 0..1 per layer name at local time `t`.
 function MusicMixer.gains(m: Mixer, t: number): { [string]: number }
-	local out: { [string]: number } = {}
+	local out = m.out
 	for _, name in LAYER_NAMES do
 		local r = m.ramps[name]
 		out[name] = if r then math.clamp(rampGain(r, t), 0, 1) else 0

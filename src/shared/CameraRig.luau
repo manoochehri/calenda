@@ -19,7 +19,7 @@ CameraRig.PULLBACK_RATE = 2 -- [default] easing rate of the pullback as the para
 -- visible street, and a wider FOV only shrinks the gate text.
 CameraRig.GATE_NEAR = 30 -- [default] studs ahead of the lead of the nearest gate row that must read
 CameraRig.PROP_FRONT = 4 -- [default] how far ahead of the lead's z a prop (entourage) can stand
-CameraRig.TALLEST_PROP = 16 -- [default] studs; puppet is 11 (PuppetFigure.HEIGHT), globo on a pole
+CameraRig.TALLEST_PROP = 16 -- [default] GUESS, studs: puppet is 11 (PuppetFigure.HEIGHT); update when #19/#20 (globo, dancers) land
 CameraRig.CLEARANCE = 3 -- [default] studs the sight line must clear a prop by
 CameraRig.LEAD_TOP = 4.5 -- studs; top of the lead's hat (CrowdView)
 

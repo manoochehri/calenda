@@ -18,6 +18,18 @@ local function cfg(ids: { string }?): any
 	}
 end
 
+-- Largest change of a layer's gain between samples 0.01 s apart over [from, to].
+local function maxStep(m: any, layer: string, from: number, to: number)
+	local prev = MusicMixer.gains(m, from)[layer]
+	local t = from
+	while t < to do
+		t += 0.01
+		local g = MusicMixer.gains(m, t)[layer]
+		assert(math.abs(g - prev) <= 0.0051 + 1e-9, `{layer} stepped {prev} -> {g} at t={t}`)
+		prev = g
+	end
+end
+
 local function sum(g: { [string]: number }): number
 	local s = 0
 	for _, v in g do
@@ -89,16 +101,43 @@ return {
 		end,
 	},
 	{
-		name = "a change during a fade continues from the current level (no jump)",
+		name = "a change during a fade never steps: dense sampling, fading in then out",
 		run = function()
 			local m = MusicMixer.new(cfg())
 			MusicMixer.setSections(m, 1, 0) -- percussion and brass in at 0..2
 			near(MusicMixer.gains(m, 1).brass, 0.5, "mid fade-in")
-			-- brass leaves again at the bar after t = 1 (2 s): it is at 1.0 by then, then fades out
-			MusicMixer.setSections(m, 0, 1)
+			local before = MusicMixer.gains(m, 1).brass
+			MusicMixer.setSections(m, 0, 1) -- brass leaves at the next bar (2 s)
+			near(MusicMixer.gains(m, 1).brass, before, "no step at the moment of the change")
+			maxStep(m, "brass", 1, 6)
 			near(MusicMixer.gains(m, 2).brass, 1, "continues to the boundary")
 			near(MusicMixer.gains(m, 3).brass, 0.5, "fades out after it")
 			near(MusicMixer.gains(m, 4).brass, 0, "off")
+		end,
+	},
+	{
+		name = "a change during a fade never steps: dense sampling, fading out then needed again",
+		run = function()
+			local m = MusicMixer.new(cfg())
+			MusicMixer.setSections(m, 1, 0)
+			MusicMixer.setSections(m, 0, 10) -- brass fades out over 10..12 (bar boundary at 10)
+			near(MusicMixer.gains(m, 11).brass, 0.5, "mid fade-out")
+			local before = MusicMixer.gains(m, 11).brass
+			MusicMixer.setSections(m, 1, 11) -- needed again: next bar is 12
+			near(MusicMixer.gains(m, 11).brass, before, "no step at the moment of the change")
+			maxStep(m, "brass", 11, 18)
+			near(MusicMixer.gains(m, 12).brass, 0, "reaches the boundary at the faded level")
+			near(MusicMixer.gains(m, 14).brass, 1, "then fades in")
+		end,
+	},
+	{
+		name = "between a change and its bar boundary the level is continuous (new layer waits at 0)",
+		run = function()
+			local m = MusicMixer.new(cfg())
+			MusicMixer.setSections(m, 0, 0)
+			MusicMixer.setSections(m, 1, 3) -- brass joins at the bar at 4
+			maxStep(m, "brass", 3, 8)
+			maxStep(m, "percussion", 3, 8)
 		end,
 	},
 	{
