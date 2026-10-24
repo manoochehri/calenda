@@ -64,6 +64,27 @@ return {
 		end,
 	},
 	{
+		name = "music updates in the server ready window after local Play, but not on the title",
+		run = function()
+			assert(flowOk, `StartFlow module missing: {tostring(StartFlow)}`)
+			local f = StartFlow.new()
+			StartFlow.progress(f, 1)
+			StartFlow.serverPhase(f, "ready")
+			eq(StartFlow.shouldUpdateMusic(f), false, "title stays silent")
+			StartFlow.play(f)
+			eq(f.phase, "playing", "local Play accepted")
+			eq(StartFlow.shouldUpdateMusic(f), true, "ready State can update music during count-in")
+			StartFlow.serverPhase(f, "ready")
+			eq(
+				StartFlow.shouldUpdateMusic(f),
+				true,
+				"server ready State after Jugar keeps music updating"
+			)
+			StartFlow.serverPhase(f, "over")
+			eq(StartFlow.shouldUpdateMusic(f), false, "results are not the ready window")
+		end,
+	},
+	{
 		name = "invalid server phases cannot unlock Play",
 		run = function()
 			assert(flowOk, `StartFlow module missing: {tostring(StartFlow)}`)

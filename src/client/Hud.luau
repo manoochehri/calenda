@@ -48,7 +48,7 @@ local function label(
 	return l
 end
 
-function Hud.new(onReplay: () -> ()): Hud
+function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaHud"
 	gui.ResetOnSpawn = false
@@ -81,6 +81,26 @@ function Hud.new(onReplay: () -> ()): Hud
 		UDim2.fromScale(0.4, 0.04),
 		Enum.Font.GothamBold
 	)
+	local musicMuted = false
+	local musicToggle = Instance.new("TextButton")
+	musicToggle.Name = "MusicToggle"
+	musicToggle.AnchorPoint = Vector2.new(1, 0)
+	musicToggle.Position = UDim2.fromScale(0.98, 0.025)
+	musicToggle.Size = UDim2.fromScale(0.2, 0.055)
+	musicToggle.BackgroundColor3 = Color3.fromRGB(48, 29, 55)
+	musicToggle.BackgroundTransparency = 0.15
+	musicToggle.TextColor3 = WHITE
+	musicToggle.TextStrokeColor3 = OUTLINE
+	musicToggle.TextStrokeTransparency = 0
+	musicToggle.TextScaled = true
+	musicToggle.Font = Enum.Font.GothamBold
+	musicToggle.Text = Strings.musicOn
+	musicToggle.Parent = gui
+	musicToggle.Activated:Connect(function()
+		musicMuted = not musicMuted
+		musicToggle.Text = if musicMuted then Strings.musicOff else Strings.musicOn
+		onMusicMute(musicMuted)
+	end)
 
 	local hint = label(
 		gui,

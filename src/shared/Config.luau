@@ -299,12 +299,11 @@ local config: ConfigType = {
 		beatsPerBar = 4, -- [default] 4/4
 		fadeBars = 1, -- [default] crossfade length in bars
 		maxSources = 4, -- [spec s10] hard cap on simultaneous stems; validate rejects > 4
-		-- [default] UNVERIFIED placeholders: empty = silent. Audio must be original or licensed;
-		-- the owner supplies real SoundIds. Order matches musicLayerSections.
+		-- One selected Creator Store full-mix loop (ADR 0005 / issue #21). Stems stay off so
+		-- this prototype creates exactly one music Sound. Playback permission and fit are Studio checks.
 		stemSoundIds = { "", "", "", "" },
-		-- [default] UNVERIFIED single-track mode (issue #62): ONE looped asset id used instead of the
-		-- stems; it grows with the parade through SoundEffects. Empty = off. Stems win if both are set.
-		trackSoundId = "",
+		-- [default] Mexican Nostalgia by APMOfficial; fit is UNVERIFIED until heard in Studio.
+		trackSoundId = "1838904620",
 	},
 	audio = require("./AudioTuning"),
 	-- [default] UNVERIFIED sound effect asset ids by slot (issue #62). Empty = silent; never invent
