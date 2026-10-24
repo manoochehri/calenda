@@ -280,6 +280,9 @@ RunService:BindToRenderStep(
 			return
 		end
 		if state.phase == "ready" then
+			if StartFlow.shouldUpdateMusic(startupFlow) then
+				music:update(RunView.wholeTotal(state.total), os.clock())
+			end
 			return -- server clock, input and presentation stay paused behind the title screen
 		end
 		local now = os.clock()
