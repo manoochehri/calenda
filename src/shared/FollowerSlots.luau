@@ -23,7 +23,7 @@ FollowerSlots.MAX_DZ = -3.5 -- [default] stays out of the lead's hitbox (Crossin
 FollowerSlots.SIDEWALK_WIDTH = 6 -- mirrors WorldBuilder: the road is DebugLayout.halfWidth - 6 wide per side
 FollowerSlots.FOLLOWER_MARGIN = 1.15 -- [default] follower half width (0.83) + idle sway (0.3)
 FollowerSlots.BASE_FOOTPRINT = 1.8 -- [default] widest section footprint (SectionScale.footprint, tested <=)
-FollowerSlots.BASE_HOLE = 4.5 -- [default] conservative clear radius, including the road-edge cloud squeeze
+FollowerSlots.BASE_HOLE = 3.8 -- [default] clear after the minimum road-edge squeeze (tested)
 -- Half width of the road the parade must stay on (followers and figures never stand on the sidewalk).
 function FollowerSlots.roadHalfWidth(): number
 	return DebugLayout.halfWidth - FollowerSlots.SIDEWALK_WIDTH
@@ -31,7 +31,7 @@ end
 -- How far the whole cloud (followers and section footprints) may reach to either side of its centre.
 -- Kept well under the road half width so the cloud stays attached to the lead (see `layout`).
 FollowerSlots.REACH = 10 -- [default] studs
-FollowerSlots.MIN_WIDTH = 0.7 -- [default] the cloud is squeezed to at most this share near the road edge
+FollowerSlots.MIN_WIDTH = 0.85 -- [default] the cloud is squeezed to at most this share near the road edge
 FollowerSlots.MAX_DX = FollowerSlots.REACH - FollowerSlots.FOLLOWER_MARGIN -- widest a follower stands
 FollowerSlots.MAX_BASES = 6 -- spec s8: at most 6 section representatives
 
@@ -146,18 +146,15 @@ function FollowerSlots.capacity(): number
 	return #SLOTS
 end
 
--- Where the cloud stands when the lead is at `leadX`: its centre `c` and a width factor `w` (world x of a
--- slot or base with offset dx is c + w * dx). The centre follows the lead exactly while the cloud fits;
--- only when the cloud would cross the road edge is it squeezed (w down to MIN_WIDTH) and, past that, its
--- centre stops following. Continuous in leadX, and every follower and figure stays on the road.
+-- The cloud follows the lead until it nears a road edge; then it squeezes horizontally to preserve
+-- the follower and section footprints while keeping the whole crowd on the road.
 function FollowerSlots.layout(leadX: number): (number, number)
 	local road = FollowerSlots.roadHalfWidth()
-	local margin = FollowerSlots.BASE_FOOTPRINT -- the widest unscaled margin (a figure's footprint)
-	local span = FollowerSlots.REACH - margin -- the widest offset dx of any slot or base
-	local limit = road - margin - FollowerSlots.MIN_WIDTH * span -- furthest the centre may follow
+	local margin = FollowerSlots.BASE_FOOTPRINT
+	local span = FollowerSlots.REACH - margin
+	local limit = road - margin - FollowerSlots.MIN_WIDTH * span
 	local c = math.clamp(leadX, -limit, limit)
-	local w = math.min(1, (road - margin - math.abs(c)) / span)
-	return c, w
+	return c, math.min(1, (road - margin - math.abs(c)) / span)
 end
 
 function FollowerSlots.worldX(leadX: number, dx: number): number
