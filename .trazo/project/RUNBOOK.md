@@ -3,7 +3,15 @@
 **Status:** current
 
 ## Local
-TODO: the one command that builds and tests hermetically from a fresh worktree.
+From a fresh clone or worktree, with [Rokit](https://github.com/rojo-rbx/rokit) installed (`~/.rokit/bin` on `PATH`):
+
+```bash
+make setup   # trusts and installs the pinned tools in rokit.toml (rojo, lune, stylua, selene)
+make test    # stylua --check, selene, Lune tests (tests/run.luau), then rojo build -> build/Calenda.rbxl
+```
+
+Other targets: `make lint`, `make fmt` (applies stylua), `make build`, `make scan` (secret-pattern grep).
+`build/` is gitignored. Open `build/Calenda.rbxl` in Studio, or run `rojo serve` for live sync.
 
 ## Parallel work (git worktrees)
 ```bash

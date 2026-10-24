@@ -39,3 +39,13 @@ plain-English request already asks you to do the work.
 The skills contain the workflows; this adapter only routes requests to them. Their
 instructions and `.trazo/rules.md` remain canonical.
 <!-- trazo:end -->
+
+# Calenda build and test commands
+
+Luau project synced with Rojo (ADR 0001). Toolchain is pinned in `rokit.toml`.
+
+- Setup: `make setup` (installs rojo, lune, stylua, selene via Rokit)
+- Test (lint + Lune tests + rojo build): `make test`
+- Lint: `make lint`; format: `make fmt`; build place file: `make build` (-> `build/Calenda.rbxl`)
+- Secret scan: `make scan`
+- Layout: `src/shared` (pure logic, Lune-tested), `src/server`, `src/client`; tests in `tests/*.test.luau`

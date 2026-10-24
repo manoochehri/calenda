@@ -43,9 +43,9 @@ where its definition lives.
 The host names the commands that check a change. Trazo does not choose the tool. Use the
 commands the host already runs.
 
-- Build: REQUIRED, e.g. `make build`
-- Test: REQUIRED, e.g. `make test`
-- Lint: REQUIRED, e.g. `make lint`
+- Build: `make build`
+- Test: `make test` (runs lint, Lune tests and build)
+- Lint: `make lint`
 
 A `REQUIRED` marker left in place means the contract is not filled in.
 
