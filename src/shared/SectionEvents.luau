@@ -99,6 +99,22 @@ function SectionEvents.plan(from: number, to: number): Plan
 	}
 end
 
+-- A merged plan re-lists representatives that are already on screen (it re-plans from the running
+-- celebration's start). The view builds only the ones it does not have yet; the rest just update
+-- their xN count. `built` is a set of representative indices that currently exist.
+function SectionEvents.toBuild(
+	diff: RepDiff,
+	built: { [number]: boolean }
+): { VisualBudget.Representative }
+	local out: { VisualBudget.Representative } = {}
+	for _, r in diff.appeared do
+		if not built[r.index] then
+			table.insert(out, r)
+		end
+	end
+	return out
+end
+
 local function ramp(t: number, a: number, b: number): number
 	return math.clamp((t - a) / (b - a), 0, 1)
 end

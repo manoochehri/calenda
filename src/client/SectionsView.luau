@@ -120,6 +120,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local reps: { [number]: Rep } = {}
 	local ghosts: { { rep: Rep, t: number } } = {}
 	local clock = 0
+	local layoutTotal = -1
+	local layout: Formation.Layout = Formation.forTotal(0)
 	local indicatorT = 0
 
 	local gui = Instance.new("ScreenGui")
@@ -199,6 +201,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 		snap(total)
 		indicatorT = 0
 		indicator.Visible = false
+		bits:clear()
 	end
 
 	local function pivotOf(x: number, z: number): Vector3
@@ -209,8 +212,18 @@ function SectionsView.new(initialTotal: number): SectionsView
 		local diff = plan.reps
 		local center = pivotOf(leadX, leadZ)
 		if plan.kind == "celebrate" then
-			for _, r in diff.appeared do
+			local built: { [number]: boolean } = {}
+			for index in reps do
+				built[index] = true
+			end
+			for _, r in SectionEvents.toBuild(diff, built) do
 				reps[r.index] = build(r.index, r.sectionType, r.count, 0)
+			end
+			for _, r in diff.appeared do -- merged plans re-list shown reps: just refresh their xN
+				local existing = reps[r.index]
+				if existing then
+					existing.count = r.count
+				end
 			end
 			for _, c in diff.changed do
 				local rep = reps[c.index]
@@ -270,7 +283,10 @@ function SectionsView.new(initialTotal: number): SectionsView
 			swirl = SectionEvents.phases(active.progress).swirl
 		end
 
-		local layout = Formation.forTotal(total)
+		if total ~= layoutTotal then
+			layoutTotal = total
+			layout = Formation.forTotal(total)
+		end
 		local intensity = PuppetPose.intensity(layout.plan.logicalSections)
 		local risePerSecond = 1 / Config.durations.assemblySeconds
 		for index, rep in reps do

@@ -28,6 +28,7 @@ export type Bits = {
 		colors: { Color3 }
 	) -> (),
 	update: (self: Bits, dt: number) -> (),
+	clear: (self: Bits) -> (),
 }
 
 function Bits.new(parent: Instance): Bits
@@ -44,7 +45,8 @@ function Bits.new(parent: Instance): Bits
 			p.CanQuery = false
 			p.CastShadow = false
 			p.Material = Enum.Material.SmoothPlastic
-			local bit: Bit = { part = p, vx = 0, vy = 0, vz = 0, life = 0, total = 1, spin = 0 }
+			local bit: Bit =
+				{ part = p, vx = 0, vy = 0, vz = 0, life = 0, total = 1, spin = 0, drag = 0 }
 			table.insert(all, bit)
 			return bit
 		end
@@ -88,6 +90,7 @@ function Bits.new(parent: Instance): Bits
 				b.vx, b.vy, b.vz = math.cos(a) * r * 2, 14 + math.random() * 6, math.sin(a) * r * 2
 				b.total = 0.8
 			end
+			b.drag = if kind == "confetti" then 0.4 else 0
 			p.Color = colors[(i - 1) % #colors + 1]
 			p.Position = center + Vector3.new(math.cos(a) * r * 0.3, 0, math.sin(a) * r * 0.3)
 			b.life = b.total
@@ -104,10 +107,7 @@ function Bits.new(parent: Instance): Bits
 				if b.life <= 0 then
 					p.Parent = nil
 				else
-					local drag = if p.Shape == Enum.PartType.Ball and p.Transparency > 0.2
-						then 0
-						else 0.4
-					b.vy -= GRAVITY * (1 - drag) * dt
+					b.vy -= GRAVITY * (1 - b.drag) * dt
 					local pos = p.Position + Vector3.new(b.vx, b.vy, b.vz) * dt
 					if pos.Y < 0.2 then
 						pos = Vector3.new(pos.X, 0.2, pos.Z)
@@ -120,6 +120,13 @@ function Bits.new(parent: Instance): Bits
 					end
 				end
 			end
+		end
+	end
+
+	function bits.clear(_)
+		for _, b in all do
+			b.life = 0
+			b.part.Parent = nil
 		end
 	end
 
