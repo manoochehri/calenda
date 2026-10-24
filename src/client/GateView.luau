@@ -16,6 +16,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local GateLabel = require(Shared:WaitForChild("GateLabel"))
 local PortalFx = require(Shared:WaitForChild("PortalFx"))
 local PortalGeometry = require(Shared:WaitForChild("PortalGeometry"))
+local ParadeTail = require(Shared:WaitForChild("ParadeTail"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunView = require(Shared:WaitForChild("RunView"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
@@ -248,6 +249,7 @@ function GateView.new(parent: Instance, layout: any): GateView
 	local latest: Remotes.StatePayload? = nil
 	local receivedAt = 0
 	local total = Config.startingTotal
+	local tailDepth = ParadeTail.depth(total)
 
 	local view = {} :: GateView
 
@@ -278,7 +280,11 @@ function GateView.new(parent: Instance, layout: any): GateView
 		end
 		latest = payload
 		receivedAt = os.clock()
-		total = RunView.wholeTotal(payload.total)
+		local nextTotal = RunView.wholeTotal(payload.total)
+		if nextTotal ~= total then
+			total = nextTotal
+			tailDepth = ParadeTail.depth(total)
+		end
 	end)
 
 	-- The server's gate Event: the chosen portal flashes and bursts, the other dims.
@@ -316,7 +322,7 @@ function GateView.new(parent: Instance, layout: any): GateView
 
 		for _, p in portals do
 			local d = p.desc
-			local fade = PortalFx.fade(leadZ - d.z)
+			local fade = PortalFx.fade(leadZ - d.z, tailDepth)
 			local glow = if d.gateId == nextId then PortalFx.pulse(d.z - leadZ, clock) else 0
 			local flash, dim = 0, 0
 			local react = reactions[d.gateId]

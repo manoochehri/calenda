@@ -3,6 +3,7 @@
 local CameraRig = require("../src/shared/CameraRig")
 local PortalFx = require("../src/shared/PortalFx")
 local PortalGeometry = require("../src/shared/PortalGeometry")
+local ParadeTail = require("../src/shared/ParadeTail")
 
 return {
 	{
@@ -125,6 +126,22 @@ return {
 				end
 			end
 			assert(seen > 0, "the banner does hide the lead somewhere (the fade is needed)")
+		end,
+	},
+	{
+		name = "fade stays until the deepest drawn parade section has cleared the portal",
+		run = function()
+			local tailDepth = ParadeTail.depth(10000)
+
+			assert(tailDepth > 13, `max parade tail {tailDepth} must exceed the lead-only fade`)
+			assert(
+				PortalFx.fade(tailDepth, tailDepth) >= 0.6,
+				`the gate should remain faded until the trailing section clears at {tailDepth} studs`
+			)
+			assert(
+				PortalFx.fade(tailDepth + 13, tailDepth) == 0,
+				"the gate returns after the full parade has cleared"
+			)
 		end,
 	},
 }

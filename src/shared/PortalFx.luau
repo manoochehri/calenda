@@ -20,8 +20,8 @@ PortalFx.PULSE_FAR = 110 -- [default] studs ahead at which the next row starts t
 PortalFx.PULSE_NEAR = 30 -- [default] studs ahead at which the pulse is strongest (GATE_NEAR)
 PortalFx.PULSE_SCALE = 0.05 -- [default] banner scale change at full pulse: subtle
 PortalFx.FADE_MAX = 0.8 -- [default] banner transparency while it would hide the lead
--- The lead is `dz` studs past the portal plane. CameraRig.bannerHidesLead is true for about
--- 0.6 <= dz <= 10 at pullback 1..1.4; the fade is full over 0.5..10.5 and eases 1 stud/2.5 studs outside.
+-- The lead is `dz` studs past the portal plane. Keep the banner faded until the deepest drawn
+-- follower or section has cleared, then ease it back in over the final 2.5 studs.
 local FADE_IN_FROM, FADE_IN_TO, FADE_OUT_FROM, FADE_OUT_TO = -0.5, 0.5, 10.5, 13
 
 local function smooth(x: number): number
@@ -107,10 +107,12 @@ function PortalFx.nextRowId(gates: { { id: number, z: number } }, leadZ: number)
 	return nil
 end
 
--- Banner/text transparency while the lead is `dz` studs past the portal plane.
-function PortalFx.fade(dz: number): number
+-- Banner/text transparency while the lead is `dz` studs past the portal plane. `tailDepth` is the
+-- deepest drawn parade slot behind the lead, so the banner remains faded until that slot clears.
+function PortalFx.fade(dz: number, tailDepth: number?): number
+	local tail = math.max(0, tailDepth or 0)
 	local up = smooth((dz - FADE_IN_FROM) / (FADE_IN_TO - FADE_IN_FROM))
-	local down = 1 - smooth((dz - FADE_OUT_FROM) / (FADE_OUT_TO - FADE_OUT_FROM))
+	local down = 1 - smooth((dz - tail - FADE_OUT_FROM) / (FADE_OUT_TO - FADE_OUT_FROM))
 	return PortalFx.FADE_MAX * math.min(up, down)
 end
 
