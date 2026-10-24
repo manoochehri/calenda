@@ -141,4 +141,20 @@ return {
 			eq(ok, true, "out-of-range progress is clamped, not an error")
 		end,
 	},
+	{
+		name = "swirl: 0 leaves a slot alone; peak pulls it toward the pivot and never past it",
+		run = function()
+			local x0, z0 = SectionEvents.swirlSlot(6, -10, 0)
+			eq(x0, 6, "x at 0")
+			eq(z0, -10, "z at 0")
+			local pz = SectionEvents.SWIRL_PIVOT_DZ
+			local before = math.sqrt(6 * 6 + (-10 - pz) ^ 2)
+			local x1, z1 = SectionEvents.swirlSlot(6, -10, 1)
+			local after = math.sqrt(x1 * x1 + (z1 - pz) ^ 2)
+			assert(after < before, "closer to the pivot")
+			assert(after > 0, "still apart")
+			local xp, zp = SectionEvents.swirlSlot(0, pz, 1)
+			assert(math.abs(xp) < 1e-9 and math.abs(zp - pz) < 1e-9, "pivot is fixed")
+		end,
+	},
 }

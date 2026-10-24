@@ -37,6 +37,10 @@ export type Phases = { swirl: number, confetti: number, rise: number }
 
 local SectionEvents = {}
 
+SectionEvents.SWIRL_PIVOT_DZ = -9 -- [default] studs behind the lead: where the crowd swirls to
+local SWIRL_RADIANS = math.pi * 1.2 -- [default] turn of the loose crowd at peak swirl
+local SWIRL_PULL = 0.55 -- [default] fraction of the distance to the pivot closed at peak swirl
+
 -- Window fractions of the celebration [default]; the whole thing lasts Config.durations.assemblySeconds.
 local SWIRL_END = 0.4
 local CONFETTI_START = 0.15
@@ -111,6 +115,20 @@ function SectionEvents.phases(progress: number): Phases
 			else 1 - ramp(t, CONFETTI_PEAK, CONFETTI_END)
 	end
 	return { swirl = swirl, confetti = confetti, rise = ramp(t, RISE_START, 1) }
+end
+
+-- Where a loose-follower slot (offset from the lead) is drawn at swirl 0..1: turned about the
+-- pivot and pulled toward it. swirl 0 returns the slot unchanged.
+function SectionEvents.swirlSlot(dx: number, dz: number, swirl: number): (number, number)
+	local s = math.clamp(swirl, 0, 1)
+	if s == 0 then
+		return dx, dz
+	end
+	local rx, rz = dx, dz - SectionEvents.SWIRL_PIVOT_DZ
+	local a = SWIRL_RADIANS * s
+	local c, sn = math.cos(a), math.sin(a)
+	local k = 1 - SWIRL_PULL * s
+	return (rx * c - rz * sn) * k, (rx * sn + rz * c) * k + SectionEvents.SWIRL_PIVOT_DZ
 end
 
 return SectionEvents

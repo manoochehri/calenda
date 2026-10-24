@@ -24,6 +24,7 @@ local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
 local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
+local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 local PULLBACK_RATE = 2 -- [default] easing of the camera pullback as the parade grows
@@ -44,6 +45,7 @@ local hud = Hud.new(function()
 	replayRemote:FireServer()
 end)
 local crowd = CrowdView.new()
+local sections = SectionsView.new(Config.startingTotal)
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -69,6 +71,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		input:reset(state.x)
 		drawnX = state.x
 		pullback = 1
+		sections:reset(RunView.wholeTotal(state.total))
 	end
 	latest = state
 	receivedAt = os.clock()
@@ -96,7 +99,8 @@ RunService:BindToRenderStep(
 		input:step(dt, now)
 		drawnX = CameraRig.smooth(drawnX, x, dt, CAMERA_X_RATE)
 		local total = RunView.wholeTotal(state.total)
-		crowd:update(drawnX, z, total, dt)
+		local swirl = sections:update(drawnX, z, total, dt)
+		crowd:update(drawnX, z, total, dt, swirl)
 
 		local plan = VisualBudget.allocate(total)
 		pullback = CameraRig.smooth(pullback, plan.cameraPullback, dt, PULLBACK_RATE)
