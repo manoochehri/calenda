@@ -221,6 +221,64 @@ return {
 		end,
 	},
 	{
+		name = "cluster attacks apply configured HP damage once and never change crowd total",
+		run = function()
+			local run = make()
+			local total, hp = run:total(), run:hp()
+			local first = run:attackCluster("c1")
+			assert(first.ok, "first attack")
+			eq(first.before, hp, "HP before")
+			eq(first.after, hp - Config.clusterTypes.small.attackDamage, "HP after")
+			eq(run:hp(), first.after, "current HP")
+			eq(run:total(), total, "attack leaves crowd unchanged")
+			eq(run:clusterConsumption("c1"), "attacked", "consumption")
+			local before = snapshot(run)
+			local again = run:attackCluster("c1")
+			reject(again.ok, again.reason, run, before, "repeated attack")
+		end,
+	},
+	{
+		name = "credited cluster cannot attack and forged attack events have no effect",
+		run = function()
+			local run = make()
+			assert(run:creditCluster("c1").ok, "credit")
+			local before = snapshot(run)
+			local credited = run:attackCluster("c1")
+			reject(credited.ok, credited.reason, run, before, "attack after credit")
+			local forged = run:attackCluster("forged")
+			reject(forged.ok, forged.reason, run, before, "forged attack")
+		end,
+	},
+	{
+		name = "HP zero defeats the run, clamps damage, ignores later events, and reset restores HP",
+		run = function()
+			local attackDamage = Config.clusterTypes.large.attackDamage
+			local attackCount = math.ceil(Config.hp.max / attackDamage)
+			local clusters: { RunState.ClusterDef } = {}
+			for i = 1, attackCount do
+				table.insert(clusters, { id = `c{i}`, type = "large" })
+			end
+			local run = RunState.new({
+				seed = 1,
+				automated = true,
+				layout = { gatePairs = {}, clusters = clusters, obstacles = {} },
+				startingTotal = 73,
+			})
+			for i = 1, attackCount do
+				assert(run:attackCluster(`c{i}`).ok, `attack {i}`)
+			end
+			eq(run:hp(), 0, "HP clamps at zero")
+			eq(run:outcome(), "defeated", "defeated outcome")
+			eq(run:score(), 73, "defeat score is current crowd total")
+			local before = snapshot(run)
+			local later = run:attackCluster(`c{attackCount}`)
+			reject(later.ok, later.reason, run, before, "attack after defeat")
+			run:reset()
+			eq(run:hp(), Config.hp.max, "HP reset")
+			eq(run:outcome(), nil, "outcome reset")
+		end,
+	},
+	{
 		name = "obstacle: applies -Config.obstacleLoss once",
 		run = function()
 			local run = make()
