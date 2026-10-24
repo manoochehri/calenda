@@ -112,7 +112,7 @@ Use the user’s supplied photographs as the visual brief: flower baskets and co
 
 Art priorities: big readable silhouettes, warm street colors, bright flower accents, visible carriers, and joyful imperfect puppet motion. Leave the road and gate text visually clear. Treat different outfits and dances as distinct referenced traditions, not interchangeable generic Oaxaca costumes; confirm specific community attribution before labeling content.
 
-Use an original or appropriately licensed brass-and-percussion loop with synchronized stems: percussion at start, brass at first section, fuller bass/ensemble at three sections, and crowd accents at six. Crossfade on musical boundaries. Layer volume must remain controlled; adding sections must not add unlimited audio sources. Gifts and musical projectiles should look friendly and celebratory.
+For the prototype, use one free-to-use Roblox Creator Store full-mix loop: “Mexican Nostalgia” by APMOfficial (asset ID 1838904620). This is a provisional music bed, not a claim that the track represents a specific Oaxacan calenda tradition; its fit is UNVERIFIED until heard in Studio. The prototype uses one music source rather than synchronized section stems. Keep playback optional and the game playable muted. This temporary choice is recorded in ADR 0005; revisit adaptive stems after owner validation. Gifts and musical projectiles should look friendly and celebratory.
 
 ## 11. Implementation boundaries
 
