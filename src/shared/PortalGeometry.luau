@@ -27,29 +27,72 @@ export type Portal = {
 	bannerBottom: number,
 	bannerTop: number,
 	bannerCenterY: number,
+	bannerCenterDz: number, -- the leaning banner's centre is this far ahead of the plane
 }
 
 local PortalGeometry = {}
 
 PortalGeometry.POST_W = 1.6 -- [default] studs, square or round post
 PortalGeometry.BANNER_BOTTOM = 7 -- [default] studs; above the lead (CameraRig.LEAD_TOP = 6)
-PortalGeometry.BANNER_HEIGHT = 12 -- [default] studs
-PortalGeometry.TOP = PortalGeometry.BANNER_BOTTOM + PortalGeometry.BANNER_HEIGHT -- 19: taller than a puppet (11)
-PortalGeometry.BANNER_CENTER_Y = PortalGeometry.BANNER_BOTTOM + PortalGeometry.BANNER_HEIGHT / 2
+PortalGeometry.BANNER_HEIGHT = 12 -- [default] studs, the length of the banner face
+-- Issue #82: the banner leans back (top away from the camera) on a hinge at its underside, so the
+-- high camera sees it far more face-on (see CameraRig.screenFraction with `lean`). The leaning top
+-- is lower than a vertical one, which also keeps the camera rule easier.
+PortalGeometry.LEAN = math.rad(30) -- [default]
+PortalGeometry.TOP = PortalGeometry.BANNER_BOTTOM
+	+ PortalGeometry.BANNER_HEIGHT * math.cos(PortalGeometry.LEAN) -- 17.4: taller than a puppet (11)
+PortalGeometry.BANNER_CENTER_Y = PortalGeometry.BANNER_BOTTOM
+	+ PortalGeometry.BANNER_HEIGHT / 2 * math.cos(PortalGeometry.LEAN)
+PortalGeometry.BANNER_CENTER_DZ = PortalGeometry.BANNER_HEIGHT / 2 * math.sin(PortalGeometry.LEAN)
 PortalGeometry.BANNER_DEPTH = 0.8 -- [default] studs along the street
 PortalGeometry.FINIAL = 2.4 -- [default] diameter of a multiplier's finial ball; it ends AT TOP, so the camera rule is unchanged
 
--- Numerals. The banner face is a SurfaceGui canvas at PX_PER_STUD; the operation line gets opShare
--- of the height (big), the result line resultShare (smaller). A glyph's cap height is about 72% of
--- the line box, and the width of four characters ("x100", "+200") limits the box, so the numerals
--- come out near NUMERAL_STUDS tall. CameraRig.screenFraction turns that into a share of the screen
--- height at the nearest row (GATE_NEAR ahead): MIN_NUMERAL_FRACTION is the floor kept at every
--- pullback up to 1.4 (about 12 px on a 390 px tall landscape phone, 25 px in portrait), the pulse
--- and the approach make it bigger as the row nears.
+-- Numerals (issue #82). The banner face is a SurfaceGui canvas (16.8 x 12 studs at PX_PER_STUD =
+-- 210 x 150 px). The big line is ONE heavy rounded font, FredokaOne (a member of the Roblox Font
+-- enum, verified in the Roblox docs, narrower than GothamBlack), with no "+" (the badge carries it).
+-- TextScaled fits the text in its box: the em size is the smaller of the box height / LINE_FACTOR
+-- and the width available / the string's glyph advance. The advance and cap ratio are ESTIMATES of
+-- FredokaOne (UNVERIFIED in Studio): digits 0.62 em, "x" 0.55 em, caps 0.70 em.
+-- CameraRig.screenFraction turns the cap height into a share of the screen height.
+PortalGeometry.FONT = "FredokaOne"
 PortalGeometry.PX_PER_STUD = 12.5 -- [default]
-PortalGeometry.LABEL = table.freeze({ opShare = 0.66, resultShare = 0.3 }) -- [default]
-PortalGeometry.NUMERAL_STUDS = 5.5 -- [default] cap height of the big numerals
-PortalGeometry.MIN_NUMERAL_FRACTION = 0.03 -- [default] of the screen height, at the nearest row
+PortalGeometry.DIGIT_ADVANCE_EM = 0.62 -- estimate
+PortalGeometry.X_ADVANCE_EM = 0.55 -- estimate
+PortalGeometry.CAP_RATIO = 0.70 -- estimate: cap height / em
+PortalGeometry.LINE_FACTOR = 1.15 -- estimate: text line box / em
+PortalGeometry.FIT = 0.94 -- share of the width the text may use
+-- The badge ("+" / "x") sits in the result row, left of the result text, never under the big line.
+PortalGeometry.LABEL = table.freeze({
+	opShare = 0.76,
+	resultShare = 0.22,
+	iconX = 0.01,
+	iconW = 0.14,
+	iconY = 0.76,
+	resultX = 0.16,
+}) -- [default]
+PortalGeometry.MIN_NUMERAL_FRACTION = 0.04 -- [default] of the screen height, any pullback to 1.4
+
+-- Horizontal advance of `text` in em.
+function PortalGeometry.glyphAdvanceEm(text: string): number
+	local total = 0
+	for i = 1, #text do
+		total += if string.sub(text, i, i) == "x"
+			then PortalGeometry.X_ADVANCE_EM
+			else PortalGeometry.DIGIT_ADVANCE_EM
+	end
+	return total
+end
+
+-- Estimated cap height in studs of the big numerals for `text` on a banner `bannerWidth` wide.
+function PortalGeometry.numeralCapStuds(text: string, bannerWidth: number): number
+	local byHeight = PortalGeometry.LABEL.opShare
+		* PortalGeometry.BANNER_HEIGHT
+		/ PortalGeometry.LINE_FACTOR
+	local byWidth = bannerWidth * PortalGeometry.FIT / PortalGeometry.glyphAdvanceEm(text)
+	return PortalGeometry.CAP_RATIO * math.min(byHeight, byWidth)
+end
+
+PortalGeometry.NUMERAL_STUDS = PortalGeometry.numeralCapStuds("200", 20 - 2 * PortalGeometry.POST_W) -- three characters on the standard 16.8 stud banner
 
 local STYLES: { [string]: Style } = {
 	add = table.freeze({
@@ -96,6 +139,7 @@ function PortalGeometry.forGate(
 		bannerBottom = PortalGeometry.BANNER_BOTTOM,
 		bannerTop = PortalGeometry.TOP,
 		bannerCenterY = PortalGeometry.BANNER_CENTER_Y,
+		bannerCenterDz = PortalGeometry.BANNER_CENTER_DZ,
 	}
 end
 

@@ -6,8 +6,13 @@
 -- Rules (Amendment 1): eligible = in range (distance <= firing.range), meter not full, not yet
 -- passed (z > leadZ), and already spawned. Steering toward a side prefers eligible targets on that
 -- side (Level.sideOf, which applies spectators.centerTolerance); otherwise, or if that side has none,
--- the nearest to the lead is chosen. No eligible target means no shots. Reaching the parade reports
--- an unfilled cluster in `passed` for the attack phase; later hits to a passed cluster are inert.
+-- the nearest to the lead is chosen. Reaching the parade reports an unfilled cluster in `passed`
+-- for the attack phase; later hits to a passed cluster are inert.
+--
+-- Firing is CONTINUOUS (ADR 0004, spec Amendment 2): a shot every 1 / fireRate seconds whether or
+-- not anything is in range. A shot with an eligible target is a hit (one meter hit, credit-once).
+-- A shot with none is a MISS: `miss = true`, no targetId, and it touches no meter, no RunState and
+-- no HP. Misses still advance the shot counter, so the gift cadence (every Nth shot) is unchanged.
 --
 -- Per advance() the order matches the same-tick ordering of Amendment 1: shots land, meters fill
 -- and conversions are credited (RunState.creditCluster, exactly once), then unconverted clusters
@@ -24,13 +29,14 @@ export type ShotKind = "note" | "gift"
 export type Candidate = { id: number, x: number, z: number, full: boolean }
 
 export type Shot = {
-	number: number, -- 1-based shot count for this session
+	number: number, -- 1-based shot count for this session (hits and misses)
 	time: number,
-	targetId: number,
+	miss: boolean, -- true: no eligible target; display only, never credits or damages
+	targetId: number?, -- nil exactly when miss
 	kind: ShotKind, -- visual variant only; every shot is exactly one hit
-	hits: number, -- meter value after this hit
-	needed: number,
-	filled: boolean, -- true when the meter is full (this hit or earlier)
+	hits: number, -- meter value after this hit (0 for a miss)
+	needed: number, -- 0 for a miss
+	filled: boolean, -- true when the meter is full (this hit or earlier); false for a miss
 	credit: RunState.Result?, -- set only on the hit that fills the meter
 }
 export type HitResult = { hits: number, needed: number, filled: boolean, credit: RunState.Result? }
@@ -57,7 +63,13 @@ export type Options = {
 
 local Targeting = {}
 
--- Spec s4: min(12, 3 + sectionCount) hits per second, all numbers from Config.firing.
+-- Hard bound on shots one advance() may produce. The server steps at most RunDriver.MAX_DT (0.1 s)
+-- and the rate cap is 20/s, so a real step yields at most 3; the bound only matters for a caller
+-- that jumps the clock, whose backlog is dropped rather than fired.
+Targeting.MAX_SHOTS_PER_ADVANCE = 32 -- [default]
+
+-- Spec s4 as amended (Amendment 2): min(cap, base + perSection * sectionCount) shots per second,
+-- all numbers from Config.firing (defaults 6, 20, +1 per section).
 function Targeting.fireRate(sectionCount: number, config: any?): number
 	if
 		type(sectionCount) ~= "number"
@@ -224,32 +236,45 @@ function Targeting.new(opts: Options): Session
 		local interval = 1 / Targeting.fireRate(sectionCount, cfg)
 		local shots: { Shot } = {}
 
+		local fired = 0
 		while nextShot <= t do
 			local at = nextShot
-			local positionTime = shotPositionTime or at
-			local target = pick(positionTime, steer)
-			if target == nil and at < t then
-				at = t -- nothing at the scheduled time: retry at the end of this step
-				target = pick(shotPositionTime or at, steer)
-			end
-			if target == nil then
-				nextShot = t -- no target => no shots, and no banked shots for later
-				break
-			end
+			local target = pick(shotPositionTime or at, steer)
 			shotCount += 1
 			local kind = Targeting.shotKind(shotCount, sectionCount, cfg)
-			local r = self:hit(target)
-			table.insert(shots, {
-				number = shotCount,
-				time = at,
-				targetId = target,
-				kind = kind,
-				hits = r.hits,
-				needed = r.needed,
-				filled = r.filled,
-				credit = r.credit,
-			})
+			if target == nil then
+				-- Continuous fire: nothing to hit, so the shot flies on as a display-only miss.
+				table.insert(shots, {
+					number = shotCount,
+					time = at,
+					miss = true,
+					targetId = nil,
+					kind = kind,
+					hits = 0,
+					needed = 0,
+					filled = false,
+					credit = nil,
+				})
+			else
+				local r = self:hit(target)
+				table.insert(shots, {
+					number = shotCount,
+					time = at,
+					miss = false,
+					targetId = target,
+					kind = kind,
+					hits = r.hits,
+					needed = r.needed,
+					filled = r.filled,
+					credit = r.credit,
+				})
+			end
 			nextShot = at + interval
+			fired += 1
+			if fired >= Targeting.MAX_SHOTS_PER_ADVANCE then
+				nextShot = math.max(nextShot, t + interval) -- drop the backlog of a clock jump
+				break
+			end
 		end
 
 		-- Clusters that reached the parade unfilled are reported once for the attack phase.

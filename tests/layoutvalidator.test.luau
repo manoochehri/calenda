@@ -363,6 +363,14 @@ return {
 		gate(l, 1).right = { kind = "add", value = 1 }
 		gate(l, 2).left = { kind = "add", value = 1 }
 		gate(l, 2).right = { kind = "add", value = 1 }
+		-- At the continuous-fire rate (6/s base, ADR 0004) the early clusters alone reach a section
+		-- in time, so the late clusters are also pushed past the 25 s window.
+		for _, c in l.clusters do
+			if c.id > 2 then
+				c.spawnTime += 40
+				c.spawn.z += 40 * Config.speed
+			end
+		end
 	end),
 	rejects("obstacle before the early gates are done", "early", function(l)
 		l.obstacles[1].z = 15 * Config.speed

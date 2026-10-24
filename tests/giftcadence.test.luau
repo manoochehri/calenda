@@ -69,6 +69,9 @@ local function runLarge(sectionCount: number, config: any?): ({ any }, number, n
 	local t = 0.0
 	while t <= 5 do
 		for _, s in session:advance(t, sectionCount, "center").shots do
+			if s.miss then
+				continue -- continuous fire: misses are display only (they still count as shots)
+			end
 			table.insert(shots, s)
 			if s.credit ~= nil then
 				credits += 1
@@ -167,7 +170,7 @@ return {
 			eq(#plan.representatives, 6, "six representatives")
 			eq(Targeting.shotKind(4, plan.logicalSections), "gift", "gift")
 			eq(Targeting.shotKind(5, plan.logicalSections), "note", "note")
-			eq(Targeting.fireRate(plan.logicalSections), 12, "rate capped by logical sections")
+			eq(Targeting.fireRate(plan.logicalSections), 20, "rate capped by logical sections")
 		end,
 	},
 	{

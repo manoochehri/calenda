@@ -60,8 +60,8 @@ local function newSession(layout: Level.Layout)
 	return Targeting.new({ layout = layout, runState = rs }), rs
 end
 
--- Runs the session on a fixed clock and returns every shot fired.
-local function drive(
+-- Runs the session on a fixed clock and returns every shot fired (hits and misses).
+local function driveAll(
 	session: any,
 	from: number,
 	to: number,
@@ -80,19 +80,39 @@ local function drive(
 	return shots
 end
 
+-- Same, but only the shots that hit a cluster (continuous fire also produces display-only misses).
+local function drive(
+	session: any,
+	from: number,
+	to: number,
+	dt: number,
+	sections: number,
+	steer: string
+)
+	local hits: { any } = {}
+	for _, s in driveAll(session, from, to, dt, sections, steer) do
+		if not s.miss then
+			table.insert(hits, s)
+		end
+	end
+	return hits
+end
+
 local function cand(id: number, x: number, z: number, full: boolean?): Targeting.Candidate
 	return { id = id, x = x, z = z, full = full or false }
 end
 
 return {
 	{
-		name = "fire rate is min(12, 3 + sections) at 0, 1, 9 and 100 sections",
+		name = "fire rate is min(20, 6 + sections) at 0, 1, 9 and 100 sections (ADR 0004)",
 		run = function()
-			assert(Targeting.fireRate(0) == 3, "0 sections")
-			assert(Targeting.fireRate(1) == 4, "1 section")
-			assert(Targeting.fireRate(9) == 12, "9 sections hits the cap")
-			assert(Targeting.fireRate(8) == 11, "8 sections")
-			assert(Targeting.fireRate(100) == 12, "100 sections capped")
+			assert(Targeting.fireRate(0) == 6, "0 sections")
+			assert(Targeting.fireRate(1) == 7, "1 section")
+			assert(Targeting.fireRate(9) == 15, "9 sections")
+			assert(Targeting.fireRate(14) == 20, "14 sections reach the cap")
+			assert(Targeting.fireRate(15) == 20, "15 sections stay at the cap")
+			assert(Targeting.fireRate(100) == 20, "100 sections capped")
+			assert(Config.firing.base == 6 and Config.firing.cap == 20, "named defaults")
 		end,
 	},
 	{
@@ -103,7 +123,7 @@ return {
 		end,
 	},
 	{
-		name = "no eligible target means no pick and zero shots",
+		name = "no eligible target means no pick, and every scheduled shot is a visual-only miss",
 		run = function()
 			assert(Targeting.selectTarget({}, 0, "center") == nil, "empty")
 			local out = {
@@ -115,8 +135,12 @@ return {
 			assert(Targeting.selectTarget(out, 0, "center") == nil, "none eligible")
 			local layout = layoutOf({ cluster(1, 5, 400) }) -- far beyond range for a long time
 			local session = newSession(layout)
-			local shots = drive(session, 0, 2, 1 / 30, 0, "center")
-			assert(#shots == 0, `expected no shots, got {#shots}`)
+			local all = driveAll(session, 0, 2, 1 / 30, 0, "center")
+			assert(#all >= 12, `continuous fire: expected >= 12 shots in 2 s at 6/s, got {#all}`)
+			for i, s in all do
+				assert(s.miss == true and s.targetId == nil, `shot {i} is a miss`)
+				assert(s.hits == 0 and not s.filled and s.credit == nil, `miss {i} touches nothing`)
+			end
 		end,
 	},
 	{
@@ -183,15 +207,15 @@ return {
 		run = function()
 			local layout = layoutOf({ cluster(1, 16, 30, "large") })
 			local session = newSession(layout)
-			-- sections 0 => 3 per second; stand-still lead is not modelled, so use a short window
-			local shots = drive(session, 0, 0.9, 1 / 60, 0, "center")
-			-- shots at 0, 1/3, 2/3 => 3 within [0, 0.9]
-			assert(#shots == 3, `expected 3 shots, got {#shots}`)
-			near(shots[2].time - shots[1].time, 1 / 3, "interval")
+			-- sections 0 => 6 per second; stand-still lead is not modelled, so use a short window
+			local shots = driveAll(session, 0, 0.9, 1 / 60, 0, "center")
+			-- shots at 0, 1/6, ... 5/6 => 6 within [0, 0.9]
+			assert(#shots == 6, `expected 6 shots, got {#shots}`)
+			near(shots[2].time - shots[1].time, 1 / 6, "interval")
 			local fast = newSession(layout)
-			local shots9 = drive(fast, 0, 0.5, 1 / 60, 9, "center")
-			-- 12 per second: shots at 0, 1/12, ... 6/12 => 7 shots in [0, 0.5]
-			assert(#shots9 == 7, `expected 7 shots at cap, got {#shots9}`)
+			local shots14 = driveAll(fast, 0, 0.52, 1 / 60, 14, "center")
+			-- 20 per second (the cap): shots at 0, 0.05, ... 0.5 => 11 shots in [0, 0.52]
+			assert(#shots14 == 11, `expected 11 shots at cap, got {#shots14}`)
 		end,
 	},
 	{
@@ -335,7 +359,7 @@ return {
 		name = "clusters leaving range or passing unfilled are reported once, with no credit or penalty",
 		run = function()
 			-- Right on the lead's path: the lead overtakes it before it can be filled (no fire: steer
-			-- sections 0 gives only 3/s, cluster needs 8 hits but passes within ~0.4 s).
+			-- sections 0 gives 6/s, cluster needs 8 hits but passes within ~0.9 s).
 			local layout = layoutOf({ cluster(1, 16, 20, "large") })
 			local session, rs = newSession(layout)
 			local total = rs:total()
@@ -344,7 +368,11 @@ return {
 			local shotCount = 0
 			while t <= 3 do
 				local step = session:advance(t, 0, "center")
-				shotCount += #step.shots
+				for _, s in step.shots do
+					if not s.miss then
+						shotCount += 1
+					end
+				end
 				for _, id in step.passed do
 					table.insert(passedIds, id)
 				end
@@ -359,7 +387,10 @@ return {
 			)
 			-- and a passed cluster never receives shots again
 			local more = session:advance(t + 1, 0, "center")
-			assert(#more.shots == 0 and #more.passed == 0, "nothing after passing")
+			for _, s in more.shots do
+				assert(s.miss, "a passed cluster never receives a hit again")
+			end
+			assert(#more.passed == 0, "reported only once")
 		end,
 	},
 	{
@@ -391,7 +422,11 @@ return {
 			local t = 0
 			while t <= 3 do
 				local step = session:advance(t, 0, "center")
-				shots += #step.shots
+				for _, s in step.shots do
+					if not s.miss then
+						shots += 1
+					end
+				end
 				passed += #step.passed
 				t += 1 / 30
 			end

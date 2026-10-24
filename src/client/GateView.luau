@@ -155,7 +155,8 @@ local function buildPortal(folder: Instance, desc: PortalGeometry.Portal, total:
 		"Banner",
 		Enum.PartType.Block,
 		size,
-		CFrame.new(ViewMap.x(x), desc.bannerCenterY, desc.z),
+		CFrame.new(ViewMap.x(x), desc.bannerCenterY, desc.z + desc.bannerCenterDz)
+			* CFrame.Angles(PortalGeometry.LEAN, 0, 0), -- leans back: top away from the camera (issue #82)
 		pal.banner
 	)
 
@@ -185,27 +186,27 @@ local function buildPortal(folder: Instance, desc: PortalGeometry.Portal, total:
 		"Operation",
 		UDim2.fromScale(0, 0),
 		UDim2.fromScale(1, L.opShare),
-		Enum.Font.GothamBlack
+		Enum.Font.FredokaOne -- PortalGeometry.FONT: heavy, rounded, narrow digits
 	)
 	local result = textLabel(
 		gui,
 		"Result",
-		UDim2.fromScale(0, L.opShare),
-		UDim2.fromScale(1, L.resultShare),
+		UDim2.fromScale(L.resultX, L.opShare),
+		UDim2.fromScale(1 - L.resultX, L.resultShare),
 		Enum.Font.GothamBold
 	)
 	local icon = textLabel(
 		gui,
 		"Icon",
-		UDim2.fromScale(0.01, 0.01),
-		UDim2.fromScale(0.12, 0.2),
+		UDim2.fromScale(L.iconX, L.iconY),
+		UDim2.fromScale(L.iconW, L.resultShare),
 		Enum.Font.GothamBlack
 	)
 	icon.Text = desc.style.icon
 	icon.TextTransparency = 0.25
 
-	local o, r = GateLabel.format(desc.op, total)
-	operation.Text, result.Text = o, r
+	local _, r = GateLabel.format(desc.op, total)
+	operation.Text, result.Text = GateLabel.big(desc.op), r
 	return {
 		desc = desc,
 		banner = banner,
@@ -351,7 +352,8 @@ function GateView.new(parent: Instance, layout: any): GateView
 			end
 			if total ~= p.shownTotal then -- the result follows the current total
 				p.shownTotal = total
-				p.operation.Text, p.result.Text = GateLabel.format(d.op, total)
+				local _, r = GateLabel.format(d.op, total)
+				p.operation.Text, p.result.Text = GateLabel.big(d.op), r
 			end
 		end
 

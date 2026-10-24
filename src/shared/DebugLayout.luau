@@ -15,16 +15,19 @@ for pair = 1, 10 do
 	local largeWave = pair * 2
 	local smallX = if smallWave % 2 == 1 then -16 else 16
 	local largeX = if largeWave % 2 == 1 then -16 else 16
-	local smallZ = 16 * spawnTime + 30
+	local smallZ = 16 * spawnTime + 20
+	-- Retuned for continuous fire (ADR 0004: base 6/s, cap 20/s; was 3/s, 12/s, offsets 30 and
+	-- 72..28): every offset is shorter so unsteered fire still loses the large targets. Provisional
+	-- until the #17 ladder is re-run.
 	-- Move the high-hit target closer as the authored route raises the fire rate. Center fire
 	-- first spends 3 hits on the small target; steering toward the large target early can finish
 	-- its 8-hit meter before it reaches the parade.
 	local largeOffset = if pair <= 3
-		then 72
-		elseif pair <= 6 then 55
-		elseif pair <= 8 then 45
-		elseif pair == 9 then 38
-		else 28
+		then 40
+		elseif pair <= 6 then 30
+		elseif pair <= 8 then 25
+		elseif pair == 9 then 20
+		else 15
 	local largeZ = 16 * spawnTime + largeOffset
 	table.insert(clusters, {
 		id = #clusters + 1,
@@ -60,7 +63,9 @@ local layout: Level.Layout = {
 	streetLength = 1600,
 	plazaStart = 1440,
 	halfWidth = 20,
-	maxTotal = 1500,
+	-- 2500 (was 1500): the continuous-fire base rate of 6/s (ADR 0004) converts more clusters on the
+	-- best route (real scripted run 2010, noisy runs up to about 2430; the validator reports 1785). Provisional until the #17 ladder is re-run.
+	maxTotal = 2500,
 	intendedRecruitTotal = 30,
 	gates = {
 		{

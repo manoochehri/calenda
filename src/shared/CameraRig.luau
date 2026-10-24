@@ -105,24 +105,33 @@ function CameraRig.leadClearance(
 	return lineHeight(pose.py, pose.pz, CameraRig.LEAD_TOP, leadZ, propZ) - propHeight
 end
 
--- Share (0..1) of the screen's HEIGHT taken by a vertical object `studs` tall whose middle is at
--- (targetY, targetZ), seen from `pose`. The camera looks along +Z, so only y and z matter. A
--- vertical segment is foreshortened by cos(pitch) (the z part of the unit view direction).
-local function viewBasis(pose: Pose, targetY: number, targetZ: number): (number, number)
+-- Share (0..1) of the screen's HEIGHT taken by an object `studs` tall whose middle is at
+-- (targetY, targetZ), seen from `pose`. The camera looks along +Z, so only y and z matter. The
+-- object's "up" is vertical, or leans back (top away from the camera) by `lean` radians (issue
+-- #82: a leaning banner faces the high camera more squarely). Its apparent length is foreshortened
+-- by the cross product of its up vector (cos lean, sin lean) with the unit view direction.
+local function viewBasis(
+	pose: Pose,
+	targetY: number,
+	targetZ: number,
+	lean: number?
+): (number, number)
 	local dy, dz = pose.ly - pose.py, pose.lz - pose.pz
 	local len = math.sqrt(dy * dy + dz * dz)
 	local uy, uz = dy / len, dz / len
 	local depth = (targetY - pose.py) * uy + (targetZ - pose.pz) * uz
-	return depth, math.abs(uz)
+	local a = lean or 0
+	return depth, math.abs(math.cos(a) * uz - math.sin(a) * uy)
 end
 
 function CameraRig.screenFraction(
 	pose: Pose,
 	targetY: number,
 	targetZ: number,
-	studs: number
+	studs: number,
+	lean: number?
 ): number
-	local depth, foreshortening = viewBasis(pose, targetY, targetZ)
+	local depth, foreshortening = viewBasis(pose, targetY, targetZ, lean)
 	return studs * foreshortening / (2 * depth * math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2)))
 end
 
@@ -131,29 +140,41 @@ function CameraRig.studsForScreenFraction(
 	pose: Pose,
 	targetY: number,
 	targetZ: number,
-	fraction: number
+	fraction: number,
+	lean: number?
 ): number
-	local depth, foreshortening = viewBasis(pose, targetY, targetZ)
+	local depth, foreshortening = viewBasis(pose, targetY, targetZ, lean)
 	return fraction * 2 * depth * math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2)) / foreshortening
 end
 
--- True when a banner plane at `portalZ` (its underside at `bottom`, top at `top`) is crossed by the
--- sight line from the camera to the lead (feet, waist or hat). Only a portal BEHIND the lead can
--- do it (the lead has just walked through); one ahead never sits between camera and lead.
+-- True when a banner whose underside hinge is at (bottom, portalZ) and whose top is at height `top`
+-- (leaning back by `lean` radians, 0 = vertical) is crossed by the sight line from the camera to a
+-- subject at `leadZ` (feet, waist or top, `subjectTop` default LEAD_TOP). Only a portal BEHIND the
+-- subject can do it (it has just walked through); one ahead never sits between camera and subject.
 function CameraRig.bannerHidesLead(
 	pose: Pose,
 	leadZ: number,
 	portalZ: number,
 	bottom: number,
-	top: number
+	top: number,
+	lean: number?,
+	subjectTop: number?
 ): boolean
 	if portalZ >= leadZ or portalZ <= pose.pz then
 		return false
 	end
-	for _, y in { 0, CameraRig.LEAD_TOP / 2, CameraRig.LEAD_TOP } do
-		local h = lineHeight(pose.py, pose.pz, y, leadZ, portalZ)
-		if h >= bottom and h <= top then
-			return true
+	local k = math.tan(lean or 0)
+	local topY = subjectTop or CameraRig.LEAD_TOP
+	for _, y in { 0, topY / 2, topY } do
+		local s = (y - pose.py) / (leadZ - pose.pz)
+		local a = lineHeight(pose.py, pose.pz, y, leadZ, portalZ)
+		local denom = 1 - s * k
+		if denom > 1e-9 then
+			local hit = (a - s * k * bottom) / denom
+			local hitZ = portalZ + (hit - bottom) * k
+			if hit >= bottom and hit <= top and hitZ <= leadZ then
+				return true
+			end
 		end
 	end
 	return false

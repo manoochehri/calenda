@@ -283,7 +283,9 @@ local function simulate(layout: any, cfg: any, report: Report, errs: { string })
 		acc += rate * DT
 		local target = pickTarget()
 		if target == nil then
-			acc = math.min(acc, 1)
+			-- Continuous fire (ADR 0004): with nothing in range the due shots are misses; they
+			-- are spent, not banked, so only the fractional progress to the next shot carries on.
+			acc -= math.floor(acc + 1e-9)
 		end
 		while target ~= nil and acc >= 1 - 1e-9 do
 			acc -= 1

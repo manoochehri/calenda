@@ -72,7 +72,7 @@ export type SectionsView = {
 	-- Returns the current swirl 0..1 so the caller can pull the loose crowd inward.
 	update: (self: SectionsView, leadX: number, leadZ: number, total: number, dt: number) -> number,
 	reset: (self: SectionsView, total: number) -> (),
-	-- A server cluster Event: a gift shot makes every dancer section toss (visual only).
+	-- A server cluster or miss Event: a gift shot makes every dancer section toss (visual only).
 	onShot: (self: SectionsView, payload: any) -> (),
 	builders: SectionRegistry.Registry<Builder>,
 }
@@ -250,7 +250,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end
 
 	function view.onShot(_, payload: any)
-		local shot = ClusterFeed.decode(payload)
+		local shot = ClusterFeed.decode(payload) or ClusterFeed.decodeMiss(payload)
 		if shot == nil or shot.shot ~= "gift" then
 			return
 		end

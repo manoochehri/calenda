@@ -20,7 +20,7 @@ return {
 		run = function()
 			eq(Strings.hint, "Arrastra para moverte", "hint")
 			eq(Strings.replay, "¡Otra calenda!", "replay")
-			eq(Strings.defeated, "¡Se acabó la fiesta!", "defeated")
+			eq(Strings.defeated, "¡Uy, la calenda se dispersó!", "defeated")
 		end,
 	},
 	{

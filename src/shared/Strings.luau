@@ -17,7 +17,7 @@ return table.freeze({
 	score = "Puntos",
 	best = "Mejor",
 	completed = "¡Calenda completada!",
-	defeated = "¡Se acabó la fiesta!", -- Amendment 1 (the server does not send this outcome until #36)
+	defeated = "¡Uy, la calenda se dispersó!", -- Amendment 1 (the server does not send this outcome until #36)
 	ended = "Fin de la calenda", -- any outcome this client does not know yet
 	hpIcon = "♥", -- issue #50: the HP bar icon, so the bar reads with the sound off
 	replay = "¡Otra calenda!", -- spec s9

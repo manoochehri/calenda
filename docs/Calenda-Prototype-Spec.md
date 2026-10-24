@@ -157,7 +157,7 @@ Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave r
 **Crowd size and HP are separate.**
 - `crowdTotal` is unchanged: it drives gates and section assembly and is never reduced by an attack. Only the −10 obstacle (§9) and downward gates reduce it.
 - `parade HP` is a second integer, `hp`, starting at `hp.max` (Config) and reduced only by attacks. It never goes below 0 and has no regeneration or healing in this prototype.
-- **At zero HP the run ends** as *defeated*: the parade stops and the party breaks up playfully (musicians tumble, hats and instruments fly, confetti, followers wander off laughing; never a death or destruction animation) with a short "¡Se acabó la fiesta!" beat, then the results screen. Reaching the plaza with HP above zero wins the run (*completed*). Score is the crowd total at the moment the run ends; the results screen shows completed vs defeated. The session best counts completed runs only. Replay resets everything, HP included.
+- **At zero HP the run ends** as *defeated*: the parade stops and the party breaks up playfully (musicians tumble, hats and instruments fly, confetti, followers wander off laughing; never a death or destruction animation) with a short "¡Uy, la calenda se dispersó!" beat, then the results screen. Reaching the plaza with HP above zero wins the run (*completed*). Score is the crowd total at the moment the run ends; the results screen shows completed vs defeated. The session best counts completed runs only. Replay resets everything, HP included.
 - The HUD shows HP as a bar with a number next to the crowd counter and works muted (icon, meter, jolt animation).
 
 **Definitions (measured along the street axis from the lead's forward position).** A cluster has *reached the parade* when its position is at or behind the lead's forward position; from that moment it is *passed* (attacks if unconverted) and no longer a target. A cluster's *side* is the sign of its lateral offset from the street centerline (left, right, or center within the tolerance `spectators.centerTolerance` in Config).
@@ -173,3 +173,24 @@ Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave r
 **Gates stay stationary in the lane**; the gate pair rules (§6) are unchanged.
 
 **Feel reference:** Mob Control. A dense, readable swarm; a bar with a large number above each group (the excitement meter with its hit count). Reference only; no copying of assets, branding or UI.
+
+
+---
+
+## Amendment 2 — Continuous fire (owner decision, 2026-10-24)
+
+Owner feedback, twice: "the shooting should just be continuous" and "the projectiles are weak and seldom". Recorded in [ADR 0004](../.trazo/project/adr/0004-continuous-fire.md).
+
+Supersedes, where they conflict: §3 ("No target means no projectile spam"), §4 (starter firing rate 3 and the `min(12, 3 + sectionCount)` curve), and Amendment 1's targeting line "No eligible target means no shots". Everything not listed here is unchanged: eligibility, side preference, credit-once, meters, the gift cadence, the same-tick ordering, server authority, crowd math (§5), gates (§6), sections (§7), budgets (§8), the −10 obstacle and parade HP.
+
+**Firing is continuous.**
+- The parade shoots at the firing-rate curve whether or not anything is in range. The curve is `min(firing.cap, firing.base + firing.perSection * sectionCount)` shots per second with the new named defaults `firing.base = 6` (was 3), `firing.cap = 20` (was 12) and `firing.perSection = 1` (kept). Each is one Config line; `firing.cap` is validated to be at most 30, the server tick rate, because every shot is one replicated event.
+- A shot with an eligible target (Amendment 1 targeting, unchanged) goes to it and **counts as a hit**: one meter hit, credit-once, gift cadence unchanged (every fourth shot once a dancer section exists, counted over all shots, hit or miss).
+- A shot with **no eligible target** still fires, straight ahead, as a **miss**: visual only. A miss never fills a meter, credits, damages, consumes a cluster or changes `crowdTotal` or HP, and it is not a gameplay event. It is replicated to the owning player only as a lightweight, bounded, display-only `miss` Event (shot kind and shot number only; no id, position or reward), validated when encoded and again when decoded.
+- The same-tick order (Amendment 1) and server authority are unchanged: shots (hits and misses) are phase 1.
+
+**Balance.** Doubling the base rate changes conversion speed, so the HP and recruit balance evidence is stale: the #17 ladder must be re-run after this lands. The fixed debug layout was retuned only enough to keep the Amendment 1 checks true (no-input run defeated, competent run completed with HP left); its numbers are provisional.
+
+**Presentation.** Shots are bigger and readable (a glowing core, a short trail, a muzzle pop at the lead, an impact burst and squash on the target group, distinct note / heart / snack looks); misses fly off into the distance and fade. All pooled with hard caps; every knob is a named `[default]` constant in `ShotLook`. In-engine feel is unverified until a Studio pass.
+
+**Checks.** Rate curve at 0, 1, 9 and 100 sections; misses never credit, damage or consume; hits still credit once; the gift cadence is unchanged; a fixed clock is deterministic; per-tick event caps hold at the top rate.
