@@ -142,16 +142,28 @@ If players do not understand assembly or want another run, improve the core loop
 
 ---
 
-## Amendment 1 — Waves of spectators (owner decision, 2026-10-23)
+## Amendment 1 — Attacking waves and parade HP (owner decisions, 2026-10-23)
 
-Supersedes the "stand on either side" placement in §4 and the sidewalk-only targeting in §3 where they conflict. Everything not listed here is unchanged (no combat, no penalty, crowd math, gates, obstacle, score).
+Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave range without a penalty"), §5 ("No death or destruction animation"), and §9 ("Reaching the plaza always completes the run"; "Zero followers is recoverable"). Everything not listed here is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), and the −10 obstacle.
 
-- **Waves move toward the parade.** The layout places spectator clusters in waves. Each cluster starts at a spawn point ahead of the lead, on a sidewalk or in the lane, and walks toward the parade at `spectators.approachSpeed` (Config) along a deterministic path. The server position of every cluster is a pure function of layout, seed and run time, so the layout validator and the scripted-run test can compute it.
-- **Meter, hits, rewards and credit-once are unchanged** (§4). A cluster whose meter fills is credited once, wherever it is; its members then run into the parade.
-- **Definitions (all measured along the street axis from the lead's forward position).** A cluster has *reached the parade* when its position is at or behind the lead's forward position; it is *passed* from that moment on and is no longer eligible. A cluster's *side* is the sign of its lateral offset from the street centerline (left, right, or center if within the tolerance in Config). A filled cluster stops being a target; its members run into the parade and the cluster is removed, never credited again.
-- **Missing a wave has no penalty.** A cluster that reaches the parade unfilled passes around it (visual only) and is gone. No loss, no credit, no extra way to lose followers.
-- **Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
-- **Pacing.** Wave density and speed are tuned in the layout so the intended recruit total stays reachable at the base fire rate; the layout validator proves it.
-- **Gates stay stationary in the lane**; the gate pair rules (§6) are unchanged.
-- **Feel reference:** Mob Control. A dense, readable swarm; a bar with a large number above each group (here the excitement meter with its hit count). Reference only; no copying of assets, branding or UI.
+**Waves attack until converted.**
+- The layout places spectator clusters in waves. Each cluster starts at a spawn point ahead of the lead, on a sidewalk or in the lane, and walks toward the parade at `spectators.approachSpeed` (Config) along a deterministic path. The server position of every cluster is a pure function of layout, seed and run time, so the layout validator and the scripted-run test can compute it.
+- We shoot musical notes, love (hearts) and snacks at them. Mechanically every shot is one hit (§4); hearts and snacks are visual variants, and dancers' gift cadence (§4) is unchanged.
+- **Conversion** (unchanged mechanics): when a cluster's meter fills it is credited once, wherever it is; its members then join the parade (they run in from where they stand), and the cluster is removed.
+- **Attack:** a cluster that reaches the parade unconverted attacks. It deals its type's `attackDamage` (Config) to parade HP exactly once and is then removed (a cluster can never damage twice). Hits are playful and cartoonish (bonks, bumps, flying hats, no gore) but must feel impactful: screen punch, a hit sound cue, the HP bar jolts.
 
+**Crowd size and HP are separate.**
+- `crowdTotal` is unchanged: it drives gates and section assembly and is never reduced by an attack. Only the −10 obstacle (§9) and downward gates reduce it.
+- `parade HP` is a second integer, `hp`, starting at `hp.max` (Config) and reduced only by attacks. It never goes below 0 and has no regeneration or healing in this prototype.
+- **At zero HP the run ends** as *defeated*: the parade stops, a short "¡Se acabó la fiesta!" beat plays, then the results screen. Reaching the plaza with HP above zero still completes the run (*completed*). Score is the crowd total at the moment the run ends; the results screen shows completed vs defeated. The session best counts completed runs only. Replay resets everything, HP included.
+- The HUD shows HP as a bar with a number next to the crowd counter and works muted (icon, meter, jolt animation).
+
+**Definitions (measured along the street axis from the lead's forward position).** A cluster has *reached the parade* when its position is at or behind the lead's forward position; from that moment it is *passed* (attacks if unconverted) and no longer a target. A cluster's *side* is the sign of its lateral offset from the street centerline (left, right, or center within the tolerance `spectators.centerTolerance` in Config).
+
+**Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
+
+**Balance.** Conversion speed (fire rate), wave size, approach speed and `attackDamage` are tuned in Config and the layout so that the player has to react: standing still or ignoring a side should lose HP, and a careful player should usually finish with HP left. The layout validator and the scripted-run test must show both a no-input run (defeated) and a competent run (completed), and report the HP trajectory. All values are initial defaults.
+
+**Gates stay stationary in the lane**; the gate pair rules (§6) are unchanged.
+
+**Feel reference:** Mob Control. A dense, readable swarm; a bar with a large number above each group (the excitement meter with its hit count). Reference only; no copying of assets, branding or UI.
