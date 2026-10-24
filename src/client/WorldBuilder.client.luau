@@ -10,6 +10,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local GateLabel = require(Shared:WaitForChild("GateLabel"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local WORLD_NAME = "CalendaWorld"
 local ROAD_HALF_WIDTH = DebugLayout.halfWidth - 6
@@ -103,7 +104,7 @@ local function addGround(
 		parent,
 		name,
 		Vector3.new(width, 1, z1 - z0),
-		Vector3.new(x, -0.5, (z0 + z1) / 2),
+		Vector3.new(ViewMap.x(x), -0.5, (z0 + z1) / 2),
 		color,
 		Enum.Material.Concrete,
 		true
@@ -126,7 +127,7 @@ local function addGate(
 		parent,
 		`Gate{gateId}{side}`,
 		Vector3.new(GATE_WIDTH, 0.35, GATE_DEPTH),
-		Vector3.new(x, 0.18, z),
+		Vector3.new(ViewMap.x(x), 0.18, z),
 		color,
 		Enum.Material.SmoothPlastic
 	)
@@ -176,7 +177,7 @@ local function addCone(parent: Instance, name: string, x: number, z: number)
 		part.Name = `{name}{layer}`
 		part.Shape = Enum.PartType.Cylinder
 		part.Size = Vector3.new(height, diameter, diameter)
-		part.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.pi / 2)
+		part.CFrame = CFrame.new(ViewMap.x(x), y, z) * CFrame.Angles(0, 0, math.pi / 2)
 		part.Color = color
 		part.Material = Enum.Material.SmoothPlastic
 		part.Anchored = true
@@ -199,7 +200,7 @@ local function addObstacle(parent: Instance, obstacleId: number, side: "left" | 
 		parent,
 		`Obstacle{obstacleId}Sign`,
 		Vector3.new(5, 2.6, 0.3),
-		Vector3.new(signX, 2.7, z - 4),
+		Vector3.new(ViewMap.x(signX), 2.7, z - 4),
 		Color3.fromRGB(191, 47, 57),
 		Enum.Material.SmoothPlastic
 	)
@@ -261,7 +262,6 @@ local function buildWorld()
 
 	local gateLabels: { { left: GateText, right: GateText, leftOp: GateLabel.Op, rightOp: GateLabel.Op } } =
 		{}
-	local gateAnchor = DebugLayout.halfWidth / 2
 	for _, gate in DebugLayout.gates do
 		local leftOp: GateLabel.Op = { kind = gate.left.kind, value = gate.left.value }
 		local rightOp: GateLabel.Op = { kind = gate.right.kind, value = gate.right.value }
@@ -270,7 +270,7 @@ local function buildWorld()
 				world,
 				gate.id,
 				"left",
-				-gateAnchor,
+				ViewMap.gateWorldX("left", DebugLayout.halfWidth),
 				gate.z,
 				leftOp,
 				Config.startingTotal
@@ -279,7 +279,7 @@ local function buildWorld()
 				world,
 				gate.id,
 				"right",
-				gateAnchor,
+				ViewMap.gateWorldX("right", DebugLayout.halfWidth),
 				gate.z,
 				rightOp,
 				Config.startingTotal

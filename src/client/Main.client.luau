@@ -18,6 +18,7 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local ResetPlan = require(Shared:WaitForChild("ResetPlan"))
 local RunView = require(Shared:WaitForChild("RunView"))
 local Steering = require(Shared:WaitForChild("Steering"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
 
 local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
@@ -157,7 +158,7 @@ RunService:BindToRenderStep(
 			dt,
 			CameraRig.PULLBACK_RATE
 		)
-		local pose = CameraRig.pose(drawnX, z, pullback)
+		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
 		local camera = Workspace.CurrentCamera
 		if camera then
 			camera.CameraType = Enum.CameraType.Scriptable

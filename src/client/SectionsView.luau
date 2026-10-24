@@ -23,6 +23,7 @@ local SectionDirector = require(Shared:WaitForChild("SectionDirector"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
 local SectionRegistry = require(Shared:WaitForChild("SectionRegistry"))
 local SectionTypes = require(Shared:WaitForChild("SectionTypes"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local Bits = require(script.Parent:WaitForChild("Bits"))
 local DancerFigure = require(script.Parent:WaitForChild("DancerFigure"))
@@ -263,7 +264,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end
 
 	local function pivotOf(x: number, z: number): Vector3
-		return Vector3.new(x, 0.5, z + PIVOT_DZ)
+		return Vector3.new(ViewMap.x(x), 0.5, z + PIVOT_DZ)
 	end
 
 	local function startPlan(plan: SectionEvents.Plan, leadX: number, leadZ: number)
@@ -350,7 +351,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 		for index, rep in reps do
 			local slot = layout.sections[index]
 			if slot then
-				rep.x, rep.z = leadX + slot.dx, leadZ + slot.dz
+				rep.x, rep.z = ViewMap.x(leadX + slot.dx), leadZ + slot.dz -- view space
 			end
 			if rep.riseT < 1 then
 				rep.riseT = math.min(1, rep.riseT + dt * risePerSecond)

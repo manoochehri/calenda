@@ -11,6 +11,7 @@ local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Formation = require(Shared:WaitForChild("Formation"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 -- Flat, saturated colors: the lead is the brightest thing on screen, followers share one color.
 local LEAD_COLOR = Color3.fromRGB(255, 221, 0)
@@ -181,18 +182,18 @@ function CrowdView.new(): CrowdView
 
 		lead:PivotTo(
 			CFrame.new(
-				leadX,
+				ViewMap.x(leadX),
 				1.5 + BOB_HEIGHT * math.abs(math.sin(clock * BOB_RATE)) + (lift or 0),
 				leadZ
 			) * CFrame.Angles(tumble or 0, 0, 0)
 		)
-		ring.CFrame = CFrame.new(leadX, 0.12, leadZ) * CFrame.Angles(0, 0, math.pi / 2)
+		ring.CFrame = CFrame.new(ViewMap.x(leadX), 0.12, leadZ) * CFrame.Angles(0, 0, math.pi / 2)
 
 		local avatars = pool:setCount(#layout.slots)
 		for i, avatar in avatars do
 			local slot = layout.slots[i]
 			local sx, sz = SectionEvents.swirlSlot(slot.dx, slot.dz, swirl or 0)
-			local tx, tz = leadX + sx, leadZ + sz
+			local tx, tz = ViewMap.x(leadX + sx), leadZ + sz
 			if avatar.fresh then
 				avatar.x, avatar.z, avatar.fresh = tx, tz, false
 			else
