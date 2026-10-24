@@ -44,3 +44,7 @@ test: lint test-unit build
 scan:
 	@! git grep -nIE '(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|\.ROBLOSECURITY)' -- . ':!Makefile' \
 		&& echo "scan: no secret patterns found"
+
+# Full policy-ladder report (issue #17): ~5,000 headless runs, prints to stdout. Not part of `make test`.
+ladder:
+	$(TOOLS) lune run tests/ladder
