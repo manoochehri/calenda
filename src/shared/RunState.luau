@@ -66,6 +66,7 @@ export type RunState = {
 	resolveGate: (self: RunState, pairId: any, leadX: any) -> Result,
 	creditCluster: (self: RunState, id: any) -> Result,
 	attackCluster: (self: RunState, id: any) -> Result,
+	attackClusters: (self: RunState, ids: { any }) -> { Result },
 	hitObstacle: (self: RunState, id: any) -> Result,
 	complete: (self: RunState) -> Result,
 	reset: (self: RunState, seed: number?) -> (),
@@ -319,11 +320,7 @@ local function new(opts: Options): RunState
 		return { ok = true, before = before, after = after }
 	end
 
-	function self.attackCluster(_, id: any): Result
-		local blocked = guard()
-		if blocked then
-			return blocked
-		end
+	local function applyAttack(id: any, finishOnZero: boolean): Result
 		if not isId(id) then
 			return reject("invalid cluster id")
 		end
@@ -338,14 +335,16 @@ local function new(opts: Options): RunState
 		paradeHp = math.max(0, paradeHp - Config.clusterTypes[cluster.type].attackDamage)
 		usedClusters[id] = "attacked"
 		if paradeHp == 0 then
-			outcome = "defeated"
-			finalScore = crowdTotal
+			if finishOnZero then
+				outcome = "defeated"
+				finalScore = crowdTotal
+			end
 		end
 		record("cluster_attack", crowdTotal, crowdTotal, {
 			id = id,
 			hpBefore = before,
 			hpAfter = paradeHp,
-			outcome = outcome,
+			outcome = if paradeHp == 0 then "defeated" else outcome,
 		})
 		return {
 			ok = true,
@@ -354,6 +353,31 @@ local function new(opts: Options): RunState
 			hpBefore = before,
 			hpAfter = paradeHp,
 		}
+	end
+
+	function self.attackCluster(_, id: any): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		return applyAttack(id, true)
+	end
+
+	function self.attackClusters(_, ids: { any }): { Result }
+		local blocked = guard()
+		if blocked then
+			return { blocked }
+		end
+		assert(type(ids) == "table", "cluster attack ids must be a list")
+		local results: { Result } = {}
+		for _, id in ids do
+			table.insert(results, applyAttack(id, false))
+		end
+		if paradeHp == 0 then
+			outcome = "defeated"
+			finalScore = crowdTotal
+		end
+		return results
 	end
 
 	function self.complete(_): Result

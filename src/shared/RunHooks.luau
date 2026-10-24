@@ -33,12 +33,16 @@ function RunHooks.new(layout: Level.Layout): any
 	end
 
 	hooks.attacks = function(ctx: any)
+		local ids: { string } = {}
 		for _, id in ctx.passedClusters do
-			local result = ctx.state:attackCluster(`c{id}`)
+			table.insert(ids, `c{id}`)
+		end
+		local results = ctx.state:attackClusters(ids)
+		for i, result in results do
 			if result.ok then
 				ctx.emit({
 					kind = "attack",
-					id = id,
+					id = ctx.passedClusters[i],
 					hpBefore = result.hpBefore,
 					hpAfter = result.hpAfter,
 				})

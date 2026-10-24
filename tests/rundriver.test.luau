@@ -392,7 +392,9 @@ return {
 		name = "server driver attacks passed clusters in ID order before ending defeated",
 		run = function()
 			local clusters: { Level.Cluster } = {}
-			local attackCount = math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local lethalAttackCount =
+				math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local attackCount = lethalAttackCount + 2
 			for i = attackCount, 1, -1 do
 				table.insert(clusters, {
 					id = i,
@@ -442,7 +444,9 @@ return {
 				"event order"
 			)
 			eq(events[1].hpBefore, Config.hp.max, "first attack HP before")
-			eq(events[attackCount].hpAfter, 0, "last attack clamps HP")
+			eq(events[lethalAttackCount].hpAfter, 0, "lethal attack clamps HP")
+			eq(events[attackCount].hpBefore, 0, "same-tick attacks continue at zero HP")
+			eq(events[attackCount].hpAfter, 0, "HP stays clamped for later same-tick attacks")
 			eq(d:outcome(), "defeated", "outcome")
 			eq(d:total(), Config.startingTotal, "crowd unchanged")
 			eq(d:snapshot().hp, 0, "HP exposed in snapshot")
