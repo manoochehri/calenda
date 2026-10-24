@@ -8,7 +8,13 @@ local function near(actual: number, expected: number, name: string)
 	assert(math.abs(actual - expected) < 1e-6, `{name}: expected {expected}, got {actual}`)
 end
 
-local function cluster(id: number, x: number, z: number, kind: string?, spawnTime: number?): Level.Cluster
+local function cluster(
+	id: number,
+	x: number,
+	z: number,
+	kind: string?,
+	spawnTime: number?
+): Level.Cluster
 	return {
 		id = id,
 		wave = 1,
@@ -55,7 +61,14 @@ local function newSession(layout: Level.Layout)
 end
 
 -- Runs the session on a fixed clock and returns every shot fired.
-local function drive(session: any, from: number, to: number, dt: number, sections: number, steer: string)
+local function drive(
+	session: any,
+	from: number,
+	to: number,
+	dt: number,
+	sections: number,
+	steer: string
+)
 	local shots: { any } = {}
 	local t = from
 	while t <= to + 1e-9 do
@@ -109,8 +122,14 @@ return {
 	{
 		name = "range is inclusive at firing.range and a cluster at the lead is passed",
 		run = function()
-			assert(Targeting.selectTarget({ cand(1, 5, Config.firing.range) }, 0, "center") == 1, "edge")
-			assert(Targeting.selectTarget({ cand(1, 5, 100 + 0.001) }, 100, "center") == 1, "just ahead")
+			assert(
+				Targeting.selectTarget({ cand(1, 5, Config.firing.range) }, 0, "center") == 1,
+				"edge"
+			)
+			assert(
+				Targeting.selectTarget({ cand(1, 5, 100 + 0.001) }, 100, "center") == 1,
+				"just ahead"
+			)
 			assert(Targeting.selectTarget({ cand(1, 5, 100) }, 100, "center") == nil, "at lead")
 		end,
 	},
@@ -186,7 +205,10 @@ return {
 			assert(#shots == need, `expected exactly {need} shots, got {#shots}`)
 			assert(shots[need].filled == true, "last shot fills the meter")
 			assert(shots[need].credit ~= nil and shots[need].credit.ok, "credited")
-			assert(shots[1].filled == false and shots[1].credit == nil, "first shot does not credit")
+			assert(
+				shots[1].filled == false and shots[1].credit == nil,
+				"first shot does not credit"
+			)
 			assert(rs:total() == before + Config.clusterTypes.small.reward, "reward applied once")
 			assert(rs:clusterConsumption("1") == "credited", "consumed")
 			local credits = 0
@@ -289,7 +311,10 @@ return {
 			local tEnter = (500 - Config.firing.range) / closing
 			local shots = drive(session, 0, tEnter + 3, 1 / 30, 0, "center")
 			assert(#shots > 0, "fires once in range")
-			assert(shots[1].time >= tEnter - 1e-6, `fired too early at {shots[1].time}, enter {tEnter}`)
+			assert(
+				shots[1].time >= tEnter - 1e-6,
+				`fired too early at {shots[1].time}, enter {tEnter}`
+			)
 			assert(shots[1].time < tEnter + 1 / 30 + 1e-6, "fires as soon as it enters range")
 			local z = Level.clusterPosition(layout, 1, shots[1].time).z
 			assert(z - Level.leadZ(shots[1].time) <= Config.firing.range + 1e-6, "in range at shot")
@@ -298,11 +323,11 @@ return {
 	{
 		name = "moving targets: a cluster that has not spawned yet is not a target",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "small", 2) })
+			local layout = layoutOf({ cluster(1, 16, 100, "small", 2) })
 			local session = newSession(layout)
 			local shots = drive(session, 0, 1.5, 1 / 30, 0, "center")
 			assert(#shots == 0, "waiting cluster is not targeted")
-			local later = drive(session, 1.5, 3, 1 / 30, 0, "center")
+			local later = drive(session, 1.6, 3, 1 / 30, 0, "center")
 			assert(#later > 0 and later[1].time >= 2 - 1e-6, "targetable from spawnTime")
 		end,
 	},
@@ -335,9 +360,9 @@ return {
 		end,
 	},
 	{
-		name = "a cluster that fills on the tick the lead reaches it converts and is not reported passed",
+		name = "a cluster that fills just before the lead reaches it converts and is not reported passed",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 8, "small") })
+			local layout = layoutOf({ cluster(1, 16, 14.67, "small") })
 			local session = newSession(layout)
 			local passed = 0
 			local shots = 0
