@@ -171,4 +171,26 @@ return {
 			)
 		end,
 	},
+	{
+		name = "member grid is dense, centered and distinct for every member",
+		run = function()
+			for _, n in { 1, 5, 9, 12 } do
+				local seen, sx, lo, hi = {}, 0, math.huge, -math.huge
+				for i = 1, n do
+					local x, z = ClusterVisual.memberOffset(i, n)
+					seen[string.format("%.3f,%.3f", x, z)] = true
+					sx += x
+					lo, hi = math.min(lo, z), math.max(hi, z)
+					assert(math.abs(x) <= 3 * ClusterVisual.SPACING, "compact")
+				end
+				local count = 0
+				for _ in seen do
+					count += 1
+				end
+				eq(count, n, `distinct slots for {n}`)
+				near(sx, 0, `centered x for {n}`)
+				near(lo + hi, 0, `centered z for {n}`)
+			end
+		end,
+	},
 }

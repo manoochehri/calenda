@@ -21,10 +21,12 @@ local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
 
 local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
 local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
+local ClusterView = require(script.Parent:WaitForChild("ClusterView"))
 local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
 local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
+local ObstacleView = require(script.Parent:WaitForChild("ObstacleView"))
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 local PULLBACK_RATE = 2 -- [default] easing of the camera pullback as the parade grows
@@ -46,6 +48,9 @@ local hud = Hud.new(function()
 end)
 local crowd = CrowdView.new()
 local sections = SectionsView.new(Config.startingTotal)
+local clusters = ClusterView.new(DebugLayout)
+local obstacleFeedback = ObstacleView.new(DebugLayout)
+local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -72,6 +77,8 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		drawnX = state.x
 		pullback = 1
 		sections:reset(RunView.wholeTotal(state.total))
+		clusters:reset()
+		obstacleFeedback:reset()
 	end
 	latest = state
 	receivedAt = os.clock()
@@ -79,8 +86,20 @@ end)
 
 -- Gates and the obstacle change the total: pop the counter. (The new total itself arrives in State.)
 eventRemote.OnClientEvent:Connect(function(payload: any)
-	if type(payload) == "table" and (payload.kind == "gate" or payload.kind == "obstacle") then
+	if type(payload) ~= "table" then
+		return
+	end
+	if payload.kind == "gate" then
 		hud:pop()
+	elseif payload.kind == "obstacle" then
+		-- A repeated event for the same obstacle plays nothing (ObstacleFeedback dedupes).
+		if obstacleFeedback:onObstacle(payload, drawnX, leadZNow) then
+			hud:pop()
+		end
+	elseif payload.kind == "cluster" then
+		clusters:onCluster(payload)
+	elseif payload.kind == "attack" then
+		clusters:onAttack(payload) -- hook for issue #36; draws nothing yet
 	end
 end)
 
@@ -101,6 +120,9 @@ RunService:BindToRenderStep(
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
 		crowd:update(drawnX, z, total, dt, swirl)
+		leadZNow = z
+		clusters:update(t, drawnX, z, dt)
+		obstacleFeedback:update(dt)
 
 		local plan = VisualBudget.allocate(total)
 		pullback = CameraRig.smooth(pullback, plan.cameraPullback, dt, PULLBACK_RATE)

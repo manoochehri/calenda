@@ -44,6 +44,19 @@ ClusterVisual.CHEER_SECONDS = 2 -- [default]
 ClusterVisual.PASS_DISTANCE = 24 -- [default] studs past the lead before an unfilled group is gone
 ClusterVisual.PASS_SWING = 8 -- [default] studs a passing group swings outward
 
+ClusterVisual.PER_ROW = 4 -- [default] spectators per row in a dense group
+ClusterVisual.SPACING = 1.7 -- [default] studs between spectators
+
+-- Dense, centered grid offset of member i (1-based) of n, relative to the group position.
+function ClusterVisual.memberOffset(i: number, n: number): (number, number)
+	local row = (i - 1) // ClusterVisual.PER_ROW
+	local col = (i - 1) % ClusterVisual.PER_ROW
+	local inRow = math.min(ClusterVisual.PER_ROW, n - row * ClusterVisual.PER_ROW)
+	local rows = math.ceil(n / ClusterVisual.PER_ROW)
+	return (col - (inRow - 1) / 2) * ClusterVisual.SPACING,
+		(row - (rows - 1) / 2) * ClusterVisual.SPACING
+end
+
 function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 	local cfg = config or Config
 	local byId: { [number]: Level.Cluster } = {}
