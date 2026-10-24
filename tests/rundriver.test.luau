@@ -635,7 +635,9 @@ return {
 			local events: { RunDriver.DriverEvent } = {}
 			for _ = 1, 4 do
 				for _, event in d:tick(dt) do
-					table.insert(events, event)
+					if event.kind ~= "miss" then -- continuous fire (ADR 0004): display-only misses
+						table.insert(events, event)
+					end
 				end
 			end
 			eq(d:outcome(), "defeated", "lethal attacks beat plaza completion")

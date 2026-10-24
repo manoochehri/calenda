@@ -55,8 +55,8 @@ return {
 			eq(c.clusterTypes.large.reward, 15, "large.reward")
 			eq(c.clusterTypes.large.attackDamage, 12, "large.attackDamage")
 			eq(c.obstacleLoss, 10, "obstacleLoss")
-			eq(c.firing.base, 3, "firing.base")
-			eq(c.firing.cap, 12, "firing.cap")
+			eq(c.firing.base, 6, "firing.base (ADR 0004; was 3)")
+			eq(c.firing.cap, 20, "firing.cap (ADR 0004; was 12)")
 			eq(c.firing.perSection, 1, "firing.perSection")
 			eq(c.visualBudget.sectionRepresentatives, 6, "sectionRepresentatives")
 			eq(c.visualBudget.looseAvatars, 24, "looseAvatars")
@@ -116,6 +116,9 @@ return {
 	end),
 	expectInvalid("firing cap below base", function(c)
 		c.firing.cap = 2
+	end),
+	expectInvalid("firing cap above the 30 Hz tick", function(c)
+		c.firing.cap = 31
 	end),
 	expectInvalid("firing perSection zero", function(c)
 		c.firing.perSection = 0
