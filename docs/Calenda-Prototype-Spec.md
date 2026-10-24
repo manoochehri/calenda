@@ -28,7 +28,7 @@ Deferred: shops, paid multipliers, pets, trading, clothing creation, custom musi
 
 ## 4. Recruiting spectators
 
-Spectator clusters stand on either side of the street, displaying an excitement meter and a recruit reward. Start with two cluster types: 3 note hits awards +5 followers; 8 hits awards +15. All values are initial tuning defaults.
+Spectator clusters (see Amendment 1 at the end of this document: they arrive in waves toward the parade) are on either side of the street, displaying an excitement meter and a recruit reward. Start with two cluster types: 3 note hits awards +5 followers; 8 hits awards +15. All values are initial tuning defaults.
 
 Notes visibly arc from the lead/band to the target. A completed meter triggers cheering, a few spectators running into the parade, and a floating +N. Credit each cluster once when its meter fills; animation arrival must not credit it again. Unfinished clusters leave range without a penalty.
 
@@ -116,7 +116,7 @@ Use an original or appropriately licensed brass-and-percussion loop with synchro
 
 ## 11. Implementation boundaries
 
-Keep tunable values in configuration: section size, starting total, cluster hits/rewards, gate operations, losses, speed, firing-rate curve, visual budgets, and finale thresholds.
+Keep tunable values in configuration: section size, spectator approach speed (`spectators.approachSpeed`), starting total, cluster hits/rewards, gate operations, losses, speed, firing-rate curve, visual budgets, and finale thresholds.
 
 Separate run state and crowd arithmetic from presentation. The server owns totals, gate/cluster consumption, losses, completion, and score; clients animate the results. Validate steering and crossing events; clients cannot submit arbitrary gains. Use pooled visual actors/projectiles, limited collision checks, and compact formations rather than full independent pathfinding for every represented follower.
 
@@ -128,7 +128,7 @@ Functional checks:
 
 - Touch and keyboard can complete the route and replay without stale state.
 - 49 → +1 produces one section with no loss of value; 120 → ×2 produces 240; 105 → −10 produces 95 and correctly updates the section visuals.
-- Gate pairs, spectator clusters, and obstacles each apply only once, even with overlapping actors or repeated events.
+- Gate pairs, spectator clusters, and obstacles each apply only once, even with overlapping actors or repeated events, including a cluster that fills while moving and a wave that is missed (no loss, no credit).
 - Large jumps assemble in one animation; a synthetic total of 10,000 keeps the counter accurate and respects visual budgets.
 - Client attempts to forge crowd gains or retrigger consumed gates do not alter server totals.
 - Total score equals the final crowd total; score and replay remain usable with sound off.
@@ -148,6 +148,7 @@ Supersedes the "stand on either side" placement in §4 and the sidewalk-only tar
 
 - **Waves move toward the parade.** The layout places spectator clusters in waves. Each cluster starts at a spawn point ahead of the lead, on a sidewalk or in the lane, and walks toward the parade at `spectators.approachSpeed` (Config) along a deterministic path. The server position of every cluster is a pure function of layout, seed and run time, so the layout validator and the scripted-run test can compute it.
 - **Meter, hits, rewards and credit-once are unchanged** (§4). A cluster whose meter fills is credited once, wherever it is; its members then run into the parade.
+- **Definitions (all measured along the street axis from the lead's forward position).** A cluster has *reached the parade* when its position is at or behind the lead's forward position; it is *passed* from that moment on and is no longer eligible. A cluster's *side* is the sign of its lateral offset from the street centerline (left, right, or center if within the tolerance in Config). A filled cluster stops being a target; its members run into the parade and the cluster is removed, never credited again.
 - **Missing a wave has no penalty.** A cluster that reaches the parade unfilled passes around it (visual only) and is gone. No loss, no credit, no extra way to lose followers.
 - **Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
 - **Pacing.** Wave density and speed are tuned in the layout so the intended recruit total stays reachable at the base fire rate; the layout validator proves it.
