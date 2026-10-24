@@ -19,6 +19,7 @@ local RunView = require(Shared:WaitForChild("RunView"))
 local Steering = require(Shared:WaitForChild("Steering"))
 local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
 
+local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
 local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
@@ -31,6 +32,8 @@ local steerRemote = remotes:WaitForChild(Remotes.names.steer) :: RemoteEvent
 local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
+
+Backdrop.build()
 
 local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
 	steerRemote:FireServer({ x = x })

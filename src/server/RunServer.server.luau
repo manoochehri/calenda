@@ -13,6 +13,10 @@ local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
 
+-- The lead musician is drawn by the client (src/client/CrowdView); no Roblox character is needed,
+-- and one would stand on the road and block the view.
+Players.CharacterAutoLoads = false
+
 local STATE_INTERVAL = 0.1 -- seconds between State snapshots per player (about 10 Hz)
 
 -- Create the remotes once. The client only ever sends Steer and Replay; handlers below ignore
