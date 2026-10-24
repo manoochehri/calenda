@@ -34,7 +34,9 @@ export type CrowdView = {
 		leadZ: number,
 		total: number,
 		dt: number,
-		swirl: number?
+		swirl: number?,
+		tumble: number?, -- issue #16: lead roll in radians (the defeat breakup)
+		lift: number? -- issue #16: studs the lead hops during the tumble
 	) -> (),
 }
 
@@ -161,7 +163,16 @@ function CrowdView.new(): CrowdView
 
 	local view = {} :: CrowdView
 
-	function view.update(_, leadX: number, leadZ: number, total: number, dt: number, swirl: number?)
+	function view.update(
+		_,
+		leadX: number,
+		leadZ: number,
+		total: number,
+		dt: number,
+		swirl: number?,
+		tumble: number?,
+		lift: number?
+	)
 		clock += dt
 		if total ~= cachedTotal then
 			cachedTotal = total
@@ -169,7 +180,11 @@ function CrowdView.new(): CrowdView
 		end
 
 		lead:PivotTo(
-			CFrame.new(leadX, 1.5 + BOB_HEIGHT * math.abs(math.sin(clock * BOB_RATE)), leadZ)
+			CFrame.new(
+				leadX,
+				1.5 + BOB_HEIGHT * math.abs(math.sin(clock * BOB_RATE)) + (lift or 0),
+				leadZ
+			) * CFrame.Angles(tumble or 0, 0, 0)
 		)
 		ring.CFrame = CFrame.new(leadX, 0.12, leadZ) * CFrame.Angles(0, 0, math.pi / 2)
 

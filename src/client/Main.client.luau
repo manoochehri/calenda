@@ -15,6 +15,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local InputIntent = require(Shared:WaitForChild("InputIntent"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
+local ResetPlan = require(Shared:WaitForChild("ResetPlan"))
 local RunView = require(Shared:WaitForChild("RunView"))
 local Steering = require(Shared:WaitForChild("Steering"))
 local VisualBudget = require(Shared:WaitForChild("VisualBudget"))
@@ -23,6 +24,7 @@ local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
 local Backdrop = require(script.Parent:WaitForChild("Backdrop"))
 local ClusterView = require(script.Parent:WaitForChild("ClusterView"))
 local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
+local EndFlow = require(script.Parent:WaitForChild("EndFlow"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
 local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
@@ -51,6 +53,7 @@ local sections = SectionsView.new(Config.startingTotal)
 local clusters = ClusterView.new(DebugLayout)
 local obstacleFeedback = ObstacleView.new(DebugLayout)
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
+local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -73,12 +76,28 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	local state = payload :: Remotes.StatePayload
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
-		input:reset(state.x)
-		drawnX = state.x
-		pullback = 1
-		sections:reset(RunView.wholeTotal(state.total))
-		clusters:reset()
-		obstacleFeedback:reset()
+		-- Replay checklist (issue #16): ResetPlan fails loudly if any item is missing here.
+		local handlers = endFlow:resetHandlers()
+		handlers.input = function()
+			input:reset(state.x)
+		end
+		handlers.counters = function()
+			latest = nil
+		end
+		handlers.camera = function()
+			drawnX = state.x
+			pullback = 1
+		end
+		handlers.sections = function()
+			sections:reset(RunView.wholeTotal(state.total))
+		end
+		handlers.clusters = function()
+			clusters:reset()
+		end
+		handlers.obstacles = function()
+			obstacleFeedback:reset()
+		end
+		ResetPlan.apply(handlers, warn)
 	end
 	latest = state
 	receivedAt = os.clock()
@@ -119,13 +138,14 @@ RunService:BindToRenderStep(
 		drawnX = CameraRig.smooth(drawnX, x, dt, CAMERA_X_RATE)
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
-		crowd:update(drawnX, z, total, dt, swirl)
+		local fx = endFlow:frame(state, drawnX, z, dt, total)
+		crowd:update(drawnX, z, fx.crowdTotal, dt, swirl, fx.tumble, fx.lift)
 		leadZNow = z
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
 
 		local plan = VisualBudget.allocate(total)
-		pullback = CameraRig.smooth(pullback, plan.cameraPullback, dt, PULLBACK_RATE)
+		pullback = CameraRig.smooth(pullback, plan.cameraPullback * fx.pullback, dt, PULLBACK_RATE)
 		local pose = CameraRig.pose(drawnX, z, pullback)
 		local camera = Workspace.CurrentCamera
 		if camera then
@@ -137,6 +157,9 @@ RunService:BindToRenderStep(
 			)
 		end
 
-		hud:update(RunView.hud(state), InputIntent.hintVisible(t, input:hasSteered(), state.over))
+		hud:update(
+			fx.view(RunView.hud(state)),
+			InputIntent.hintVisible(t, input:hasSteered(), state.over)
+		)
 	end
 )
