@@ -1,24 +1,19 @@
 --!strict
 -- Client-only presentation for the fixed debug layout (issue #11).
--- Gameplay stays server-owned; this script only draws the authored course and updates labels
--- from the server's display-only crowd total.
+-- Gameplay stays server-owned; this script only draws the authored course. The standing gate
+-- portals and their labels live in GateView (issue #70).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
-local GateLabel = require(Shared:WaitForChild("GateLabel"))
-local Remotes = require(Shared:WaitForChild("Remotes"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
+local GateView = require(script.Parent:WaitForChild("GateView"))
 
 local WORLD_NAME = "CalendaWorld"
 local ROAD_HALF_WIDTH = DebugLayout.halfWidth - 6
 local SIDEWALK_WIDTH = 6
-local GATE_WIDTH = DebugLayout.halfWidth * 0.8
-local GATE_DEPTH = 6
-
-type GateText = { operation: TextLabel, result: TextLabel }
 
 local function makePart(
 	parent: Instance,
@@ -109,60 +104,6 @@ local function addGround(
 		Enum.Material.Concrete,
 		true
 	)
-end
-
-local function addGate(
-	parent: Instance,
-	gateId: number,
-	side: "left" | "right",
-	x: number,
-	z: number,
-	op: GateLabel.Op,
-	total: number
-): GateText
-	local color = if side == "left"
-		then Color3.fromRGB(174, 66, 193)
-		else Color3.fromRGB(28, 153, 177)
-	local panel = makePart(
-		parent,
-		`Gate{gateId}{side}`,
-		Vector3.new(GATE_WIDTH, 0.35, GATE_DEPTH),
-		Vector3.new(ViewMap.x(x), 0.18, z),
-		color,
-		Enum.Material.SmoothPlastic
-	)
-	local surface = Instance.new("SurfaceGui")
-	surface.Name = "GateLabel"
-	surface.Face = Enum.NormalId.Top
-	surface.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	surface.CanvasSize = Vector2.new(900, 260)
-	surface.AlwaysOnTop = true
-	surface.LightInfluence = 0
-	surface.Parent = panel
-
-	local operationText, resultText = GateLabel.format(op, total)
-	return {
-		operation = addTextLabel(
-			surface,
-			"Operation",
-			UDim2.fromScale(0, 0),
-			UDim2.fromScale(1, 0.7),
-			operationText,
-			Enum.Font.GothamBlack
-		),
-		result = addTextLabel(
-			surface,
-			"Result",
-			UDim2.fromScale(0, 0.64),
-			UDim2.fromScale(1, 0.36),
-			resultText,
-			Enum.Font.GothamBold
-		),
-	}
-end
-
-local function updateGateText(labels: GateText, op: GateLabel.Op, total: number)
-	labels.operation.Text, labels.result.Text = GateLabel.format(op, total)
 end
 
 local function addCone(parent: Instance, name: string, x: number, z: number)
@@ -260,50 +201,12 @@ local function buildWorld()
 		)
 	end
 
-	local gateLabels: { { left: GateText, right: GateText, leftOp: GateLabel.Op, rightOp: GateLabel.Op } } =
-		{}
-	for _, gate in DebugLayout.gates do
-		local leftOp: GateLabel.Op = { kind = gate.left.kind, value = gate.left.value }
-		local rightOp: GateLabel.Op = { kind = gate.right.kind, value = gate.right.value }
-		table.insert(gateLabels, {
-			left = addGate(
-				world,
-				gate.id,
-				"left",
-				ViewMap.gateWorldX("left", DebugLayout.halfWidth),
-				gate.z,
-				leftOp,
-				Config.startingTotal
-			),
-			right = addGate(
-				world,
-				gate.id,
-				"right",
-				ViewMap.gateWorldX("right", DebugLayout.halfWidth),
-				gate.z,
-				rightOp,
-				Config.startingTotal
-			),
-			leftOp = leftOp,
-			rightOp = rightOp,
-		})
-	end
+	-- Standing gate portals (issue #70): drawn, animated and fed by the server Event in GateView.
+	GateView.new(world, DebugLayout)
 
 	for _, obstacle in DebugLayout.obstacles do
 		addObstacle(world, obstacle.id, obstacle.side, obstacle.z)
 	end
-
-	local remotes = ReplicatedStorage:WaitForChild(Remotes.folderName)
-	local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
-	stateRemote.OnClientEvent:Connect(function(payload: any)
-		if type(payload) ~= "table" or type(payload.total) ~= "number" then
-			return
-		end
-		for _, labels in gateLabels do
-			updateGateText(labels.left, labels.leftOp, payload.total)
-			updateGateText(labels.right, labels.rightOp, payload.total)
-		end
-	end)
 end
 
 buildWorld()

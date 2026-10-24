@@ -106,19 +106,20 @@ local function buildGroup(folder: Folder): Group
 		local head = newPart(folder, Enum.PartType.Ball, Vector3.new(1.3, 1.3, 1.3), SPECTATOR_HEAD)
 		table.insert(members, { body = body, head = head })
 	end
-	-- Large numerals readable from the high camera, above the group.
+	-- A SMALL tag attached to the group (issue #70): hit count, reward and a thin meter bar. It must
+	-- never read as a gate, so no big floating numeral panel: gates are the standing portals.
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(190, 100)
-	gui.StudsOffset = Vector3.new(0, 7, 0)
+	gui.Size = UDim2.fromOffset(88, 30)
+	gui.StudsOffset = Vector3.new(0, 4, 0)
 	gui.AlwaysOnTop = false -- do not cover the gate text from the high camera
-	gui.MaxDistance = 400
+	gui.MaxDistance = 160
 	gui.Parent = root
 	local numeral =
-		label(gui, UDim2.fromScale(0.55, 0.7), UDim2.fromScale(0, 0), Color3.new(1, 1, 1))
-	local reward = label(gui, UDim2.fromScale(0.45, 0.5), UDim2.fromScale(0.55, 0.1), BAR_DONE)
+		label(gui, UDim2.fromScale(0.4, 0.6), UDim2.fromScale(0, 0), Color3.new(1, 1, 1))
+	local reward = label(gui, UDim2.fromScale(0.6, 0.6), UDim2.fromScale(0.4, 0), BAR_DONE)
 	local back = Instance.new("Frame")
-	back.Size = UDim2.fromScale(1, 0.26)
-	back.Position = UDim2.fromScale(0, 0.74)
+	back.Size = UDim2.fromScale(1, 0.28)
+	back.Position = UDim2.fromScale(0, 0.72)
 	back.BackgroundColor3 = BAR_BACK
 	back.BorderSizePixel = 0
 	back.Parent = gui

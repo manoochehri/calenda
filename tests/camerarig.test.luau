@@ -137,4 +137,47 @@ return {
 			assert(1.4 - value < 0.001, `settled within 6 s, got {value}`)
 		end,
 	},
+	{
+		name = "issue 70: the standing portal is the tallest prop and its row stays visible behind it",
+		run = function()
+			local PortalGeometry = require("../src/shared/PortalGeometry")
+			assert(
+				CameraRig.TALLEST_PROP >= PortalGeometry.TOP,
+				"portal height feeds the camera rule"
+			)
+			for _, pullback in { 1, 1.2, 1.4 } do
+				local pose = CameraRig.pose(0, 0, pullback)
+				local c = CameraRig.gateClearance(pose, 0, CameraRig.PROP_FRONT, PortalGeometry.TOP)
+				assert(c >= CameraRig.CLEARANCE - 1e-6, `clearance {c} at pullback {pullback}`)
+			end
+		end,
+	},
+	{
+		name = "issue 70: screenFraction and studsForScreenFraction are inverses and shrink with distance",
+		run = function()
+			local pose = CameraRig.pose(0, 0, 1)
+			local f = CameraRig.screenFraction(pose, 10, 30, 6)
+			assert(f > 0 and f < 1, "fraction")
+			local back = CameraRig.studsForScreenFraction(pose, 10, 30, f)
+			assert(math.abs(back - 6) < 1e-9, "inverse")
+			assert(CameraRig.screenFraction(pose, 10, 90, 6) < f, "farther is smaller")
+		end,
+	},
+	{
+		name = "issue 70: a banner hides the lead only while the lead is just past it",
+		run = function()
+			local pose = CameraRig.pose(0, 0, 1)
+			local b, t = 7, 19
+			assert(
+				not CameraRig.bannerHidesLead(pose, 0, 5, b, t),
+				"portal still ahead of the lead"
+			)
+			assert(CameraRig.bannerHidesLead(pose, 0, -3, b, t), "lead just past the portal")
+			assert(not CameraRig.bannerHidesLead(pose, 0, -14, b, t), "well past it")
+			assert(
+				not CameraRig.bannerHidesLead(pose, 0, -3, 30, 40),
+				"banner above the line of sight"
+			)
+		end,
+	},
 }
