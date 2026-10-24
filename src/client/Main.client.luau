@@ -76,7 +76,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	local state = payload :: Remotes.StatePayload
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
-		-- Replay checklist (issue #16): ResetPlan fails loudly if any item is missing here.
+		-- Replay checklist (issue #16): ResetPlan warns (never throws) if an item is missing here.
 		local handlers = endFlow:resetHandlers()
 		handlers.input = function()
 			input:reset(state.x)
