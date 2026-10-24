@@ -48,6 +48,28 @@ function ClusterEvents.shotAction(
 	return "launch"
 end
 
+export type PlanInput = {
+	accepted: boolean,
+	alreadyFilled: boolean,
+	filled: boolean, -- this shot was the cluster's first fill
+	reward: number?,
+	visible: boolean, -- the cluster's position is known (it is drawn)
+	inBudget: boolean, -- this frame's visual budget still had room
+}
+export type Plan = { track: boolean, projectile: boolean, float: boolean }
+
+-- What to do with a cluster event. The tracker is ALWAYS fed (counts, fill and cheer must never
+-- be lost to a budget); only the projectile is gated by budget, duplicates and orphans; the +N
+-- plays on the first fill whatever else was suppressed.
+function ClusterEvents.plan(i: PlanInput): Plan
+	return {
+		track = true,
+		projectile = i.inBudget
+			and ClusterEvents.shotAction(i.accepted, i.alreadyFilled, i.visible) == "launch",
+		float = i.accepted and i.filled and i.reward ~= nil,
+	}
+end
+
 export type Dedupe = {
 	first: (self: Dedupe, id: number?) -> boolean,
 	reset: (self: Dedupe) -> (),

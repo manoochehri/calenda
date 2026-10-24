@@ -135,9 +135,11 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 		clusters:onCluster(payload)
 		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
 	elseif payload.kind == "attack" then
-		clusters:onAttack(payload) -- cartoon bump: flying hats and instrument bits
-		local maxHp = if latest then latest.maxHp else nil
-		hitFx:hit(HitFeedback.intensity(payload.hpBefore, payload.hpAfter, maxHp))
+		-- Cartoon bump of flying bits; false for a duplicate event, which must not re-shake.
+		if clusters:onAttack(payload) then
+			local maxHp = if latest then latest.maxHp else nil
+			hitFx:hit(HitFeedback.intensity(payload.hpBefore, payload.hpAfter, maxHp))
+		end
 	end
 end)
 

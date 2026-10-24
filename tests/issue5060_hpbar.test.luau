@@ -257,6 +257,100 @@ return {
 		end,
 	},
 	{
+		name = "plan: an over-budget shot is still tracked and still reports its first fill (+N)",
+		run = function()
+			local p = ClusterEvents.plan({
+				accepted = true,
+				alreadyFilled = false,
+				filled = true,
+				reward = 5,
+				visible = true,
+				inBudget = false,
+			})
+			eq(p.track, true, "always fed to the tracker")
+			eq(p.projectile, false, "over budget: no projectile")
+			eq(p.float, true, "the +N still plays")
+		end,
+	},
+	{
+		name = "plan: a first fill with no known position still shows +N but launches nothing",
+		run = function()
+			local p = ClusterEvents.plan({
+				accepted = true,
+				alreadyFilled = false,
+				filled = true,
+				reward = 5,
+				visible = false,
+				inBudget = true,
+			})
+			eq(p.projectile, false, "orphan: no hidden part takes a pool slot")
+			eq(p.float, true, "+N survives")
+		end,
+	},
+	{
+		name = "plan: skip and drop only suppress the projectile; duplicates and rejects show no +N",
+		run = function()
+			local dup = ClusterEvents.plan({
+				accepted = true,
+				alreadyFilled = true,
+				filled = false,
+				reward = nil,
+				visible = true,
+				inBudget = true,
+			})
+			eq(dup.projectile, false, "duplicate: no projectile")
+			eq(dup.float, false, "duplicate: no second +N")
+			local ok = ClusterEvents.plan({
+				accepted = true,
+				alreadyFilled = false,
+				filled = false,
+				reward = nil,
+				visible = true,
+				inBudget = true,
+			})
+			eq(ok.projectile, true, "normal shot launches")
+			eq(ok.float, false, "no fill, no +N")
+			local rej = ClusterEvents.plan({
+				accepted = false,
+				alreadyFilled = false,
+				filled = false,
+				reward = nil,
+				visible = true,
+				inBudget = true,
+			})
+			eq(rej.projectile, false, "rejected: nothing")
+			eq(rej.float, false, "rejected: no +N")
+		end,
+	},
+	{
+		name = "a flood over the budget still fills the cluster in the tracker",
+		run = function()
+			local Config = require("../src/shared/Config")
+			local ClusterVisual = require("../src/shared/ClusterVisual")
+			local DebugLayout = require("../src/shared/DebugLayout")
+			local c = DebugLayout.clusters[1]
+			local need = Config.clusterTypes[c.type].hits
+			local tr = ClusterVisual.new(DebugLayout)
+			local budget = ClusterEvents.budget(1)
+			local floats = 0
+			for h = 1, need do
+				local r = tr:shot({ id = c.id, hits = h, shot = "note" }, c.spawnTime + h * 0.1)
+				local plan = ClusterEvents.plan({
+					accepted = r.accepted,
+					alreadyFilled = r.alreadyFilled,
+					filled = r.filled,
+					reward = r.reward,
+					visible = false,
+					inBudget = budget:take(),
+				})
+				if plan.float then
+					floats += 1
+				end
+			end
+			eq(floats, 1, "exactly one +N, on the filling shot, though only one event had budget")
+		end,
+	},
+	{
 		name = "ResetPlan has an hp item",
 		run = function()
 			assert(table.find(ResetPlan.items, "hp") ~= nil, "hp is on the replay checklist")

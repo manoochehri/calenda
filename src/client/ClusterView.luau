@@ -61,7 +61,7 @@ type Group = {
 
 export type ClusterView = {
 	onCluster: (self: ClusterView, payload: any) -> (),
-	onAttack: (self: ClusterView, payload: any) -> (),
+	onAttack: (self: ClusterView, payload: any) -> boolean, -- false for a duplicate event
 	reset: (self: ClusterView) -> (),
 	update: (self: ClusterView, t: number, leadX: number, leadZ: number, dt: number) -> (),
 }
@@ -227,23 +227,34 @@ function ClusterView.new(layout: any): ClusterView
 	local view = {} :: ClusterView
 
 	function view.onCluster(_, payload: any)
-		-- Cheapest check first: a flood costs one counter decrement per event (issue #60).
-		if not shotBudget:take() then
-			return
-		end
 		local shot = ClusterFeed.decode(payload)
 		if shot == nil then
 			return
 		end
 		local result = tracker:shot(shot, lastT)
 		local at = currentPositions[shot.id]
-		if
-			ClusterEvents.shotAction(result.accepted, result.alreadyFilled, at ~= nil) ~= "launch"
-		then
-			return -- rejected, a duplicate for a filled cluster, or a cluster that is gone
+		-- The tracker above is always fed, so a flood never loses a fill. Only the visuals are
+		-- budgeted (issue #60); the +N plays on the first fill whatever else is suppressed.
+		local plan = ClusterEvents.plan({
+			accepted = result.accepted,
+			alreadyFilled = result.alreadyFilled,
+			filled = result.filled,
+			reward = result.reward,
+			visible = at ~= nil,
+			inBudget = shotBudget:take(),
+		})
+		if plan.float and result.reward then
+			floats:start(clock, FLOAT_SECONDS, {
+				x = result.x,
+				z = result.z,
+				text = string.format("+%d", result.reward),
+			})
+		end
+		if not plan.projectile or at == nil then
+			return -- over budget, a duplicate, or a cluster that is gone: no projectile
 		end
 		local variant = FeedbackMath.variant(shot.shot, shot.hits)
-		local dist = if at then math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2) else 40
+		local dist = math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2)
 		flights:start(clock, FeedbackMath.flightSeconds(dist), {
 			id = shot.id,
 			variant = variant,
@@ -254,25 +265,21 @@ function ClusterView.new(layout: any): ClusterView
 		if variant ~= "note" then
 			catches[shot.id] = clock + FeedbackMath.flightSeconds(dist)
 		end
-		if result.filled and result.reward then
-			floats:start(clock, FLOAT_SECONDS, {
-				x = result.x,
-				z = result.z,
-				text = string.format("+%d", result.reward),
-			})
-		end
 	end
 
 	-- An unfilled cluster reached the parade (issue #50): a cartoon bump of flying hats and
 	-- instrument bits at the lead. The HP bar, shake and flash are driven by Main from the same
 	-- Event. A repeated event for the same cluster, or a flood, plays nothing extra.
-	function view.onAttack(_, payload: any)
-		if type(payload) ~= "table" or not attackBudget:take() then
-			return
+	function view.onAttack(_, payload: any): boolean
+		if type(payload) ~= "table" then
+			return false
 		end
 		local id = if type(payload.id) == "number" then payload.id else nil
 		if not attacked:first(id) then
-			return
+			return false -- a duplicate event: nothing again, not even the HP shake
+		end
+		if not attackBudget:take() then
+			return true
 		end
 		bits:burst(
 			"prop",
@@ -281,6 +288,7 @@ function ClusterView.new(layout: any): ClusterView
 			BUMP_SPREAD,
 			BUMP_COLORS
 		)
+		return true
 	end
 
 	function view.reset(_)
