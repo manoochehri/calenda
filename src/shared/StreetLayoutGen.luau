@@ -30,6 +30,7 @@ export type Window = {
 export type Door = { u: number, w: number, h: number, arched: boolean }
 export type Arch = { u: number, w: number, h: number }
 export type Balcony = { u: number, y: number, w: number, depth: number }
+export type Rey = { x: number, z: number }
 
 export type Facade = {
 	id: number,
@@ -104,6 +105,7 @@ export type Counts = {
 
 export type Result = {
 	facades: { Facade },
+	rey: Rey,
 	flags: { FlagStrip },
 	lamps: { Lamp },
 	ground: { Prim },
@@ -208,7 +210,8 @@ local function makeFacade(
 	else
 		local n = math.clamp(math.floor(width / 7.5), 2, 4)
 		local doorSlot = 1 + math.floor(rng() * n)
-		local hasBalcony = floors == 2 and kind ~= "stone" and rng() < 0.4
+		-- Physical balconies give the facades a strong projecting silhouette from the high camera.
+		local hasBalcony = floors == 2 and kind ~= "stone"
 		for i = 1, n do
 			local u = (i - 0.5) / n
 			if i == doorSlot then
@@ -251,7 +254,7 @@ local function makeFacade(
 			end
 		end
 		if hasBalcony then
-			table.insert(balconies, { u = 0.5, y = l.floorHeight, w = width * 0.6, depth = 1.8 })
+			table.insert(balconies, { u = 0.5, y = l.floorHeight, w = width * 0.6, depth = 3 })
 			gui += GUI_PER_BALCONY
 		end
 	end
@@ -280,7 +283,7 @@ local function makeFacade(
 	}
 end
 
--- Axis-aligned boxes (world coordinates) a facade module occupies: wall, cornice, balconies.
+-- Axis-aligned boxes (world coordinates) a facade module occupies: wall, roof cap, balconies.
 -- Used by the sight-line tests and by anything that must keep clear of the buildings.
 function StreetLayoutGen.facadeBoxes(f: Facade): {
 	{
@@ -296,12 +299,12 @@ function StreetLayoutGen.facadeBoxes(f: Facade): {
 	local boxes = {
 		{ cx = f.x, cy = f.height / 2, cz = f.z, sx = f.depth, sy = f.height, sz = f.width },
 		{
-			cx = f.x + toward * 0.3,
+			cx = f.x + toward,
 			cy = f.height + 0.75,
 			cz = f.z,
-			sx = f.depth + 0.6,
+			sx = f.depth + 2,
 			sy = 1.5,
-			sz = f.width + 0.4,
+			sz = f.width + 0.8,
 		},
 	}
 	for _, b in f.balconies do
@@ -661,6 +664,13 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 
 	local ground = makeGround(theme, info, z0, z1)
 	local plaza = makePlaza(theme, info, rng)
+	-- Keep Rey on the forecourt beyond the sidewalk, randomly placed along the run. The seeded
+	-- position makes replays/recorded layouts reproducible while still varying with the layout seed.
+	local reySide = if rng() < 0.5 then -1 else 1
+	local rey = {
+		x = reySide * (info.halfWidth + 3.5 + rng() * 2.5),
+		z = 40 + rng() * math.max(1, info.plazaStart - 80),
+	}
 
 	local facadeParts, gui = 0, 0
 	for _, f in facades do
@@ -673,6 +683,7 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 	end
 	return {
 		facades = facades,
+		rey = rey,
 		flags = flags,
 		lamps = lamps,
 		ground = ground,
@@ -684,7 +695,7 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 			plazaParts = #plaza,
 			groundParts = #ground,
 			guiInstances = gui,
-			totalParts = facadeParts + #flags + #lamps * 2 + #plaza + #ground,
+			totalParts = facadeParts + 7 + #flags + #lamps * 2 + #plaza + #ground,
 		},
 	}
 end
@@ -698,6 +709,7 @@ function StreetLayoutGen.buildOrder(result: Result): { BuildItem }
 	for i, f in result.facades do
 		table.insert(items, { kind = "facade", index = i, z = f.z })
 	end
+	table.insert(items, { kind = "rey", index = 1, z = result.rey.z })
 	for i, s in result.flags do
 		table.insert(items, { kind = "flag", index = i, z = (s.z0 + s.z1) / 2 })
 	end

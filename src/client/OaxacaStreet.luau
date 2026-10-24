@@ -9,7 +9,8 @@
 --
 -- Everything is Anchored, CanCollide false, CanQuery false, CanTouch false. Windows, doors, arches,
 -- balcony railings and papel picado flags are Frames inside SurfaceGuis (a few GUIs, not a Part per
--- detail): flags are colored Frames on ~44 strip Parts, never one Part per flag. Generator x is
+-- detail): flags are colored Frames on ~44 strip Parts, never one Part per flag. Buildings and
+-- balconies have real depth, and Rey is a small primitive-Part chicken. Generator x is
 -- WORLD x; ViewMap.x is applied here, to every Part position. Reset-safe: build() destroys the
 -- previous model first, and a destroy() during a build stops it at the next batch.
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
@@ -143,7 +144,7 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 	local cornice = newPart(
 		root,
 		`Cornice{f.id}`,
-		Vector3.new(f.depth + 0.6, theme.heights.roofExtra, f.width + 0.4),
+		Vector3.new(f.depth + 2, theme.heights.roofExtra, f.width + 0.8),
 		f.x,
 		f.height + theme.heights.roofExtra / 2,
 		f.z,
@@ -151,8 +152,8 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 		Enum.Material.Concrete,
 		false -- cornices and balconies cast no shadows: about 560 casters is too heavy on a phone
 	)
-	-- Overhang toward the street: nudge in Roblox x (toward = street centre direction).
-	cornice.Position += Vector3.new(toward * 0.3, 0, 0)
+	-- A broad physical roof cap projects toward the street and beyond both side walls.
+	cornice.Position += Vector3.new(toward, 0, 0)
 
 	local gui = surfaceGui(wall, innerFace(viewX), Vector2.new(f.width * PPS, f.height * PPS))
 	local trim, accent, glass = color(f.trim), color(f.accent), color(theme.palette.glass)
@@ -235,6 +236,36 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 		)
 		stroke(rail, 2, accent)
 	end
+end
+
+local function buildRey(root: Model, rey: StreetLayoutGen.Rey)
+	local white = Color3.fromRGB(250, 242, 226)
+	local ochre = Color3.fromRGB(232, 172, 58)
+	local beak = Color3.fromRGB(244, 130, 40)
+	local comb = Color3.fromRGB(204, 65, 56)
+	local dark = Color3.fromRGB(30, 28, 30)
+	local function ball(name: string, size: Vector3, x: number, y: number, z: number, c: Color3)
+		local part = newPart(root, name, size, x, y, z, c, Enum.Material.SmoothPlastic, true)
+		part.Shape = Enum.PartType.Ball
+	end
+	-- Seven inexpensive 3D Parts: body, head, beak, comb, two eyes and feet.
+	ball("ReyBody", Vector3.new(1.5, 1.1, 1.65), rey.x, 0.68, rey.z, white)
+	ball("ReyHead", Vector3.new(0.72, 0.72, 0.72), rey.x, 1.28, rey.z + 0.56, ochre)
+	ball("ReyBeak", Vector3.new(0.36, 0.26, 0.42), rey.x, 1.2, rey.z + 0.92, beak)
+	ball("ReyComb", Vector3.new(0.24, 0.34, 0.22), rey.x, 1.77, rey.z + 0.52, comb)
+	ball("ReyLeftEye", Vector3.new(0.12, 0.12, 0.12), rey.x - 0.23, 1.34, rey.z + 0.82, dark)
+	ball("ReyRightEye", Vector3.new(0.12, 0.12, 0.12), rey.x + 0.23, 1.34, rey.z + 0.82, dark)
+	newPart(
+		root,
+		"ReyFeet",
+		Vector3.new(1, 0.16, 0.22),
+		rey.x,
+		0.12,
+		rey.z + 0.12,
+		beak,
+		Enum.Material.SmoothPlastic,
+		true
+	)
 end
 
 local function buildFlag(root: Model, s: StreetLayoutGen.FlagStrip)
@@ -343,6 +374,8 @@ function OaxacaStreet.build(
 	for i, item in order do
 		if item.kind == "facade" then
 			buildFacade(useTheme, root, result.facades[item.index])
+		elseif item.kind == "rey" then
+			buildRey(root, result.rey)
 		elseif item.kind == "flag" then
 			buildFlag(root, result.flags[item.index])
 		elseif item.kind == "lamp" then

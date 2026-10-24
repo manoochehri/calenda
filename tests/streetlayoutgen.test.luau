@@ -48,6 +48,14 @@ local function allBoxes(r: StreetLayoutGen.Result): { Box }
 			table.insert(boxes, p)
 		end
 	end
+	table.insert(boxes, {
+		cx = r.rey.x,
+		cy = 1,
+		cz = r.rey.z + 0.45,
+		sx = 1.5,
+		sy = 1.9,
+		sz = 1.8,
+	})
 	for _, s in r.flags do
 		table.insert(boxes, {
 			cx = s.x,
@@ -264,7 +272,10 @@ return {
 					end
 				end
 			end
-			assert(eligible > 0 and withBalcony / eligible >= 0.9, "most two-storey buildings have real balconies")
+			assert(
+				eligible > 0 and withBalcony / eligible >= 0.9,
+				"most two-storey buildings have real balconies"
+			)
 		end,
 	},
 	{
@@ -276,7 +287,10 @@ return {
 			assert(rey.x == again.x and rey.z == again.z, "same seed places Rey the same way")
 			local other = (StreetLayoutGen.generate(info, theme, 55) :: any).rey
 			assert(rey.x ~= other.x or rey.z ~= other.z, "another seed moves Rey")
-			assert(math.abs(rey.x) > 20 and math.abs(rey.x) < theme.layout.facadeInset, "Rey stays on the forecourt")
+			assert(
+				math.abs(rey.x) > 20 and math.abs(rey.x) < theme.layout.facadeInset,
+				"Rey stays on the forecourt"
+			)
 			assert(rey.z > 0 and rey.z < info.plazaStart, "Rey appears along the street")
 		end,
 	},
@@ -346,6 +360,7 @@ return {
 		run = function()
 			local order = StreetLayoutGen.buildOrder(result)
 			local expected = #result.facades
+				+ 1 -- Rey
 				+ #result.flags
 				+ #result.lamps
 				+ #result.ground

@@ -242,7 +242,7 @@ LevelTheme.level1 = {
 	heights = { facadeMin = 13, facadeMax = 20, roofExtra = 1.5, lampHeight = 9 },
 	layout = {
 		facadeInset = 28,
-		facadeDepth = 6,
+		facadeDepth = 9,
 		moduleWidthMin = 22,
 		moduleWidthMax = 32,
 		runIn = 80,
