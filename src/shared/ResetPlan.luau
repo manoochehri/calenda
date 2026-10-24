@@ -12,6 +12,7 @@ ResetPlan.items = table.freeze({
 	"sections", -- section puppets, ghosts, indicator and the director's previous total
 	"clusters", -- spectator groups, projectile flights and floats (issue #12)
 	"obstacles", -- obstacle feedback in flight (issue #15)
+	"music", -- layered stems: stop, rewind, forget the crossfade schedule (issue #21)
 	"bits", -- confetti and other pooled pieces still in the air
 	"finale", -- plaza dancers, gifts and the finale banner
 	"breakup", -- tumbling lead, flying hats and instruments, wandering followers

@@ -27,11 +27,11 @@ local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
 local EndFlow = require(script.Parent:WaitForChild("EndFlow"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
+local MusicPlayer = require(script.Parent:WaitForChild("MusicPlayer"))
 local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
 local ObstacleView = require(script.Parent:WaitForChild("ObstacleView"))
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
-local PULLBACK_RATE = 2 -- [default] easing of the camera pullback as the parade grows
 
 local remotes = ReplicatedStorage:WaitForChild(Remotes.folderName)
 local steerRemote = remotes:WaitForChild(Remotes.names.steer) :: RemoteEvent
@@ -54,6 +54,7 @@ local clusters = ClusterView.new(DebugLayout)
 local obstacleFeedback = ObstacleView.new(DebugLayout)
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
 local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
+local music = MusicPlayer.new() -- silent while Config.music.stemSoundIds are empty (issue #21)
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -90,6 +91,9 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		end
 		handlers.sections = function()
 			sections:reset(RunView.wholeTotal(state.total))
+		end
+		handlers.music = function()
+			music:reset()
 		end
 		handlers.clusters = function()
 			clusters:reset()
@@ -141,11 +145,17 @@ RunService:BindToRenderStep(
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
 		crowd:update(drawnX, z, fx.crowdTotal, dt, swirl, fx.tumble, fx.lift)
 		leadZNow = z
+		music:update(total, now)
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
 
 		local plan = VisualBudget.allocate(total)
-		pullback = CameraRig.smooth(pullback, plan.cameraPullback * fx.pullback, dt, PULLBACK_RATE)
+		pullback = CameraRig.smooth(
+			pullback,
+			plan.cameraPullback * fx.pullback,
+			dt,
+			CameraRig.PULLBACK_RATE
+		)
 		local pose = CameraRig.pose(drawnX, z, pullback)
 		local camera = Workspace.CurrentCamera
 		if camera then

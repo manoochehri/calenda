@@ -138,6 +138,7 @@ return {
 					"results",
 					"flow",
 					"input",
+					"music",
 				}
 			do
 				assert(table.find(ResetPlan.items, need) ~= nil, `checklist has {need}`)
