@@ -3,6 +3,7 @@
 local CameraRig = require("../src/shared/CameraRig")
 local DebugLayout = require("../src/shared/DebugLayout")
 local LevelTheme = require("../src/shared/LevelTheme")
+local ScreenProject = require("../src/shared/ScreenProject")
 local StreetLayoutGen = require("../src/shared/StreetLayoutGen")
 local ViewMap = require("../src/shared/ViewMap")
 
@@ -329,6 +330,58 @@ return {
 					)
 				end
 			end
+		end,
+	},
+	{
+		name = "max-scale Rey reads from the gameplay camera within five seconds",
+		run = function()
+			local rey = result.rey
+			local bounds = reyBounds(rey)
+			local boxes = allBoxes(result)
+			local visible = false
+			for tenth = 0, 50 do
+				local leadZ = 14.4 * tenth / 10
+				local pose = CameraRig.pose(0, leadZ, 1)
+				local center = ScreenProject.project(
+					pose,
+					16 / 9,
+					ViewMap.x(rey.x),
+					bounds.cy,
+					rey.z + 0.15
+				)
+				local top = ScreenProject.project(
+					pose,
+					16 / 9,
+					ViewMap.x(rey.x),
+					bounds.cy + bounds.sy / 2,
+					rey.z + 0.15
+				)
+				local bottom = ScreenProject.project(
+					pose,
+					16 / 9,
+					ViewMap.x(rey.x),
+					bounds.cy - bounds.sy / 2,
+					rey.z + 0.15
+				)
+				local tallEnough = math.abs(top.y - bottom.y) >= 0.08
+				local onScreen = ScreenProject.onScreen(center, 0.05)
+				if onScreen and tallEnough then
+					local cam = { pose.px, pose.py, pose.pz }
+					local target = { ViewMap.x(rey.x), bounds.cy, rey.z + 0.15 }
+					local clear = true
+					for _, box in boxes do
+						if box ~= bounds and hits(cam, target, box) then
+							clear = false
+							break
+						end
+					end
+					if clear then
+						visible = true
+						break
+					end
+				end
+			end
+			assert(visible, "Rey is clearly visible during the first five seconds after Jugar")
 		end,
 	},
 	{
