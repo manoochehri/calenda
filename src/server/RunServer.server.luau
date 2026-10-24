@@ -17,8 +17,11 @@ local RunLog = require(Shared:WaitForChild("RunLog"))
 local TickPacer = require(Shared:WaitForChild("TickPacer"))
 
 local STATE_INTERVAL = 0.1 -- seconds between State snapshots per player (about 10 Hz)
+-- A ready (not started) run costs almost nothing: no ticking, and State only once a second so a
+-- client that connects its listeners late still gets one (issue #72).
+local READY_STATE_INTERVAL = 1
 
--- Create the remotes once. The client only ever sends Steer and Replay; handlers below ignore
+-- Create the remotes once. The client only ever sends Steer, Replay and Start; handlers below ignore
 -- everything except the shape the contract defines.
 local folder = Instance.new("Folder")
 folder.Name = Remotes.folderName
@@ -30,6 +33,7 @@ local function makeRemote(name: string): RemoteEvent
 end
 local steerRemote = makeRemote(Remotes.names.steer)
 local replayRemote = makeRemote(Remotes.names.replay)
+local startRemote = makeRemote(Remotes.names.start)
 local stateRemote = makeRemote(Remotes.names.state)
 local eventRemote = makeRemote(Remotes.names.event)
 folder.Parent = ReplicatedStorage
@@ -53,6 +57,7 @@ local function startRun(player: Player)
 			layout = DebugLayout,
 			automated = false,
 			hooks = RunHooks.new(DebugLayout),
+			startReady = true, -- paused until the client's Start (issue #72)
 		}),
 		sinceState = 0,
 		accumulator = 0,
@@ -107,6 +112,19 @@ steerRemote.OnServerEvent:Connect(function(player: Player, payload: any)
 	end
 end)
 
+-- Start (issue #72): no payload is read; every argument is ignored. The driver starts only a
+-- "ready" run, once, rate limited on the server clock. A client that never sends it costs nothing.
+startRemote.OnServerEvent:Connect(function(player: Player, ...: any)
+	if not Remotes.decodeStart(...) then
+		return
+	end
+	local session = sessions[player]
+	if session and session.driver:start(workspace:GetServerTimeNow()) then
+		session.sinceState = STATE_INTERVAL -- push the running state on the next step
+		session.accumulator = 0
+	end
+end)
+
 replayRemote.OnServerEvent:Connect(function(player: Player)
 	local session = sessions[player]
 	if session and session.driver:replay(workspace:GetServerTimeNow()) then
@@ -118,7 +136,11 @@ end)
 RunService.Heartbeat:Connect(function(dt: number)
 	for player, session in sessions do
 		local ok, err = pcall(function()
-			local steps, carried = TickPacer.plan(session.accumulator, dt, RunDriver.TICK_DT)
+			local isReady = session.driver:phase() == "ready"
+			local steps, carried = 0, 0
+			if not isReady then -- a paused run accumulates no time
+				steps, carried = TickPacer.plan(session.accumulator, dt, RunDriver.TICK_DT)
+			end
 			session.accumulator = carried
 			for _ = 1, steps do
 				for _, e in session.driver:tick(RunDriver.TICK_DT) do
@@ -131,7 +153,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 				end
 			end
 			session.sinceState += dt
-			if session.sinceState >= STATE_INTERVAL then
+			if session.sinceState >= (if isReady then READY_STATE_INTERVAL else STATE_INTERVAL) then
 				session.sinceState = 0
 				sendState(player, session)
 			end

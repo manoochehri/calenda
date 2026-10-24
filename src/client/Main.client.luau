@@ -51,6 +51,7 @@ local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 local remotes = ReplicatedStorage:WaitForChild(Remotes.folderName)
 local steerRemote = remotes:WaitForChild(Remotes.names.steer) :: RemoteEvent
 local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
+local startRemote = remotes:WaitForChild(Remotes.names.start) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
@@ -124,6 +125,11 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		StartupTrace.finishIfReady()
 	end
 	local state = payload :: Remotes.StatePayload
+	-- TEMPORARY (issue #72 part 1): auto-send Start once the first ready State shows our listeners
+	-- work. Replaced by the title screen's Play button in #72 part 2.
+	if state.phase == "ready" then
+		startRemote:FireServer()
+	end
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
 		-- Replay checklist (issue #16): ResetPlan warns (never throws) if an item is missing here.
 		local handlers = endFlow:resetHandlers()
