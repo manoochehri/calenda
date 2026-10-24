@@ -2,6 +2,8 @@
 local Dance = require("../src/shared/Dance")
 local DanceConfig = require("../src/shared/DanceConfig")
 local PuppetPose = require("../src/shared/PuppetPose")
+local DancerPose = require("../src/shared/DancerPose")
+local GloboPose = require("../src/shared/GloboPose")
 
 local function expect(ok: boolean, message: string)
 	if not ok then
@@ -33,6 +35,15 @@ return {
 			local a = Dance.variant(431)
 			local b = Dance.variant(431)
 			expect(a == b, "same follower must always choose the same move")
+			local seen = {}
+			for id = 1, 100 do
+				seen[Dance.variant(id)] = true
+			end
+			local variety = 0
+			for _ in seen do
+				variety += 1
+			end
+			expect(variety > 1, "different follower ids should select varied moves")
 			for _, move in DanceConfig.moves do
 				for i = 0, 15 do
 					local _, sway, arm = Dance.pose(move, i, 1)
@@ -43,6 +54,32 @@ return {
 					)
 				end
 			end
+		end,
+	},
+	{
+		name = "presentation pose buffers can be reused without allocating a pose per frame",
+		run = function()
+			local puppet = {
+				headBob = 0,
+				headTilt = 0,
+				armLeft = 0,
+				armRight = 0,
+				clap = 0,
+				sway = 0,
+				bow = 0,
+			}
+			local dancer =
+				{ hop = 0, footL = 0, footR = 0, swirl = 0, flare = 0, sway = 0, armSwing = 0 }
+			local globo = { spin = 0, tiltX = 0, tiltZ = 0, lift = 0, carrierStep = 0 }
+			expect(
+				PuppetPose.into(puppet, 1, 0) == puppet,
+				"puppet buffer identity must be retained"
+			)
+			expect(
+				DancerPose.into(dancer, 1, 0) == dancer,
+				"dancer buffer identity must be retained"
+			)
+			expect(GloboPose.into(globo, 1, 0) == globo, "globo buffer identity must be retained")
 		end,
 	},
 	{
@@ -64,10 +101,10 @@ return {
 	{
 		name = "gate, celebration, attack and defeat reactions decay and unknown events are inert",
 		run = function()
-			local gateHop = Dance.reaction("gate", 0)
-			local lateHop = Dance.reaction("gate", 0.6)
+			local gateHop = Dance.reaction("conversion", 0)
+			local lateHop = Dance.reaction("conversion", 0.6)
 			local unknownHop, unknownRoll, unknownTurn = Dance.reaction("unrelated", 0)
-			local endHop = Dance.reaction("gate", 2)
+			local endHop = Dance.reaction("conversion", 2)
 			expect(gateHop > lateHop and lateHop > 0, "reaction must decay")
 			expect(
 				unknownHop == 0 and unknownRoll == 0 and unknownTurn == 0,

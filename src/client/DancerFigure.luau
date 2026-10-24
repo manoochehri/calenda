@@ -135,7 +135,7 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 			local slot = slots[i]
 			local s = math.max(scale, 0.001) * slot.scale
 			-- Steps and hops depend only on time (the group moves as one); the skirt swirl is offset.
-			DancerPose.into(poseBuffer, time, phase + (i - 1) * 0.12)
+			DancerPose.into(poseBuffer, time, phase + (i - 1) * DanceConfig.dancerPhaseOffset)
 			local pose = poseBuffer
 			local hop = pose.hop * math.min(intensity, 1.5)
 			local frame = ground
@@ -185,7 +185,7 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 				)
 				* CFrame.new(0, -1.1, 0)
 			place(d.armL, frame, left, s)
-			local raise = toss.raise * 2.2
+			local raise = toss.raise * DanceConfig.dancerBasketRaiseRadians
 			local right = CFrame.new(1.1, 5.5 + hop, 0)
 				* CFrame.Angles(
 					-raise
@@ -198,7 +198,8 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 					0.25
 				)
 			place(d.armR, frame, right * CFrame.new(0, -1.1, 0), s)
-			local basket = right * CFrame.new(0, -2.4 + toss.lift * 0.4, 0)
+			local basket = right
+				* CFrame.new(0, -2.4 + toss.lift * DanceConfig.dancerBasketLiftStuds, 0)
 			place(d.basket, frame, basket, s)
 			for b, bloom in d.blooms do
 				place(bloom, frame, basket * CFrame.new(FLOWER_SPOTS[b]), s)

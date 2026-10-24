@@ -22,6 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LeadPose = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LeadPose"))
 local Dance = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Dance"))
+local DanceConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DanceConfig"))
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local WAIT = 10 -- [default] seconds to wait for a character's parts before giving up on it
@@ -189,7 +190,7 @@ function LeadAvatar.new(): LeadAvatar
 			type(payload) == "table"
 			and (
 				payload.kind == "gate"
-				or payload.kind == "cluster"
+				or payload.kind == "conversion"
 				or payload.kind == "attack"
 				or payload.kind == "complete"
 				or payload.kind == "defeated"
@@ -219,8 +220,13 @@ function LeadAvatar.new(): LeadAvatar
 			Dance.pose("march", clock * Config.music.bpm / 60 * tempo, amplitude)
 		local reactionHop, reactionRoll, reactionTurn =
 			Dance.reaction(reactionKind, clock - reactionAt)
-		local pose =
-			LeadPose.at(leadX, leadZ, clock, (lift or 0) + hop * 0.5 + reactionHop, standing)
+		local pose = LeadPose.at(
+			leadX,
+			leadZ,
+			clock,
+			(lift or 0) + hop * DanceConfig.leadDanceHopScale + reactionHop,
+			standing
+		)
 		part.CFrame = CFrame.new(pose.x, pose.y, pose.z)
 			* CFrame.Angles((tumble or 0) + reactionRoll, spin + reactionTurn, sway)
 			* CFrame.Angles(0, LeadPose.FACING_YAW, 0)

@@ -182,7 +182,12 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 			hud:pop()
 		end
 	elseif payload.kind == "cluster" then
-		clusters:onCluster(payload)
+		if clusters:onCluster(payload) then
+			local conversion = { kind = "conversion" }
+			crowd:onEvent(conversion, if latest then latest.t else 0)
+			sections:onEvent(conversion)
+			leadAvatar:onEvent(conversion)
+		end
 		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
 	elseif payload.kind == "miss" then
 		clusters:onMiss(payload) -- continuous fire with no target: flies on and fades (issue #67)

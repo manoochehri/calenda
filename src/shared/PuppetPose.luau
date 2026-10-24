@@ -33,27 +33,31 @@ function PuppetPose.into(out: Pose, time: number, phase: number): Pose
 	local halfBar = beats / 2
 	local swingBase = math.sin(tau * halfBar)
 	local phraseBeat = beats % DanceConfig.cycleBeats
-	local bow = if phraseBeat < 0.35 then PuppetPose.BOW_RADIANS * (1 - phraseBeat / 0.35) else 0
-	local chorus = if phraseBeat >= 8 then 1 else 0
+	local bow = if phraseBeat < DanceConfig.puppetBowBeats
+		then PuppetPose.BOW_RADIANS * (1 - phraseBeat / DanceConfig.puppetBowBeats)
+		else 0
+	local chorus = if phraseBeat >= DanceConfig.puppetChorusStartBeat then 1 else 0
 	out.headBob = PuppetPose.HEAD_BOB_STUDS * (0.5 + 0.5 * beatWave)
-	out.headTilt = 0.2 * math.sin(tau * halfBar + 0.8)
+	out.headTilt = DanceConfig.puppetHeadTiltRadians * math.sin(tau * halfBar + 0.8)
 	-- Loose arms: a slow swing plus a lagging second harmonic, left and right offset.
 	out.armLeft = math.clamp(
 		DanceConfig.puppetArmBaseRadians * swingBase
 			+ DanceConfig.puppetArmSecondaryRadians * math.sin(tau * beats + 1.1)
-			+ chorus * 0.7,
+			+ chorus * DanceConfig.puppetChorusArmLiftRadians,
 		-PuppetPose.MAX_ARM_RADIANS,
 		PuppetPose.MAX_ARM_RADIANS
 	)
 	out.armRight = math.clamp(
 		DanceConfig.puppetArmBaseRadians * math.sin(tau * halfBar + 2.2)
 			+ DanceConfig.puppetArmSecondaryRadians * math.sin(tau * beats - 0.7)
-			+ chorus * 0.7,
+			+ chorus * DanceConfig.puppetChorusArmLiftRadians,
 		-PuppetPose.MAX_ARM_RADIANS,
 		PuppetPose.MAX_ARM_RADIANS
 	)
 	out.clap = math.clamp(0.5 + 0.5 * beatWave, 0, 1) ^ DanceConfig.puppetClapPower
-	out.sway = PuppetPose.MAX_SWAY_RADIANS * 0.8 * math.sin(tau * halfBar / 2)
+	out.sway = PuppetPose.MAX_SWAY_RADIANS
+		* DanceConfig.puppetSwayScale
+		* math.sin(tau * halfBar / 2)
 	out.bow = bow
 	return out
 end

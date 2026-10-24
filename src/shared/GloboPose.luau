@@ -44,8 +44,8 @@ function GloboPose.into(out: Pose, time: number, phase: number): Pose
 	out.spin = TAU * beats / GloboPose.SPIN_BEATS
 	-- An ellipse, never zero: the pole always visibly leans, and the lean travels around.
 	out.tiltX = GloboPose.MAX_TILT * math.sin(w)
-	out.tiltZ = GloboPose.MAX_TILT * 0.6 * math.cos(w)
-	out.lift = GloboPose.LIFT_STUDS * pop ^ 4
+	out.tiltZ = GloboPose.MAX_TILT * DanceConfig.globoSecondaryTiltScale * math.cos(w)
+	out.lift = GloboPose.LIFT_STUDS * pop ^ DanceConfig.globoPopPower
 	out.carrierStep = math.abs(math.sin(math.pi * beats))
 	return out
 end

@@ -87,6 +87,15 @@ function Dance.pose(move: string, beat: number, amplitude: number): (number, num
 		math.clamp(spin * amp, -DanceConfig.maxJointRadians, DanceConfig.maxJointRadians)
 end
 
+-- Distance LOD keeps only a single step wave and disables arm/spin details for a far figure.
+function Dance.lowDetailPose(beat: number): (number, number, number, number)
+	local step = math.sin(math.pi * beat / 2)
+	return math.abs(step) * DanceConfig.maxHopStuds * DanceConfig.farAmplitude,
+		step * DanceConfig.maxSwayRadians * DanceConfig.farAmplitude,
+		0,
+		0
+end
+
 -- Small event accent shared by the parade. `age` is local elapsed seconds; unknown events are inert.
 -- Returns hop, roll and turn values without allocating per-frame records.
 function Dance.reaction(kind: string, age: number): (number, number, number)
@@ -94,8 +103,10 @@ function Dance.reaction(kind: string, age: number): (number, number, number)
 		return 0, 0, 0
 	end
 	local fade = 1 - age / 1.2
-	if kind == "gate" or kind == "cluster" then
+	if kind == "gate" then
 		return DanceConfig.maxHopStuds * fade, 0, 0
+	elseif kind == "conversion" then
+		return DanceConfig.maxHopStuds * 1.1 * fade, 0, DanceConfig.maxSpinRadians * 0.5 * fade
 	elseif kind == "attack" then
 		return -DanceConfig.maxHopStuds * 0.45 * fade, DanceConfig.maxSwayRadians * fade, 0
 	elseif kind == "complete" then

@@ -258,16 +258,18 @@ function CrowdView.new(): CrowdView
 		end
 		avatar.seen = true
 		local look = avatar.look
-		local amplitude = danceAmplitude
-		if lastLeadZ ~= nil and math.abs(z - lastLeadZ) > DanceConfig.farDistance then
-			amplitude *= DanceConfig.farAmplitude
-		end
+		local isFar = lastLeadZ ~= nil and math.abs(z - lastLeadZ) > DanceConfig.farDistance
 		local beat = clock * Config.music.bpm / 60 * danceTempo + look.phase / (2 * math.pi)
-		local danceHop, danceSway, arm, spin = Dance.pose(avatar.variant, beat, amplitude)
+		local danceHop: number, danceSway: number, arm: number, spin: number
+		if isFar then
+			danceHop, danceSway, arm, spin = Dance.lowDetailPose(beat)
+		else
+			danceHop, danceSway, arm, spin = Dance.pose(avatar.variant, beat, danceAmplitude)
+		end
 		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
 		local marchY, marchSquashY, marchSquashXZ =
 			FollowerLook.marchValues(look, clock * danceTempo)
-		local hop, sy, sxz = y + danceHop * 0.35 + eventHop, 1, 1
+		local hop, sy, sxz = y + danceHop * DanceConfig.followerDanceHopScale + eventHop, 1, 1
 		if marching then
 			hop += marchY
 			sy, sxz = marchSquashY, marchSquashXZ
@@ -278,7 +280,7 @@ function CrowdView.new(): CrowdView
 				end
 			end
 		else
-			hop += 0.6 * marchY -- runners and leavers keep their own hop
+			hop += DanceConfig.runnerMarchHopScale * marchY -- runners and leavers keep their own hop
 		end
 		avatar.lastClock = clock
 		local k = look.scale * breathNow
@@ -305,7 +307,7 @@ function CrowdView.new(): CrowdView
 			type(payload) == "table"
 			and (
 				payload.kind == "gate"
-				or payload.kind == "cluster"
+				or payload.kind == "conversion"
 				or payload.kind == "attack"
 				or payload.kind == "complete"
 				or payload.kind == "defeated"

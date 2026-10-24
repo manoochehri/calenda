@@ -276,7 +276,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 			type(payload) == "table"
 			and (
 				payload.kind == "gate"
-				or payload.kind == "cluster"
+				or payload.kind == "conversion"
 				or payload.kind == "attack"
 				or payload.kind == "complete"
 				or payload.kind == "defeated"

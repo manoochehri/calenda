@@ -159,7 +159,7 @@ function GloboFigure.new(parent: Instance, index: number, carriers: number): Sec
 		for i, person in people do
 			local o = offsets[i]
 			local bob = pose.carrierStep * DanceConfig.globoCarrierStepStuds * s * intensity
-			PuppetPose.into(carrierPose, time, phase + i * 0.31)
+			PuppetPose.into(carrierPose, time, phase + i * DanceConfig.dancerCarrierPhaseOffset)
 			person:setPose(
 				ground
 					* CFrame.new(
