@@ -21,7 +21,7 @@ CameraRig.GATE_NEAR = 30 -- [default] studs ahead of the lead of the nearest gat
 CameraRig.PROP_FRONT = 4 -- [default] how far ahead of the lead's z a prop (entourage) can stand
 CameraRig.TALLEST_PROP = 16 -- [default] GUESS, studs: puppet is 11 (PuppetFigure.HEIGHT); update when #19/#20 (globo, dancers) land
 CameraRig.CLEARANCE = 3 -- [default] studs the sight line must clear a prop by
-CameraRig.LEAD_TOP = 4.5 -- studs; top of the lead's hat (CrowdView)
+CameraRig.LEAD_TOP = 6 -- studs; top of the lead: the player's avatar with accessories (LeadPose.AVATAR_TOP)
 
 export type Pose = {
 	px: number,

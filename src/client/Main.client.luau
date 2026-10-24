@@ -28,6 +28,7 @@ local CrowdView = require(script.Parent:WaitForChild("CrowdView"))
 local EndFlow = require(script.Parent:WaitForChild("EndFlow"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
+local LeadAvatar = require(script.Parent:WaitForChild("LeadAvatar"))
 local MusicPlayer = require(script.Parent:WaitForChild("MusicPlayer"))
 local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
 local ObstacleView = require(script.Parent:WaitForChild("ObstacleView"))
@@ -50,6 +51,7 @@ local hud = Hud.new(function()
 	replayRemote:FireServer()
 end)
 local crowd = CrowdView.new()
+local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
 local sections = SectionsView.new(Config.startingTotal)
 local clusters = ClusterView.new(DebugLayout)
 local obstacleFeedback = ObstacleView.new(DebugLayout)
@@ -145,7 +147,18 @@ RunService:BindToRenderStep(
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
-		crowd:update(drawnX, z, fx.crowdTotal, dt, swirl, fx.tumble, fx.lift)
+		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift)
+		crowd:update(
+			drawnX,
+			z,
+			fx.crowdTotal,
+			dt,
+			swirl,
+			fx.tumble,
+			fx.lift,
+			hasAvatar,
+			leadAvatar:fallbackGrace()
+		)
 		leadZNow = z
 		music:update(total, now)
 		clusters:update(t, drawnX, z, dt)
