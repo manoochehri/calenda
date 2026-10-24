@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DancerPose = require(Shared:WaitForChild("DancerPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 local FigureParts = require(script.Parent:WaitForChild("FigureParts"))
 local SectionFigure = require(script.Parent:WaitForChild("SectionFigure"))
@@ -102,6 +103,9 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 
 	local visual = {} :: SectionFigure.Visual
 	visual.badgeAnchor = dancers[1].flower.part
+	local function place(piece: FigureParts.Piece, frame: CFrame, localCF: CFrame, scale: number)
+		FigureParts.place(piece, frame, localCF, scale, SectionScale.DANCER_HORIZONTAL_SCALE)
+	end
 
 	function visual.setPose(
 		_,
@@ -119,17 +123,21 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 			local pose = DancerPose.pose(time, phase + (i - 1) * 0.12)
 			local hop = pose.hop * math.min(intensity, 1.5)
 			local frame = ground
-				* CFrame.new(slot.dx * scale, 0, slot.dz * scale)
+				* CFrame.new(
+					slot.dx * scale * SectionScale.DANCER_SPREAD,
+					0,
+					slot.dz * scale * SectionScale.DANCER_SPREAD
+				)
 				* CFrame.Angles(0, 0, pose.sway)
-			FigureParts.place(d.legL, frame, CFrame.new(-0.6, 1.3 + pose.footL + hop, 0), s)
-			FigureParts.place(d.legR, frame, CFrame.new(0.6, 1.3 + pose.footR + hop, 0), s)
+			place(d.legL, frame, CFrame.new(-0.6, 1.3 + pose.footL + hop, 0), s)
+			place(d.legR, frame, CFrame.new(0.6, 1.3 + pose.footR + hop, 0), s)
 			-- The skirt: petals around the waist, turned by the swirl and opened by the flare.
 			local waist = CFrame.new(0, 3.3 + hop, 0) * CFrame.Angles(0, pose.swirl, 0)
 			local radius = 0.5 + 1.2 * pose.flare
 			local droop = 0.25 + 0.3 * pose.flare
 			for p, petal in d.petals do
 				local a = (p - 1) / #d.petals * math.pi * 2
-				FigureParts.place(
+				place(
 					petal,
 					frame,
 					waist
@@ -139,28 +147,28 @@ function DancerFigure.new(parent: Instance, index: number, entourage: number): S
 					s
 				)
 			end
-			FigureParts.place(d.torso, frame, CFrame.new(0, 4.6 + hop, 0), s)
-			FigureParts.place(d.head, frame, CFrame.new(0, 6.2 + hop, 0), s)
-			FigureParts.place(d.hair, frame, CFrame.new(0, 6.95 + hop, -0.05), s)
-			FigureParts.place(d.flower, frame, CFrame.new(0.3, 7.5 + hop, 0), s)
+			place(d.torso, frame, CFrame.new(0, 4.6 + hop, 0), s)
+			place(d.head, frame, CFrame.new(0, 6.2 + hop, 0), s)
+			place(d.hair, frame, CFrame.new(0, 6.95 + hop, -0.05), s)
+			place(d.flower, frame, CFrame.new(0.3, 7.5 + hop, 0), s)
 			-- Free arm swings; the basket arm raises on a toss (only the lead's throw is exaggerated).
 			local left = CFrame.new(-1.1, 5.5 + hop, 0)
 				* CFrame.Angles(pose.armSwing, 0, -0.25)
 				* CFrame.new(0, -1.1, 0)
-			FigureParts.place(d.armL, frame, left, s)
+			place(d.armL, frame, left, s)
 			local raise = toss.raise * 2.2
 			local right = CFrame.new(1.1, 5.5 + hop, 0)
 				* CFrame.Angles(-raise - pose.armSwing * 0.2, 0, 0.25)
-			FigureParts.place(d.armR, frame, right * CFrame.new(0, -1.1, 0), s)
+			place(d.armR, frame, right * CFrame.new(0, -1.1, 0), s)
 			local basket = right * CFrame.new(0, -2.4 + toss.lift * 0.4, 0)
-			FigureParts.place(d.basket, frame, basket, s)
+			place(d.basket, frame, basket, s)
 			local spots = {
 				Vector3.new(-0.4, 0.65, 0),
 				Vector3.new(0.4, 0.65, 0),
 				Vector3.new(0, 0.85, 0.2),
 			}
 			for b, bloom in d.blooms do
-				FigureParts.place(bloom, frame, basket * CFrame.new(spots[b]), s)
+				place(bloom, frame, basket * CFrame.new(spots[b]), s)
 			end
 		end
 	end

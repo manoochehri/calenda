@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Formation = require(Shared:WaitForChild("Formation"))
+local FollowerSlots = require(Shared:WaitForChild("FollowerSlots"))
 local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
 local Effects = require(Shared:WaitForChild("Effects"))
 local GloboPose = require(Shared:WaitForChild("GloboPose"))
@@ -22,6 +23,7 @@ local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
 local SectionDirector = require(Shared:WaitForChild("SectionDirector"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
 local SectionRegistry = require(Shared:WaitForChild("SectionRegistry"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 local SectionTypes = require(Shared:WaitForChild("SectionTypes"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
@@ -351,12 +353,14 @@ function SectionsView.new(initialTotal: number): SectionsView
 		for index, rep in reps do
 			local slot = layout.sections[index]
 			if slot then
-				rep.x, rep.z = ViewMap.x(leadX + slot.dx), leadZ + slot.dz -- view space
+				rep.x, rep.z = ViewMap.x(FollowerSlots.worldX(leadX, slot.dx)), leadZ + slot.dz -- view space
 			end
 			if rep.riseT < 1 then
 				rep.riseT = math.min(1, rep.riseT + dt * risePerSecond)
 			end
-			local scale = PuppetPose.rise(rep.riseT)
+			-- Towering figures standing inside the crowd (issue #68): size by type, varied per figure.
+			local big = SectionScale.scaleOf(rep.sectionType, index)
+			local scale = PuppetPose.rise(rep.riseT) * big
 			local ground = CFrame.new(rep.x, 0, rep.z)
 			rep.visual:setPose(ground, os.clock(), rep.phase, scale, intensity)
 			rep.badge.Text = `x{rep.count}`
@@ -371,7 +375,13 @@ function SectionsView.new(initialTotal: number): SectionsView
 				table.remove(ghosts, i)
 			else
 				local ground = CFrame.new(g.rep.x, 0, g.rep.z)
-				g.rep.visual:setPose(ground, os.clock(), g.rep.phase, k, 1)
+				g.rep.visual:setPose(
+					ground,
+					os.clock(),
+					g.rep.phase,
+					k * SectionScale.scaleOf(g.rep.sectionType, g.rep.index),
+					1
+				)
 				g.rep.badgeGui.Enabled = false
 			end
 		end
@@ -399,7 +409,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 						x = at.X,
 						y = at.Y,
 						z = at.Z,
-						scale = PuppetPose.rise(rep.riseT),
+						scale = PuppetPose.rise(rep.riseT)
+							* SectionScale.scaleOf(rep.sectionType, rep.index),
 						color = RING_COLORS[GloboPose.ringColorIndex(beatCount, #RING_COLORS)],
 					})
 				end

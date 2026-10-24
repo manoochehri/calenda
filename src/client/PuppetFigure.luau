@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 export type Figure = {
 	model: Model,
@@ -180,12 +181,14 @@ function PuppetFigure.new(parent: Instance, palette: Palette): Figure
 		local base = root * lean
 		if s ~= lastScale then
 			lastScale = s
+			local h = SectionScale.PUPPET_HORIZONTAL_SCALE
 			for _, ps in body do
-				ps.part.Size = ps.size * s
+				ps.part.Size = Vector3.new(ps.size.X * s * h, ps.size.Y * s, ps.size.Z * s * h)
 			end
-			armL.part.Size = armSize * s
-			armR.part.Size = armSize * s
+			armL.part.Size = Vector3.new(armSize.X * s * h, armSize.Y * s, armSize.Z * s * h)
+			armR.part.Size = Vector3.new(armSize.X * s * h, armSize.Y * s, armSize.Z * s * h)
 		end
+		local h = SectionScale.PUPPET_HORIZONTAL_SCALE
 		for _, ps in body do
 			local bob = Vector3.zero
 			local rot = CFrame.identity
@@ -193,7 +196,9 @@ function PuppetFigure.new(parent: Instance, palette: Palette): Figure
 				bob = Vector3.new(0, pose.headBob * intensity * s, 0)
 				rot = CFrame.Angles(0, 0, pose.headTilt)
 			end
-			ps.part.CFrame = base * CFrame.new(ps.offset * s + bob) * rot
+			local offset =
+				Vector3.new(ps.offset.X * s * h, ps.offset.Y * s + bob.Y, ps.offset.Z * s * h)
+			ps.part.CFrame = base * CFrame.new(offset) * rot
 		end
 		-- Loose arms: swing sideways; on the beat they come forward and together to clap.
 		local clap = pose.clap
@@ -201,7 +206,7 @@ function PuppetFigure.new(parent: Instance, palette: Palette): Figure
 			local a = side[1] :: PartSpec
 			local sign = side[2] :: number
 			local swing = side[3] :: number
-			local shoulder = Vector3.new(sign * SHOULDER_X, SHOULDER_Y, 0) * s
+			local shoulder = Vector3.new(sign * SHOULDER_X * h, SHOULDER_Y, 0) * s
 			local rotation = CFrame.Angles(-clap * 1.5, 0, sign * (swing * (1 - clap) - clap * 0.6))
 			a.part.CFrame = base * CFrame.new(shoulder) * rotation * CFrame.new(0, -1.8 * s, 0)
 		end

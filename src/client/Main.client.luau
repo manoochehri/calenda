@@ -171,6 +171,7 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 		return
 	end
 	sfx:onEvent(payload, music:intensity(), os.clock())
+	crowd:onEvent(payload, if latest then latest.t else 0) -- where new followers come from (issue #68)
 	if payload.kind == "gate" then
 		hud:pop()
 	elseif payload.kind == "obstacle" then

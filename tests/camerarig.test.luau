@@ -1,6 +1,7 @@
 --!strict
 local CameraRig = require("../src/shared/CameraRig")
 local Formation = require("../src/shared/Formation")
+local SectionScale = require("../src/shared/SectionScale")
 local VisualBudget = require("../src/shared/VisualBudget")
 
 local function eq(actual: any, expected: any, name: string)
@@ -72,8 +73,12 @@ return {
 			for pullback = 1, 1.4, 0.05 do
 				local pose = CameraRig.pose(0, 0, pullback)
 				assert(
-					CameraRig.gateClearance(pose, 0, CameraRig.PROP_FRONT, CameraRig.TALLEST_PROP)
-						>= CameraRig.CLEARANCE - 1e-9,
+					CameraRig.gateClearance(
+						pose,
+						0,
+						CameraRig.SECTION_FRONT,
+						CameraRig.SECTION_TALLEST
+					) >= CameraRig.CLEARANCE - 1e-9,
 					`gate row hidden at pullback {pullback}`
 				)
 			end
@@ -83,20 +88,20 @@ return {
 		name = "a taller prop raises the camera so the gate row is still clear",
 		run = function()
 			local base = CameraRig.pose(0, 0, 1)
-			local tall = CameraRig.pose(0, 0, 1, 30)
+			local tall = CameraRig.pose(0, 0, 1, 40)
 			assert(tall.py > base.py, "camera raised")
 			assert(
-				CameraRig.gateClearance(tall, 0, CameraRig.PROP_FRONT, 30)
+				CameraRig.gateClearance(tall, 0, CameraRig.SECTION_FRONT, 40)
 					>= CameraRig.CLEARANCE - 1e-9,
-				"clear over a 30-stud prop"
+				"clear over a 40-stud prop"
 			)
 			-- without the rule the base pose would be blocked by that prop
 			assert(
-				CameraRig.gateClearance(base, 0, CameraRig.PROP_FRONT, 30) < CameraRig.CLEARANCE,
-				"the base pose is blocked by a 30-stud prop"
+				CameraRig.gateClearance(base, 0, CameraRig.SECTION_FRONT, 40) < CameraRig.CLEARANCE,
+				"the base pose is blocked by a 40-stud prop"
 			)
 			for _, pullback in { 1, 1.2, 1.4 } do
-				local pitch = CameraRig.pitchDegrees(CameraRig.pose(0, 0, pullback, 30))
+				local pitch = CameraRig.pitchDegrees(CameraRig.pose(0, 0, pullback, 40))
 				assert(pitch >= 45 and pitch <= 65, `pitch {pitch} at pullback {pullback}`)
 			end
 		end,
@@ -112,12 +117,16 @@ return {
 		name = "the lead stays in frame and above the section stand-ins' sight line",
 		run = function()
 			for pullback = 1, 1.4, 0.1 do
-				for _, h in { CameraRig.TALLEST_PROP, 30 } do
+				for _, h in { CameraRig.SECTION_TALLEST } do
 					local pose = CameraRig.pose(0, 0, pullback, h)
 					assert(CameraRig.leadInFrame(pose, 0), `lead off screen at {pullback}`)
-					for _, slot in Formation.sectionSlots(6) do
+					for i, slot in Formation.sectionSlots(6) do
+						local own = SectionScale.heightOf(
+							({ "puppet", "globo", "dancers" })[(i - 1) % 3 + 1],
+							i
+						)
 						assert(
-							CameraRig.leadClearance(pose, 0, slot.dz, h) >= 0,
+							CameraRig.leadClearance(pose, 0, slot.dz, math.min(h, own)) >= 0,
 							`lead hidden behind a prop at dz {slot.dz}, pullback {pullback}`
 						)
 					end
@@ -142,12 +151,12 @@ return {
 		run = function()
 			local PortalGeometry = require("../src/shared/PortalGeometry")
 			assert(
-				CameraRig.TALLEST_PROP >= PortalGeometry.TOP,
+				CameraRig.SECTION_TALLEST >= PortalGeometry.TOP,
 				"portal height feeds the camera rule"
 			)
 			for _, pullback in { 1, 1.2, 1.4 } do
 				local pose = CameraRig.pose(0, 0, pullback)
-				local c = CameraRig.gateClearance(pose, 0, CameraRig.PROP_FRONT, PortalGeometry.TOP)
+				local c = CameraRig.gateClearance(pose, 0, CameraRig.GATE_FRONT, PortalGeometry.TOP)
 				assert(c >= CameraRig.CLEARANCE - 1e-6, `clearance {c} at pullback {pullback}`)
 			end
 		end,
@@ -206,6 +215,39 @@ return {
 				not CameraRig.bannerHidesLead(pose, 0, -3, 30, 40),
 				"banner above the line of sight"
 			)
+		end,
+	},
+	{
+		name = "issue 68: SECTION_FRONT is sound only while every section base stands behind it",
+		run = function()
+			local FollowerSlots = require("../src/shared/FollowerSlots")
+			local nearest = -math.huge
+			for i = 1, #FollowerSlots.BASES do
+				nearest = math.max(nearest, FollowerSlots.base(i).dz)
+			end
+			assert(
+				CameraRig.SECTION_FRONT >= nearest,
+				`SECTION_FRONT {CameraRig.SECTION_FRONT} vs nearest base {nearest}`
+			)
+			assert(
+				CameraRig.SECTION_FRONT <= -9 and nearest <= CameraRig.SECTION_FRONT - 0.5,
+				"stays behind with margin"
+			)
+		end,
+	},
+	{
+		name = "issue 68: gates keep their own term (a portal at GATE_FRONT) and pose takes the larger raise",
+		run = function()
+			local PortalGeometry = require("../src/shared/PortalGeometry")
+			assert(CameraRig.GATE_FRONT > 0, "gates stand ahead of the lead")
+			for _, pullback in { 1, 1.4 } do
+				local back = CameraRig.BACK * pullback
+				local need = math.max(
+					CameraRig.minHeightForGate(back, CameraRig.SECTION_TALLEST),
+					CameraRig.minHeightForGate(back, PortalGeometry.TOP, CameraRig.GATE_FRONT)
+				)
+				assert(CameraRig.pose(0, 0, pullback).py >= need - 1e-9, "pose clears both terms")
+			end
 		end,
 	},
 }
