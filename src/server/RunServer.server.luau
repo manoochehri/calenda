@@ -13,6 +13,11 @@ local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
 local RunHooks = require(Shared:WaitForChild("RunHooks"))
+local RunLog = require(Shared:WaitForChild("RunLog"))
+
+-- The lead musician is drawn by the client (src/client/CrowdView); no Roblox character is needed,
+-- and one would stand on the road and block the view.
+Players.CharacterAutoLoads = false
 
 local STATE_INTERVAL = 0.1 -- seconds between State snapshots per player (about 10 Hz)
 
@@ -32,8 +37,13 @@ local stateRemote = makeRemote(Remotes.names.state)
 local eventRemote = makeRemote(Remotes.names.event)
 folder.Parent = ReplicatedStorage
 
-type Session = { driver: RunDriver.RunDriver, sinceState: number, accumulator: number }
+type Session = {
+	driver: RunDriver.RunDriver,
+	sinceState: number,
+	accumulator: number,
+}
 local sessions: { [Player]: Session } = {}
+local logKeeper = RunLog.newKeeper() -- last few finished-run logs per player; released on leave
 
 local function sendState(player: Player, session: Session)
 	stateRemote:FireClient(player, Remotes.encodeState(session.driver:snapshot()))
@@ -61,6 +71,7 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	sessions[player] = nil -- drops the driver and its RunState
+	logKeeper:release(player)
 end)
 
 steerRemote.OnServerEvent:Connect(function(player: Player, payload: any)
@@ -85,6 +96,11 @@ RunService.Heartbeat:Connect(function(dt: number)
 			while session.accumulator >= RunDriver.TICK_DT do
 				for _, e in session.driver:tick(RunDriver.TICK_DT) do
 					eventRemote:FireClient(player, e)
+					if e.kind == "complete" or e.kind == "defeated" then
+						local log = session.driver:runLog()
+						logKeeper:add(player, log)
+						RunLog.print(log)
+					end
 				end
 				session.accumulator -= RunDriver.TICK_DT
 			end
