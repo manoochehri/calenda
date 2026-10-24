@@ -15,6 +15,7 @@ local Effects = require(Shared:WaitForChild("Effects"))
 local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
 local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 -- Spectators are warm orange against the gray road and blue followers: one mass, strong contrast.
 local SPECTATOR_COLOR = Color3.fromRGB(255, 120, 40)
@@ -262,7 +263,7 @@ function ClusterView.new(layout: any): ClusterView
 		for i, v in views do
 			currentPositions[v.id] = { x = v.x, z = v.z }
 			local g = gs[i]
-			g.root.Position = Vector3.new(v.x, 1, v.z)
+			g.root.Position = Vector3.new(ViewMap.x(v.x), 1, v.z)
 			local caughtAt = catches[v.id]
 			if
 				caughtAt ~= nil
@@ -285,8 +286,8 @@ function ClusterView.new(layout: any): ClusterView
 						glow = c.glow
 					end
 					m.body.Color = SPECTATOR_COLOR:Lerp(CATCH_FLASH, glow * 0.7)
-					m.body.Position = Vector3.new(v.x + ox, 1 + hop, v.z + oz)
-					m.head.Position = Vector3.new(v.x + ox, 2.6 + hop, v.z + oz)
+					m.body.Position = Vector3.new(ViewMap.x(v.x + ox), 1 + hop, v.z + oz)
+					m.head.Position = Vector3.new(ViewMap.x(v.x + ox), 2.6 + hop, v.z + oz)
 					m.body.Parent, m.head.Parent = folder, folder
 				else
 					m.body.Parent, m.head.Parent = nil, nil
@@ -305,8 +306,8 @@ function ClusterView.new(layout: any): ClusterView
 		local rs = runnerPool:setCount(math.min(#runnerViews, RUNNER_POOL))
 		for i, m in rs do
 			local r = runnerViews[i]
-			m.body.Position = Vector3.new(r.x, 1 + r.y, r.z)
-			m.head.Position = Vector3.new(r.x, 2.6 + r.y, r.z)
+			m.body.Position = Vector3.new(ViewMap.x(r.x), 1 + r.y, r.z)
+			m.head.Position = Vector3.new(ViewMap.x(r.x), 2.6 + r.y, r.z)
 		end
 
 		local live = flights:active(clock)
@@ -323,10 +324,10 @@ function ClusterView.new(layout: any): ClusterView
 			else
 				p.body.Transparency = 0
 				local x, y, z = FeedbackMath.arc(
-					f.data.fromX,
+					ViewMap.x(f.data.fromX),
 					2.5,
 					f.data.fromZ,
-					to.x,
+					ViewMap.x(to.x),
 					3,
 					to.z,
 					f.f,
@@ -367,7 +368,7 @@ function ClusterView.new(layout: any): ClusterView
 		for i, item in fs do
 			local f = fl[i]
 			local m = FeedbackMath.floatText(f.f)
-			item.part.Position = Vector3.new(f.data.x, 12 + m.dy, f.data.z)
+			item.part.Position = Vector3.new(ViewMap.x(f.data.x), 12 + m.dy, f.data.z)
 			item.text.Text = f.data.text
 			item.text.TextTransparency = 1 - m.alpha
 			item.text.TextStrokeTransparency = 1 - m.alpha * 0.8

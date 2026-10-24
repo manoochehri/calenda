@@ -12,6 +12,7 @@ local HudMeters = require(Shared:WaitForChild("HudMeters"))
 local Results = require(Shared:WaitForChild("Results"))
 local RunFlow = require(Shared:WaitForChild("RunFlow"))
 local RunView = require(Shared:WaitForChild("RunView"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local EndScene = require(script.Parent:WaitForChild("EndScene"))
 local RunHud = require(script.Parent:WaitForChild("RunHud"))
@@ -48,7 +49,7 @@ function EndFlow.new(): EndFlow
 
 	function self.frame(_, state: any, leadX: number, leadZ: number, dt: number, total: number): Out
 		local changed = RunFlow.step(flow, state, dt)
-		local lead = Vector3.new(leadX, 0, leadZ)
+		local lead = Vector3.new(ViewMap.x(leadX), 0, leadZ) -- the scene lives in view space
 		if changed == "finale" or changed == "breakup" then
 			scene:begin(changed, lead, total, flow.tier)
 			prevElapsed = -1e-6

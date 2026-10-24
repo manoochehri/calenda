@@ -12,6 +12,7 @@ local Effects = require(Shared:WaitForChild("Effects"))
 local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
 local ObstacleFeedback = require(Shared:WaitForChild("ObstacleFeedback"))
 local Pool = require(Shared:WaitForChild("Pool"))
+local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local DUST_COLOR = Color3.fromRGB(205, 190, 165)
 local RUBBLE_COLOR = Color3.fromRGB(150, 135, 120)
@@ -84,13 +85,17 @@ function ObstacleView.new(layout: any): ObstacleView
 			return false
 		end
 		for i = 1, plan.puffs do
-			chunks:start(clock, BURST_SECONDS, { i = i, n = plan.puffs, x = plan.x, z = plan.z })
+			chunks:start(
+				clock,
+				BURST_SECONDS,
+				{ i = i, n = plan.puffs, x = ViewMap.x(plan.x), z = plan.z }
+			)
 		end
 		for i = 1, plan.peelers do
 			peelers:start(clock, PEEL_SECONDS, {
-				fromX = leadX + (i - (plan.peelers + 1) / 2) * 2,
+				fromX = ViewMap.x(leadX + (i - (plan.peelers + 1) / 2) * 2),
 				fromZ = leadZ - 3,
-				toX = plan.sidewalkX[i],
+				toX = ViewMap.x(plan.sidewalkX[i]),
 				toZ = plan.sidewalkZ[i],
 			})
 		end
