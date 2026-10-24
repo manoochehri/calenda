@@ -62,6 +62,7 @@ local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 local startupFlow = StartFlow.new()
 local startupProgress = StartupProgress.new({ "client", "street", "world", "server" })
 local startupScreen: StartupScreen.Screen
+local music: any
 local function updateProgress()
 	local fraction = StartupProgress.fraction(startupProgress)
 	StartFlow.progress(startupFlow, fraction)
@@ -73,6 +74,7 @@ end
 local function onPlay()
 	if StartFlow.play(startupFlow) then
 		startupScreen:hide()
+		music:start(os.clock()) -- start the selected loop on Jugar, before the server's first running State
 		startRemote:FireServer()
 	end
 end
@@ -117,13 +119,15 @@ local input = InputController.new(Steering.bound(DebugLayout.halfWidth), functio
 	steerRemote:FireServer({ x = x })
 end)
 stepAt = startupTrace:lap("InputController.new", stepAt)
-local music = MusicPlayer.new() -- silent while no music ids are set (issues #21, #62)
+music = MusicPlayer.new() -- one selected full-mix loop (issue #21)
 stepAt = startupTrace:lap("MusicPlayer.new", stepAt)
 local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
 stepAt = startupTrace:lap("SfxPlayer.new", stepAt)
 local hud = Hud.new(function()
 	replayRemote:FireServer()
 	sfx:play("replayClick", music:intensity(), os.clock())
+end, function(muted: boolean)
+	music:setMuted(muted)
 end)
 stepAt = startupTrace:lap("Hud.new", stepAt)
 local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here

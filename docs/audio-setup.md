@@ -1,7 +1,10 @@
 # Audio setup (issues #62, #21, #30)
 
-The game ships silent. Every sound id in `src/shared/Config.luau` is an empty string, and with an
-empty id nothing is created, nothing plays and nothing errors. You supply the audio.
+The prototype uses one full-mix Creator Store loop selected in ADR 0005: “Mexican Nostalgia” by
+APMOfficial (asset 1838904620). It starts when the player presses **Jugar** and loops through the
+run. The in-game **♫ Música: Sí/No** control mutes only music; gameplay remains fully usable muted.
+The track’s fit for this game and access from this specific experience remain UNVERIFIED until the
+Studio check below.
 
 ## Getting an id
 
@@ -16,7 +19,8 @@ issue #30.
 
 In `src/shared/Config.luau`:
 
-- `music.trackSoundId`: ONE looping music track (single-track mode). It gets bigger as the parade
+- `music.trackSoundId`: ONE looping music track (single-track mode). The prototype selects asset
+  `1838904620`. It gets bigger as the parade
   grows (reverb, chorus, equalizer, compressor on a SoundGroup).
 - `music.stemSoundIds`: four stems in the order percussion, brass, ensemble, crowd accents. If any
   stem id is set, stem mode is used and `trackSoundId` is ignored. Stems grow with the parade too.
@@ -24,7 +28,8 @@ In `src/shared/Config.luau`:
   `attackBonk`, `hpHit`, `sectionRise`, `finalePeak`, `defeatBreakup`, `replayClick`, and
   `crowdLoop` (a looping crowd ambience whose volume follows the follower count).
 
-Any slot you leave empty stays silent. Volumes, cooldowns and the intensity curve are in
+The `music.stemSoundIds` slots remain empty so the music player creates exactly one music Sound.
+Empty SFX slots remain silent. Volumes, cooldowns and the intensity curve are in
 `src/shared/AudioTuning.luau` (shown as `Config.audio`).
 
 ## Loop length for stems
@@ -54,9 +59,15 @@ Source: github.com/Roblox/creator-docs, `content/en-us/reference/engine/classes/
 
 ## Studio checklist (UNVERIFIED in engine)
 
-- Empty ids: play a run. No sound, no errors or warnings in Output.
-- Single track: paste one id in `music.trackSoundId`. It fades in and loops. Grow the crowd with
+- Selected track: start the experience, press **Jugar**, and confirm the loop begins during the
+  opening/count-in and continues through street play and the completed-run finale. It fades in and
+  loops. Grow the crowd with
   gates: the track gets fuller (more reverb, brighter) without clicks or clipping.
+- Use **♫ Música: Sí/No** to mute and unmute. Confirm gameplay, results and replay remain usable
+  while muted.
+- Confirm this experience is permitted to load asset `1838904620`, listen for musical fit, and verify
+  there is never more than one music Sound. Fit remains UNVERIFIED; do not describe this as an
+  Oaxacan calenda recording.
 - Stems: paste four ids. Layers join on bars and keep growing with the crowd. At most 4 Sounds under
   `SoundService.CalendaMusicGroup`.
 - SFX: paste ids for a few slots. Each plays on its event, pitch varies slightly, bangs are louder

@@ -24,8 +24,12 @@ local LAYER_NAMES = { "percussion", "brass", "ensemble", "crowd" }
 local MAX_DT = 0.1 -- a long frame must not make a slewed value jump
 
 export type MusicPlayer = {
+	-- Start immediately from the user's Jugar action; playback can begin while the asset streams.
+	start: (self: MusicPlayer, now: number) -> (),
 	-- Call once per frame with the replicated crowd total and os.clock().
 	update: (self: MusicPlayer, total: number, now: number) -> (),
+	-- Player-facing mute toggle. Muting never pauses gameplay or stops the track timeline.
+	setMuted: (self: MusicPlayer, muted: boolean) -> (),
 	-- Finale music peak hook: FinalePlan.at(t).musicIntensity (0..1). nil/0 = normal level.
 	setPeak: (self: MusicPlayer, musicIntensity: number?) -> (),
 	-- Defeat: duck the music (true) or bring it back (false).
@@ -96,6 +100,7 @@ function MusicPlayer.new(): MusicPlayer
 
 	local a = Config.audio :: any
 	local started = false
+	local startRequested = false
 	local epoch = 0
 	local lastNow: number? = nil
 	local peakRaw = 0 -- FinalePlan musicIntensity, 0 = none
@@ -104,6 +109,8 @@ function MusicPlayer.new(): MusicPlayer
 	local duckTarget = 1
 	local duck = 1
 	local fadeIn = 0 -- single track: start-of-run fade 0..1
+	local self = {} :: MusicPlayer
+	local muted = false
 
 	local function allLoaded(): boolean
 		for _, sound in sounds do
@@ -112,6 +119,18 @@ function MusicPlayer.new(): MusicPlayer
 			end
 		end
 		return true
+	end
+
+	local function tryStart(now: number)
+		if mode == "silent" or started or not startRequested or not allLoaded() then
+			return
+		end
+		started = true
+		epoch = now
+		lastNow = nil
+		for _, sound in sounds do
+			sound:Play()
+		end
 	end
 
 	local function applyEffects()
@@ -125,7 +144,23 @@ function MusicPlayer.new(): MusicPlayer
 		return AudioIntensity.compensation(e)
 	end
 
-	local self = {} :: MusicPlayer
+	for _, sound in sounds do
+		sound.Loaded:Connect(function()
+			tryStart(os.clock())
+		end)
+	end
+
+	function self.start(_, now: number)
+		if mode == "silent" or startRequested then
+			return
+		end
+		startRequested = true
+		tryStart(now)
+	end
+
+	function self.setMuted(_, value: boolean)
+		muted = value
+	end
 
 	function self.update(_, total: number, now: number)
 		if mode == "silent" then
@@ -134,16 +169,13 @@ function MusicPlayer.new(): MusicPlayer
 		local dt = if lastNow then math.clamp(now - lastNow, 0, MAX_DT) else 0
 		lastNow = now
 		if not started then
-			-- Start every Sound in the same frame so stems stay in sync; wait for the assets first.
-			if not allLoaded() then
-				return
+			-- Also supports replay, whose server State arrives after the button press.
+			if not startRequested then
+				self:start(now)
 			end
-			started = true
-			epoch = now
-			for _, sound in sounds do
-				sound.TimePosition = 0
-				sound.Volume = 0
-				sound:Play()
+			tryStart(now)
+			if not started then
+				return -- wait for Loaded; the Jugar request remains queued
 			end
 		end
 		local t = now - epoch
@@ -166,7 +198,7 @@ function MusicPlayer.new(): MusicPlayer
 			sounds.track.Volume = MusicMixer.volume(fadeIn, peak)
 		end
 		if group then
-			group.Volume = AudioIntensity.masterGain(intensity) * duck * comp
+			group.Volume = (if muted then 0 else AudioIntensity.masterGain(intensity) * duck * comp)
 		end
 	end
 
@@ -196,10 +228,13 @@ function MusicPlayer.new(): MusicPlayer
 	function self.reset(_)
 		MusicMixer.reset(mixer)
 		started = false
+		startRequested = false
 		self:resetAudio()
 		for _, sound in sounds do
 			sound:Stop()
-			sound.TimePosition = 0
+			if sound.IsLoaded then
+				sound.TimePosition = 0
+			end
 			sound.Volume = 0
 		end
 		if group then
