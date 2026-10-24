@@ -2,7 +2,9 @@
 #   make setup && make test
 SHELL := /bin/bash
 ROKIT ?= $(shell command -v rokit 2>/dev/null || echo $(HOME)/.rokit/bin/rokit)
-export PATH := $(HOME)/.rokit/bin:$(PATH)
+# Run tools through Rokit's bin dir first (an Aftman-managed rojo may shadow it otherwise).
+# The inline assignment forces a shell, so the PATH override is honoured for every recipe line.
+TOOLS := PATH="$(HOME)/.rokit/bin:$$PATH"
 LUAU_DIRS := src tests
 PLACE := build/Calenda.rbxl
 
@@ -15,18 +17,18 @@ setup:
 	$(ROKIT) install
 
 fmt:
-	stylua $(LUAU_DIRS)
+	$(TOOLS) stylua $(LUAU_DIRS)
 
 lint:
-	stylua --check $(LUAU_DIRS)
-	selene $(LUAU_DIRS)
+	$(TOOLS) stylua --check $(LUAU_DIRS)
+	$(TOOLS) selene $(LUAU_DIRS)
 
 test-unit:
-	lune run tests/run
+	$(TOOLS) lune run tests/run
 
 build:
 	mkdir -p build
-	rojo build default.project.json --output $(PLACE)
+	$(TOOLS) rojo build default.project.json --output $(PLACE)
 
 test: lint test-unit build
 	@test -s $(PLACE) && echo "OK: built $(PLACE)"
