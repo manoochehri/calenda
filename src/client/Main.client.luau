@@ -33,6 +33,7 @@ local Hud = require(script.Parent:WaitForChild("Hud"))
 local InputController = require(script.Parent:WaitForChild("InputController"))
 local LeadAvatar = require(script.Parent:WaitForChild("LeadAvatar"))
 local MusicPlayer = require(script.Parent:WaitForChild("MusicPlayer"))
+local SfxPlayer = require(script.Parent:WaitForChild("SfxPlayer"))
 local SectionsView = require(script.Parent:WaitForChild("SectionsView"))
 local ObstacleView = require(script.Parent:WaitForChild("ObstacleView"))
 
@@ -50,8 +51,11 @@ TouchControls.disable()
 local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
 	steerRemote:FireServer({ x = x })
 end)
+local music = MusicPlayer.new() -- silent while no music ids are set (issues #21, #62)
+local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
 local hud = Hud.new(function()
 	replayRemote:FireServer()
+	sfx:play("replayClick", music:intensity(), os.clock())
 end)
 local crowd = CrowdView.new()
 local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
@@ -62,7 +66,6 @@ local hitFx = HitFeedback.new() -- hit jolt, screen shake and flash (issue #50)
 local hudClock = 0
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
 local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
-local music = MusicPlayer.new() -- silent while Config.music.stemSoundIds are empty (issue #21)
 
 local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
@@ -103,6 +106,10 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		handlers.music = function()
 			music:reset()
 		end
+		handlers.audio = function()
+			music:resetAudio()
+			sfx:reset()
+		end
 		handlers.clusters = function()
 			clusters:reset()
 		end
@@ -124,6 +131,7 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	if type(payload) ~= "table" then
 		return
 	end
+	sfx:onEvent(payload, music:intensity(), os.clock())
 	if payload.kind == "gate" then
 		hud:pop()
 	elseif payload.kind == "obstacle" then
@@ -173,7 +181,10 @@ RunService:BindToRenderStep(
 			leadAvatar:fallbackGrace()
 		)
 		leadZNow = z
+		music:setPeak(fx.musicIntensity)
+		music:setDucked(fx.defeated)
 		music:update(total, now)
+		sfx:update(total, music:intensity(), dt, now)
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
 
