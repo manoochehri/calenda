@@ -62,7 +62,7 @@ return {
 				assert(b.dz <= -9, "far enough behind that no tall figure hides the lead")
 				for j = 1, 24 do
 					assert(
-						dist(b, FollowerSlots.slot(j)) >= FollowerSlots.BASE_HOLE - 1e-9,
+						dist(b, FollowerSlots.slot(j)) >= FollowerSlots.baseHole(i) - 1e-9,
 						`follower {j} inside the hole of base {i}`
 					)
 				end

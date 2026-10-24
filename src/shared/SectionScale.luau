@@ -21,10 +21,13 @@ SectionScale.TYPE_SCALE = table.freeze({
 	globo = 1.3, -- [default] the sphere rides about 15 studs up on its pole
 	dancers = 1.35, -- [default]
 })
-SectionScale.ENTOURAGE_RADIUS = 1.1 -- [default] studs: puppet companions ring (SectionFigure)
-SectionScale.GLOBO_CARRIER_FACTOR = 0.25 -- [default] carriers hug the pole (GloboFigure)
-SectionScale.DANCER_SPREAD = 0.2 -- [default] dancers stand close together (DancerFigure)
-SectionScale.DECOR_HALF = 0.6 -- [default] half width of a companion figure
+SectionScale.ENTOURAGE_RADIUS = 1.5 -- [default] studs: puppet companions clear the narrow lead puppet
+SectionScale.PUPPET_ENTOURAGE_SCALE = 0.35 -- [default] scale of companion puppets (SectionFigure)
+SectionScale.PUPPET_HORIZONTAL_SCALE = 0.25 -- [default] x/z scale; keeps the tall figures compact on the ground
+SectionScale.GLOBO_CARRIER_FACTOR = 0.25 -- [default] carriers hug the pole
+SectionScale.DANCER_SPREAD = 0.3 -- [default] spacing for the horizontally slim dancers
+SectionScale.DANCER_HORIZONTAL_SCALE = 0.2 -- [default] x/z scale; keeps the chorus inside the section footprint
+SectionScale.DECOR_HALF = 0.4 -- [default] half width after companion horizontal scaling
 SectionScale.VARIATION = 0.08 -- [default] +- share of size variation per figure
 
 -- Size multiplier of representative `index` (stable per index).
@@ -59,7 +62,14 @@ function SectionScale.footprint(sectionType: string, index: number): number
 			)
 		end
 	end
-	return ring + SectionScale.DECOR_HALF
+	local body = if sectionType == "dancers"
+		then 2.55 * scale * SectionScale.DANCER_HORIZONTAL_SCALE
+		elseif sectionType == "puppet" then 2.1
+			* scale
+			* SectionScale.PUPPET_HORIZONTAL_SCALE
+			* SectionScale.PUPPET_ENTOURAGE_SCALE
+		else SectionScale.DECOR_HALF
+	return ring + math.max(body, SectionScale.DECOR_HALF)
 end
 
 -- Tallest figure any representative can reach (largest variation included).

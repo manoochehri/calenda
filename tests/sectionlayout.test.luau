@@ -159,6 +159,40 @@ return {
 		end,
 	},
 	{
+		name = "puppet companions clear the lead puppet skirt",
+		run = function()
+			local companionScale = SectionScale.PUPPET_ENTOURAGE_SCALE
+			local leadSkirtRadius = 4.2 / 2 * SectionScale.PUPPET_HORIZONTAL_SCALE
+			local scale = SectionScale.scaleOf("puppet", 1)
+			local companionSkirtRadius = leadSkirtRadius * companionScale
+			local required = (leadSkirtRadius + companionSkirtRadius) * scale + 0.2
+			assert(
+				SectionScale.ENTOURAGE_RADIUS >= required,
+				`puppet entourage overlaps: radius {SectionScale.ENTOURAGE_RADIUS}, needs {required}`
+			)
+		end,
+	},
+	{
+		name = "dancer chorus has non-overlapping skirts",
+		run = function()
+			local DancerPose = require("../src/shared/DancerPose")
+			local slots = DancerPose.formation(3)
+			local scale = SectionScale.scaleOf("dancers", 1)
+			local skirtRadius = (1.7 + 0.85) * SectionScale.DANCER_HORIZONTAL_SCALE
+			for i = 2, #slots do
+				local slot = slots[i]
+				local separation = math.sqrt(slot.dx ^ 2 + slot.dz ^ 2)
+					* SectionScale.DANCER_SPREAD
+					* scale
+				local combinedRadius = skirtRadius * scale * (1 + slot.scale)
+				assert(
+					separation >= combinedRadius + 0.1,
+					`dancer {i} skirt overlaps the lead: {separation} < {combinedRadius + 0.1}`
+				)
+			end
+		end,
+	},
+	{
 		name = "REAL footprint: no follower slot (body, sway, spring overshoot) overlaps any section's figures",
 		run = function()
 			local FollowerLook = require("../src/shared/FollowerLook")
@@ -207,15 +241,18 @@ return {
 		end,
 	},
 	{
-		name = "the hole reserved around a base covers the biggest footprint any type can have",
+		name = "each reserved base hole covers its section footprint and follower margin",
 		run = function()
 			for i = 1, 6 do
-				for _, t in TYPES do
-					assert(
-						SectionScale.footprint(t, i) <= FollowerSlots.BASE_FOOTPRINT,
-						`{t} {i} footprint`
-					)
-				end
+				local t = TYPES[(i - 1) % 3 + 1]
+				assert(
+					SectionScale.footprint(t, i) <= FollowerSlots.BASE_FOOTPRINT,
+					`{t} {i} footprint`
+				)
+				assert(
+					SectionScale.footprint(t, i) <= FollowerSlots.baseHole(i) - 1.5,
+					`{t} {i} clearance margin`
+				)
 			end
 		end,
 	},

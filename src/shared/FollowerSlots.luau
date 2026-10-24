@@ -17,33 +17,35 @@ local FollowerSlots = {}
 FollowerSlots.CENTER_DZ = -9.5 -- [default] middle of the cloud, studs behind the lead
 FollowerSlots.RADIUS_STEP = 2.6 -- [default] studs; the disc slot k draws from has radius RADIUS_STEP * sqrt(k) + 1.5
 FollowerSlots.DEPTH_SCALE = 0.75 -- [default] the cloud is flatter along the street than across it
-FollowerSlots.CANDIDATES = 600 -- [default] seeded candidates tried per slot
+FollowerSlots.CANDIDATES = 1200 -- [default] seeded candidates tried per slot
 FollowerSlots.MIN_DZ = -19 -- [default] deepest a follower stands (the camera is 24 behind the lead)
 FollowerSlots.MAX_DZ = -3.5 -- [default] stays out of the lead's hitbox (Crossing.LEAD_HITBOX)
 FollowerSlots.SIDEWALK_WIDTH = 6 -- mirrors WorldBuilder: the road is DebugLayout.halfWidth - 6 wide per side
 FollowerSlots.FOLLOWER_MARGIN = 1.15 -- [default] follower half width (0.83) + idle sway (0.3)
-FollowerSlots.BASE_FOOTPRINT = 1.8 -- [default] widest section footprint (SectionScale.footprint, tested <=)
-FollowerSlots.BASE_HOLE = 3.8 -- [default] clear after the minimum road-edge squeeze (tested)
+FollowerSlots.BASE_FOOTPRINT = 2.2 -- [default] widest section footprint (SectionScale.footprint, tested <=)
+FollowerSlots.BASE_HOLES = table.freeze({ 3.8, 3.2, 4.0, 3.8, 3.2, 4.0 }) -- scaled for each section's footprint
+FollowerSlots.BASE_HOLE = 4.0 -- [default] widest reserved hole; individual bases use BASE_HOLES
 -- Half width of the road the parade must stay on (followers and figures never stand on the sidewalk).
 function FollowerSlots.roadHalfWidth(): number
 	return DebugLayout.halfWidth - FollowerSlots.SIDEWALK_WIDTH
 end
 -- How far the whole cloud (followers and section footprints) may reach to either side of its centre.
 -- Kept well under the road half width so the cloud stays attached to the lead (see `layout`).
-FollowerSlots.REACH = 10 -- [default] studs
-FollowerSlots.MIN_WIDTH = 0.85 -- [default] the cloud is squeezed to at most this share near the road edge
-FollowerSlots.MAX_DX = FollowerSlots.REACH - FollowerSlots.FOLLOWER_MARGIN -- widest a follower stands
+FollowerSlots.CROWD_REACH = 10 -- [default] studs, not counting the wider section footprints
+FollowerSlots.REACH = 10 -- [default] studs including the widest section footprint
+FollowerSlots.MIN_WIDTH = 0.9 -- [default] the cloud is squeezed to at most this share near the road edge
+FollowerSlots.MAX_DX = FollowerSlots.CROWD_REACH - FollowerSlots.FOLLOWER_MARGIN -- widest a follower stands
 FollowerSlots.MAX_BASES = 6 -- spec s8: at most 6 section representatives
 
 -- Section bases, in the order sections form (puppet, globo, dancers, puppet, globo, dancers).
 -- Irregular on purpose: a loose V and scatter, staggered in depth, no two in a row or column.
 FollowerSlots.BASES = table.freeze({
-	table.freeze({ dx = -5.5, dz = -10.8 }),
-	table.freeze({ dx = 0.5, dz = -12.2 }),
-	table.freeze({ dx = 6, dz = -10.4 }),
-	table.freeze({ dx = -3, dz = -16 }),
-	table.freeze({ dx = 4, dz = -16.5 }),
-	table.freeze({ dx = -8.2, dz = -14.5 }),
+	table.freeze({ dx = -5, dz = -10.3 }),
+	table.freeze({ dx = -0.5, dz = -12.5 }),
+	table.freeze({ dx = 4, dz = -9.9 }),
+	table.freeze({ dx = -4.5, dz = -18 }),
+	table.freeze({ dx = 0.5, dz = -17 }),
+	table.freeze({ dx = 5.5, dz = -17.4 }),
 })
 
 -- Deterministic unit float in [0, 1) from an integer and a salt (xorshift on 32 bits).
@@ -60,9 +62,10 @@ function FollowerSlots.unit(i: number, salt: number): number
 	return x / 4294967296
 end
 
-local function nearBase(dx: number, dz: number, clear: number): boolean
-	for _, b in FollowerSlots.BASES do
-		if (dx - b.dx) ^ 2 + (dz - b.dz) ^ 2 < clear * clear then
+local function nearBase(dx: number, dz: number): boolean
+	for i, b in FollowerSlots.BASES do
+		local hole = FollowerSlots.BASE_HOLES[i]
+		if (dx - b.dx) ^ 2 + (dz - b.dz) ^ 2 < hole * hole then
 			return true
 		end
 	end
@@ -73,8 +76,11 @@ end
 -- bounds, clear of every base) farthest from the slots already placed. Even and organic, never a
 -- grid, and slot k never depends on how many slots come after it.
 local function build(): { Slot }
-	local out: { Slot } = {}
-	for k = 1, Config.visualBudget.looseAvatars do
+	local out: { Slot } = {
+		table.freeze({ dx = -8.5, dz = FollowerSlots.MAX_DZ }),
+		table.freeze({ dx = 8.5, dz = FollowerSlots.MAX_DZ }),
+	}
+	for k = 3, Config.visualBudget.looseAvatars do
 		local best: Slot? = nil
 		local bestGap = -1
 		local reach = FollowerSlots.RADIUS_STEP * math.sqrt(k) + 4
@@ -92,7 +98,7 @@ local function build(): { Slot }
 				math.abs(dx) <= FollowerSlots.MAX_DX
 				and dz >= FollowerSlots.MIN_DZ
 				and dz <= FollowerSlots.MAX_DZ
-				and not nearBase(dx, dz, FollowerSlots.BASE_HOLE)
+				and not nearBase(dx, dz)
 			then
 				local gap = math.huge
 				for _, o in out do
@@ -130,6 +136,21 @@ function FollowerSlots.base(index: number): Slot
 		error(`section base {tostring(index)} out of range`, 2)
 	end
 	return b
+end
+
+function FollowerSlots.baseHole(index: number): number
+	if
+		type(index) ~= "number"
+		or index ~= math.floor(index)
+		or index < 1
+		or index > #FollowerSlots.BASE_HOLES
+	then
+		error(
+			`base hole index must be between 1 and {#FollowerSlots.BASE_HOLES}, got {tostring(index)}`,
+			2
+		)
+	end
+	return FollowerSlots.BASE_HOLES[index]
 end
 
 -- Lowest slot index not in `taken` (a set).
