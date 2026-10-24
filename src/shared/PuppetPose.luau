@@ -3,13 +3,15 @@
 -- sway to the beat, and the rise pop. Angles are radians, lengths studs; the client applies them
 -- to primitive Parts. Time is seconds; the beat comes from Config.music.
 local Config = require("./Config")
+local DanceConfig = require("./DanceConfig")
 
 local PuppetPose = {}
 
-PuppetPose.MAX_ARM_RADIANS = 1.4 -- [default]
-PuppetPose.MAX_SWAY_RADIANS = 0.12 -- [default]
+PuppetPose.MAX_ARM_RADIANS = DanceConfig.puppetArmRadians
+PuppetPose.MAX_SWAY_RADIANS = DanceConfig.puppetSwayRadians
+PuppetPose.BOW_RADIANS = DanceConfig.puppetBowRadians
 PuppetPose.MAX_INTENSITY = 1.5 -- [default] music/decoration intensity grows but is capped (spec s8)
-PuppetPose.HEAD_BOB_STUDS = 0.6 -- [default]
+PuppetPose.HEAD_BOB_STUDS = DanceConfig.puppetHeadBobStuds
 local INTENSITY_PER_SECTION = 0.05 -- [default]
 local OVERSHOOT = 1.70158 -- standard ease-out-back constant
 
@@ -20,6 +22,7 @@ export type Pose = {
 	armRight: number,
 	clap: number, -- 0 open .. 1 hands together, peaks on each beat
 	sway: number, -- body lean, radians
+	bow: number, -- forward nod at the downbeat of the four-bar phrase
 }
 
 -- `phase` offsets decorrelate the entourage from the main puppet.
@@ -29,22 +32,26 @@ function PuppetPose.pose(time: number, phase: number): Pose
 	local beatWave = math.cos(tau * beats) -- 1 on every beat
 	local halfBar = beats / 2
 	local swingBase = math.sin(tau * halfBar)
+	local phraseBeat = beats % DanceConfig.cycleBeats
+	local bow = if phraseBeat < 0.35 then PuppetPose.BOW_RADIANS * (1 - phraseBeat / 0.35) else 0
+	local chorus = if phraseBeat >= 8 then 1 else 0
 	return {
 		headBob = PuppetPose.HEAD_BOB_STUDS * (0.5 + 0.5 * beatWave),
 		headTilt = 0.2 * math.sin(tau * halfBar + 0.8),
 		-- Loose arms: a slow swing plus a lagging second harmonic, left and right offset.
 		armLeft = math.clamp(
-			0.9 * swingBase + 0.35 * math.sin(tau * beats + 1.1),
+			0.9 * swingBase + 0.35 * math.sin(tau * beats + 1.1) + chorus * 0.7,
 			-PuppetPose.MAX_ARM_RADIANS,
 			PuppetPose.MAX_ARM_RADIANS
 		),
 		armRight = math.clamp(
-			0.9 * math.sin(tau * halfBar + 2.2) + 0.35 * math.sin(tau * beats - 0.7),
+			0.9 * math.sin(tau * halfBar + 2.2) + 0.35 * math.sin(tau * beats - 0.7) + chorus * 0.7,
 			-PuppetPose.MAX_ARM_RADIANS,
 			PuppetPose.MAX_ARM_RADIANS
 		),
 		clap = math.clamp(0.5 + 0.5 * beatWave, 0, 1) ^ 4,
 		sway = PuppetPose.MAX_SWAY_RADIANS * 0.8 * math.sin(tau * halfBar / 2),
+		bow = bow,
 	}
 end
 

@@ -4,13 +4,14 @@
 -- radians, lengths studs; time is seconds and the beat comes from Config.music. Rings are timing and
 -- look only: nothing here reads or changes the crowd total, and rings never recruit (spec s7).
 local Config = require("./Config")
+local DanceConfig = require("./DanceConfig")
 
 local GloboPose = {}
 
-GloboPose.MAX_TILT = 0.28 -- [default] radians the pole leans at most (about 16 degrees)
-GloboPose.SPIN_BEATS = 8 -- [default] one whole turn of the sphere every two bars
+GloboPose.MAX_TILT = DanceConfig.globoTiltRadians
+GloboPose.SPIN_BEATS = DanceConfig.globoSpinBeats -- [default] one turn across the four-bar dance phrase
 GloboPose.WOBBLE_BEATS = 4 -- [default] the lean circles the pole once per bar
-GloboPose.LIFT_STUDS = 0.5 -- [default] the sphere pops up this far on each beat
+GloboPose.LIFT_STUDS = DanceConfig.globoLiftStuds
 GloboPose.CARRIER_RADIUS = 2.6 -- [default] studs from the pole to each carrier
 GloboPose.RING_SECONDS = 0.8 -- [default] life of one ring
 GloboPose.RING_START_RADIUS = 4.2 -- [default] just outside the sphere (radius 3.75)

@@ -177,7 +177,7 @@ function PuppetFigure.new(parent: Instance, palette: Palette): Figure
 		intensity: number
 	)
 		local s = math.max(scale, 0.001)
-		local lean = CFrame.Angles(0, 0, pose.sway) -- whole body sways at the feet
+		local lean = CFrame.Angles(pose.bow, 0, pose.sway) -- bow and sway from the feet
 		local base = root * lean
 		if s ~= lastScale then
 			lastScale = s

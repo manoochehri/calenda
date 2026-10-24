@@ -172,6 +172,8 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	sfx:onEvent(payload, music:intensity(), os.clock())
 	crowd:onEvent(payload, if latest then latest.t else 0) -- where new followers come from (issue #68)
+	sections:onEvent(payload)
+	leadAvatar:onEvent(payload)
 	if payload.kind == "gate" then
 		hud:pop()
 	elseif payload.kind == "obstacle" then
@@ -221,7 +223,7 @@ RunService:BindToRenderStep(
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
-		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift)
+		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift, total)
 		crowd:update(
 			drawnX,
 			z,
