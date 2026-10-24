@@ -31,7 +31,7 @@ export type Visual = {
 export type Builder = (parent: Instance, index: number, entourage: number) -> Visual
 
 local ENTOURAGE_SCALE = 0.35 -- [default]
-local ENTOURAGE_RADIUS = 4.2 -- [default] studs around the puppet
+local ENTOURAGE_RADIUS = 3.2 -- [default] studs around the puppet (it stands inside the crowd now)
 
 local SectionFigure = {}
 

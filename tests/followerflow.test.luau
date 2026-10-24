@@ -19,7 +19,7 @@ end
 local function run(flow: FollowerFlow.Flow, seconds: number, z0: number?, x: number?)
 	local z = z0 or 100
 	local frame
-	local maxM, maxR, maxL, firstFull = 0, 0, 0, nil
+	local maxM, maxR, maxL = 0, 0, 0
 	local times = {}
 	for i = 1, math.floor(seconds / DT) do
 		z += Config.speed * DT
