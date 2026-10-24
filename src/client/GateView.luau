@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local GateLabel = require(Shared:WaitForChild("GateLabel"))
+local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local PortalFx = require(Shared:WaitForChild("PortalFx"))
 local PortalGeometry = require(Shared:WaitForChild("PortalGeometry"))
 local ParadeTail = require(Shared:WaitForChild("ParadeTail"))
@@ -165,8 +166,8 @@ local function buildPortal(folder: Instance, desc: PortalGeometry.Portal, total:
 		model,
 		"Strip",
 		Enum.PartType.Block,
-		Vector3.new(desc.opening, 0.1, 1.2),
-		CFrame.new(ViewMap.x(x), 0.07, desc.z),
+		Vector3.new(desc.opening, 0.2, 1.2),
+		CFrame.new(ViewMap.x(x), LayerHeights.DECAL - 0.1, desc.z),
 		pal.banner
 	)
 	strip.Transparency = 0.25
@@ -238,7 +239,7 @@ function GateView.new(parent: Instance, layout: any): GateView
 		"PassRing",
 		Enum.PartType.Cylinder,
 		Vector3.new(0.2, 2, 2),
-		CFrame.new(0, 0.12, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		CFrame.new(0, LayerHeights.PASS_RING - 0.1, 0) * CFrame.Angles(0, 0, math.pi / 2),
 		RING_COLOR
 	)
 	ring.Material = Enum.Material.Neon
@@ -366,7 +367,8 @@ function GateView.new(parent: Instance, layout: any): GateView
 			else
 				local radius = PortalFx.ringRadius(f, layout.halfWidth / 2)
 				ring.Size = Vector3.new(0.2, radius * 2, radius * 2)
-				ring.CFrame = CFrame.new(r.x, 0.12, r.z) * CFrame.Angles(0, 0, math.pi / 2)
+				ring.CFrame = CFrame.new(r.x, LayerHeights.PASS_RING - 0.1, r.z)
+					* CFrame.Angles(0, 0, math.pi / 2)
 				ring.Transparency = 1 - PortalFx.ringAlpha(f)
 			end
 		end

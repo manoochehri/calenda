@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Formation = require(Shared:WaitForChild("Formation"))
+local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
@@ -198,7 +199,8 @@ function CrowdView.new(): CrowdView
 		else
 			lead.Parent = nil
 		end
-		ring.CFrame = CFrame.new(ViewMap.x(leadX), 0.12, leadZ) * CFrame.Angles(0, 0, math.pi / 2)
+		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
+			* CFrame.Angles(0, 0, math.pi / 2)
 
 		local avatars = pool:setCount(#layout.slots)
 		for i, avatar in avatars do
