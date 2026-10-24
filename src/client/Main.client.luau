@@ -28,6 +28,7 @@ local InputIntent = timedRequire("Shared", Shared, "InputIntent")
 local Remotes = timedRequire("Shared", Shared, "Remotes")
 local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
 local RunView = timedRequire("Shared", Shared, "RunView")
+local ServerClock = timedRequire("Shared", Shared, "ServerClock")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
@@ -97,6 +98,11 @@ local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
 local drawnX = 0
 local pullback = 1
+local serverClock = ServerClock.new() -- smoothed lead timeline (issue #85)
+local frozenCamera: CFrame? = nil -- Config.debug.freezeCamera A/B only
+if Config.debug.noShadows then
+	game:GetService("Lighting").GlobalShadows = false
+end
 
 local function looksLikeState(p: any): boolean
 	return type(p) == "table"
@@ -130,6 +136,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		handlers.camera = function()
 			drawnX = state.x
 			pullback = 1
+			serverClock:reset()
 		end
 		handlers.sections = function()
 			sections:reset(RunView.wholeTotal(state.total))
@@ -155,6 +162,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	latest = state
 	receivedAt = os.clock()
+	serverClock:observe(state, receivedAt)
 end)
 
 -- Gates and the obstacle change the total: pop the counter. (The new total itself arrives in State.)
@@ -199,8 +207,13 @@ RunService:BindToRenderStep(
 			return
 		end
 		local now = os.clock()
-		local x, z, t =
-			RunView.leadPosition(state, now - receivedAt, Config.speed, DebugLayout.plazaStart)
+		local x, z, t
+		if Config.debug.rawExtrapolation then
+			x, z, t =
+				RunView.leadPosition(state, now - receivedAt, Config.speed, DebugLayout.plazaStart)
+		else
+			x, z, t = serverClock:sample(now, Config.speed, DebugLayout.plazaStart)
+		end
 
 		input:step(dt, now)
 		drawnX = CameraRig.smooth(drawnX, x, dt, CAMERA_X_RATE)
@@ -240,12 +253,21 @@ RunService:BindToRenderStep(
 		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
 		local camera = Workspace.CurrentCamera
 		if camera then
-			camera.CameraType = Enum.CameraType.Scriptable
-			camera.FieldOfView = CameraRig.FIELD_OF_VIEW
-			camera.CFrame = CFrame.lookAt(
+			if camera.CameraType ~= Enum.CameraType.Scriptable then
+				camera.CameraType = Enum.CameraType.Scriptable
+			end
+			if camera.FieldOfView ~= CameraRig.FIELD_OF_VIEW then
+				camera.FieldOfView = CameraRig.FIELD_OF_VIEW
+			end
+			local cf = CFrame.lookAt(
 				Vector3.new(pose.px, pose.py, pose.pz),
 				Vector3.new(pose.lx, pose.ly, pose.lz)
 			) * CFrame.new(hit.shakeX, hit.shakeY, 0) -- decaying screen punch, camera space
+			if Config.debug.freezeCamera then
+				frozenCamera = frozenCamera or cf
+				cf = frozenCamera :: CFrame
+			end
+			camera.CFrame = cf
 		end
 
 		hud:setHp(HpBar.view(HpExtension.read(state)), hudClock)

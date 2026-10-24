@@ -35,7 +35,12 @@ export type ConfigType = {
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
 	music: MusicConfig,
-	debug: { startupTiming: boolean },
+	debug: {
+		startupTiming: boolean,
+		freezeCamera: boolean,
+		noShadows: boolean,
+		rawExtrapolation: boolean,
+	},
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
 	sfx: { [string]: string }, -- sound effect asset ids by slot, empty = silent (issue #62)
 	validate: (config: any) -> (boolean, string?),
@@ -95,6 +100,11 @@ local function validate(c: any): (boolean, string?)
 	end
 	if type(c.debug) ~= "table" or type(c.debug.startupTiming) ~= "boolean" then
 		return false, "debug.startupTiming must be a boolean"
+	end
+	for _, flag in { "freezeCamera", "noShadows", "rawExtrapolation" } do
+		if type(c.debug[flag]) ~= "boolean" then
+			return false, `debug.{flag} must be a boolean`
+		end
 	end
 	if not isPositive(c.speed) then
 		return false, "speed must be a positive number"
@@ -316,6 +326,10 @@ local config: ConfigType = {
 	},
 	debug = {
 		startupTiming = false, -- [default] opt-in local startup trace; no Output logging unless enabled
+		-- Issue #85 A/B switches for Studio (all default false = normal game):
+		freezeCamera = false, -- hold the camera at its first pose: does the flicker survive a still camera?
+		noShadows = false, -- Lighting.GlobalShadows = false: is it shadow flicker?
+		rawExtrapolation = false, -- the pre-#85 snap-to-State lead path instead of ServerClock
 	},
 	validate = validate,
 }

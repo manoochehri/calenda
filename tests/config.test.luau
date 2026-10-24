@@ -66,6 +66,9 @@ return {
 			eq(c.finaleThresholds[3], 300, "finale 3")
 			eq(c.giftEveryNthShot, 4, "giftEveryNthShot")
 			eq(c.debug.startupTiming, false, "startup timing default")
+			eq(c.debug.freezeCamera, false, "freezeCamera default")
+			eq(c.debug.noShadows, false, "noShadows default")
+			eq(c.debug.rawExtrapolation, false, "rawExtrapolation default")
 			eq(c.durations.assemblySeconds, 0.8, "assemblySeconds")
 			eq(c.musicLayerSections[1], 0, "music 1")
 			eq(c.musicLayerSections[2], 1, "music 2")
@@ -94,6 +97,9 @@ return {
 	end),
 	expectInvalid("startup timing flag must be boolean", function(c)
 		c.debug.startupTiming = "yes"
+	end),
+	expectInvalid("freezeCamera flag must be boolean", function(c)
+		c.debug.freezeCamera = 1
 	end),
 	expectInvalid("sectionSize non-integer", function(c)
 		c.sectionSize = 50.5
