@@ -161,11 +161,10 @@ return {
 	{
 		name = "puppet companions clear the lead puppet skirt",
 		run = function()
-			local companionScale = SectionScale.PUPPET_ENTOURAGE_SCALE
-			local leadSkirtRadius = 4.2 / 2 * SectionScale.PUPPET_HORIZONTAL_SCALE
-			local scale = SectionScale.scaleOf("puppet", 1)
-			local companionSkirtRadius = leadSkirtRadius * companionScale
-			local required = (leadSkirtRadius + companionSkirtRadius) * scale + 0.2
+			local halfDiagonal = math.sqrt((4.2 / 2) ^ 2 + (3.2 / 2) ^ 2)
+				* SectionScale.PUPPET_HORIZONTAL_SCALE
+			local scale = SectionScale.TYPE_SCALE.puppet * (1 + SectionScale.VARIATION)
+			local required = halfDiagonal * scale * (1 + SectionScale.PUPPET_ENTOURAGE_SCALE) + 0.2
 			assert(
 				SectionScale.ENTOURAGE_RADIUS >= required,
 				`puppet entourage overlaps: radius {SectionScale.ENTOURAGE_RADIUS}, needs {required}`
@@ -177,8 +176,9 @@ return {
 		run = function()
 			local DancerPose = require("../src/shared/DancerPose")
 			local slots = DancerPose.formation(3)
-			local scale = SectionScale.scaleOf("dancers", 1)
-			local skirtRadius = (1.7 + 0.85) * SectionScale.DANCER_HORIZONTAL_SCALE
+			local skirtRadius = (1.7 + math.sqrt((1.7 / 2) ^ 2 + (1.5 / 2) ^ 2))
+				* SectionScale.DANCER_HORIZONTAL_SCALE
+			local scale = SectionScale.TYPE_SCALE.dancers * (1 + SectionScale.VARIATION)
 			for i = 2, #slots do
 				local slot = slots[i]
 				local separation = math.sqrt(slot.dx ^ 2 + slot.dz ^ 2)
