@@ -112,7 +112,7 @@ local function buildGroup(folder: Folder): Group
 	gui.Size = UDim2.fromOffset(88, 30)
 	gui.StudsOffset = Vector3.new(0, 4, 0)
 	gui.AlwaysOnTop = false -- do not cover the gate text from the high camera
-	gui.MaxDistance = 160
+	gui.MaxDistance = 120
 	gui.Parent = root
 	local numeral =
 		label(gui, UDim2.fromScale(0.4, 0.6), UDim2.fromScale(0, 0), Color3.new(1, 1, 1))

@@ -114,7 +114,8 @@ return {
 							0,
 							-dz,
 							PortalGeometry.BANNER_BOTTOM,
-							PortalGeometry.TOP
+							PortalGeometry.TOP,
+							PortalGeometry.LEAN
 						)
 					then
 						seen += 1
@@ -133,15 +134,21 @@ return {
 		run = function()
 			local tailDepth = ParadeTail.depth(10000)
 
-			assert(tailDepth > 13, `max parade tail {tailDepth} must exceed the lead-only fade`)
+			assert(tailDepth > 18, `max parade tail {tailDepth} must exceed the lead-only fade`)
 			assert(
 				PortalFx.fade(tailDepth, tailDepth) >= 0.6,
 				`the gate should remain faded until the trailing section clears at {tailDepth} studs`
 			)
 			assert(
-				PortalFx.fade(tailDepth + 13, tailDepth) == 0,
+				PortalFx.fade(tailDepth + 18, tailDepth) == 0,
 				"the gate returns after the full parade has cleared"
 			)
+		end,
+	},
+	{
+		name = "confetti per pass is small enough to share the Bits budget with section bursts",
+		run = function()
+			assert(PortalFx.CONFETTI <= 24, "about 24 pieces")
 		end,
 	},
 }
