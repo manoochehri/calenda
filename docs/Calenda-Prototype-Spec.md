@@ -28,7 +28,7 @@ Deferred: shops, paid multipliers, pets, trading, clothing creation, custom musi
 
 ## 4. Recruiting spectators
 
-Spectator clusters stand on either side of the street, displaying an excitement meter and a recruit reward. Start with two cluster types: 3 note hits awards +5 followers; 8 hits awards +15. All values are initial tuning defaults.
+Spectator clusters (see Amendment 1 at the end of this document: they arrive in waves toward the parade) are on either side of the street, displaying an excitement meter and a recruit reward. Start with two cluster types: 3 note hits awards +5 followers; 8 hits awards +15. All values are initial tuning defaults.
 
 Notes visibly arc from the lead/band to the target. A completed meter triggers cheering, a few spectators running into the parade, and a floating +N. Credit each cluster once when its meter fills; animation arrival must not credit it again. Unfinished clusters leave range without a penalty.
 
@@ -116,9 +116,9 @@ Use an original or appropriately licensed brass-and-percussion loop with synchro
 
 ## 11. Implementation boundaries
 
-Keep tunable values in configuration: section size, starting total, cluster hits/rewards, gate operations, losses, speed, firing-rate curve, visual budgets, and finale thresholds.
+Keep tunable values in configuration: section size, spectator approach speed (`spectators.approachSpeed`), side tolerance (`spectators.centerTolerance`), firing range (`firing.range`), parade HP (`hp.max`) and per-cluster-type `attackDamage`, starting total, cluster hits/rewards, gate operations, losses, speed, firing-rate curve, visual budgets, and finale thresholds.
 
-Separate run state and crowd arithmetic from presentation. The server owns totals, gate/cluster consumption, losses, completion, and score; clients animate the results. Validate steering and crossing events; clients cannot submit arbitrary gains. Use pooled visual actors/projectiles, limited collision checks, and compact formations rather than full independent pathfinding for every represented follower.
+Separate run state and crowd arithmetic from presentation. The server owns totals, gate/cluster consumption, losses, parade HP, attacks, defeat, completion, and score; clients animate the results. Validate steering and crossing events; clients cannot submit arbitrary gains. Use pooled visual actors/projectiles, limited collision checks, and compact formations rather than full independent pathfinding for every represented follower.
 
 Use the team’s existing GitHub and agent workflow. Deliver a reproducible playable build, setup instructions, tuning configuration, a short known-issues list, and a capture of a complete run. This is a build brief; no repository or project has been created by this document.
 
@@ -128,14 +128,48 @@ Functional checks:
 
 - Touch and keyboard can complete the route and replay without stale state.
 - 49 → +1 produces one section with no loss of value; 120 → ×2 produces 240; 105 → −10 produces 95 and correctly updates the section visuals.
-- Gate pairs, spectator clusters, and obstacles each apply only once, even with overlapping actors or repeated events.
+- Gate pairs, spectator clusters, and obstacles each apply only once, even with overlapping actors or repeated events, including a cluster that fills while moving, and a wave that reaches the parade unconverted (it damages HP exactly once and never credits).
 - Large jumps assemble in one animation; a synthetic total of 10,000 keeps the counter accurate and respects visual budgets.
 - Client attempts to forge crowd gains or retrigger consumed gates do not alter server totals.
 - Total score equals the final crowd total; score and replay remain usable with sound off.
 - Measure on a named lower-end mobile test device, targeting sustained 30 FPS through the largest authored parade and finale. Record the device, observed frame times, and any limits; do not treat desktop automation as mobile validation.
+
+Amendment 1 checks: a no-input run ends defeated; a competent scripted run completes with HP above zero; the same-tick ordering below is covered by tests; attacks never change `crowdTotal`; HP never goes below zero and never regenerates; defeat ends the run once and later events are ignored.
 
 Record: run start/seed, first recruitment, gate choice and before/after totals, first assembly/time, obstacle losses, completion/final total, and replay. Distinguish automated QA sessions from human playtests.
 
 For an initial directional test with 10 Spanish-speaking players unfamiliar with the game, aim for at least 8 to understand steering and growth without coaching, 7 to correctly explain what a puppet represents, and 5 to voluntarily replay. These are proposed internal targets, not industry benchmarks or proof of revenue potential. Ask what felt satisfying or confusing before explaining the design.
 
 If players do not understand assembly or want another run, improve the core loop before expanding content or monetization. Later monetization candidates are puppet outfits, globo decorations, trails, and celebrations that preserve readable crowd math.
+
+---
+
+## Amendment 1 — Attacking waves and parade HP (owner decisions, 2026-10-23)
+
+Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave range without a penalty"), §9 ("Reaching the plaza always completes the run") and §12's "no penalty" wording. §5's "No death or destruction animation" is clarified, not removed: defeat is a playful party breakup, never a death or destruction animation. "Zero followers is recoverable" still holds. Everything not listed here is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), and the −10 obstacle.
+
+**Waves attack until converted.**
+- The layout places spectator clusters in waves. Each cluster starts at a spawn point ahead of the lead, on a sidewalk or in the lane, and walks toward the parade at `spectators.approachSpeed` (Config) along a deterministic path. The server position of every cluster is a pure function of layout, seed and run time, so the layout validator and the scripted-run test can compute it.
+- We shoot musical notes, love (hearts) and snacks at them. Mechanically every shot is one hit (§4); hearts and snacks are visual variants, and dancers' gift cadence (§4) is unchanged.
+- **Conversion** (unchanged mechanics): when a cluster's meter fills it is credited once, wherever it is; its members then join the parade (they run in from where they stand), and the cluster is removed.
+- **Attack:** a cluster that reaches the parade unconverted attacks. It deals its type's `attackDamage` (Config) to parade HP exactly once and is then removed (a cluster can never damage twice). Hits are playful and cartoonish (bonks, bumps, flying hats, no gore) but must feel impactful: screen punch, a hit sound cue, the HP bar jolts.
+
+**Crowd size and HP are separate.**
+- `crowdTotal` is unchanged: it drives gates and section assembly and is never reduced by an attack. Only the −10 obstacle (§9) and downward gates reduce it.
+- `parade HP` is a second integer, `hp`, starting at `hp.max` (Config) and reduced only by attacks. It never goes below 0 and has no regeneration or healing in this prototype.
+- **At zero HP the run ends** as *defeated*: the parade stops and the party breaks up playfully (musicians tumble, hats and instruments fly, confetti, followers wander off laughing; never a death or destruction animation) with a short "¡Se acabó la fiesta!" beat, then the results screen. Reaching the plaza with HP above zero wins the run (*completed*). Score is the crowd total at the moment the run ends; the results screen shows completed vs defeated. The session best counts completed runs only. Replay resets everything, HP included.
+- The HUD shows HP as a bar with a number next to the crowd counter and works muted (icon, meter, jolt animation).
+
+**Definitions (measured along the street axis from the lead's forward position).** A cluster has *reached the parade* when its position is at or behind the lead's forward position; from that moment it is *passed* (attacks if unconverted) and no longer a target. A cluster's *side* is the sign of its lateral offset from the street centerline (left, right, or center within the tolerance `spectators.centerTolerance` in Config).
+
+**In range** means the distance along the street from the lead to the cluster is at most `firing.range` (Config). **Targeting.** Eligible = in range, meter not full, not yet passed. Steering toward a side prefers eligible targets on that side; otherwise the nearest target to the lead is chosen. No eligible target means no shots.
+
+**Same-tick ordering (server and validator must agree).** Within one simulation tick, in this order: (1) shots land, meters fill and conversions are credited (a cluster that fills on the tick it reaches the parade converts and does not attack); (2) the lead moves, then gates are resolved and then the obstacle is applied (crowd total changes); (3) unconverted clusters that reached the parade this tick attack, each once, reducing HP in cluster-id order; (4) end checks: if HP is 0 the run ends defeated, even if the lead also reached the plaza on this tick; otherwise reaching the plaza completes the run. Events after the run ends are ignored. Score is the crowd total after all of that tick's events.
+
+**On defeat** there is no plaza finale and no celebration tier is shown; the party breakup beat and the results screen play. The finale and the three tiers (§9) are for completed runs only.
+
+**Balance.** Conversion speed (fire rate), wave size, approach speed and `attackDamage` are tuned in Config and the layout so that the player has to react: standing still or ignoring a side should lose HP, and a careful player should usually finish with HP left. The layout validator and the scripted-run test must show both a no-input run (defeated) and a competent run (completed), and report the HP trajectory. All values are initial defaults.
+
+**Gates stay stationary in the lane**; the gate pair rules (§6) are unchanged.
+
+**Feel reference:** Mob Control. A dense, readable swarm; a bar with a large number above each group (the excitement meter with its hit count). Reference only; no copying of assets, branding or UI.
