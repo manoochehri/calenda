@@ -6,7 +6,11 @@ ROKIT ?= $(shell command -v rokit 2>/dev/null || echo $(HOME)/.rokit/bin/rokit)
 # The inline assignment forces a shell, so the PATH override is honoured for every recipe line.
 # Default is $(HOME)/.rokit/bin; if that is absent (custom install), use the dir of `rokit` on PATH.
 ROKIT_BIN ?= $(if $(wildcard $(HOME)/.rokit/bin),$(HOME)/.rokit/bin,$(patsubst %/,%,$(dir $(shell command -v rokit 2>/dev/null))))
-TOOLS := PATH="$(ROKIT_BIN):$$PATH"
+# Recursive (=) so it is only expanded by recipes that run tools; `make setup` still works without Rokit.
+# Prepend only a non-empty ABSOLUTE dir: an empty/relative PATH entry means the current directory,
+# which would let a repo-root file named stylua/selene/rojo/lune run ahead of the real tools.
+ROKIT_MISSING_MSG := install rokit (https://github.com/rojo-rbx/rokit) then run make setup
+TOOLS = $(if $(filter /%,$(ROKIT_BIN)),PATH="$(ROKIT_BIN):$$PATH",$(error $(ROKIT_MISSING_MSG)))
 LUAU_DIRS := src tests
 PLACE := build/Calenda.rbxl
 
@@ -15,6 +19,7 @@ PLACE := build/Calenda.rbxl
 # Install the pinned toolchain from rokit.toml. The tool specs are pinned there; trusting them
 # is what lets `rokit install` run non-interactively (CI, fresh clones).
 setup:
+	@test -x "$(ROKIT)" || { echo "error: $(ROKIT_MISSING_MSG)" >&2; exit 1; }
 	$(ROKIT) trust rojo-rbx/rojo lune-org/lune JohnnyMorganz/StyLua Kampfkarren/selene
 	$(ROKIT) install
 
