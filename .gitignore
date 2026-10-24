@@ -1,0 +1,22 @@
+# Build output and local Roblox place files
+build/
+*.rbxl
+*.rbxlx
+
+# OS cruft
+.DS_Store
+
+# Parallel-work git worktrees
+.worktrees/
+
+# Environment files and credentials (never commit; .env.example stays tracked)
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Owner-requested local folders: reference images and local Roblox place files
+inspiration/
+builds/
