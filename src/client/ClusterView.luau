@@ -8,9 +8,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
 local ClusterVisual = require(Shared:WaitForChild("ClusterVisual"))
+local MeterDisplay = require(Shared:WaitForChild("MeterDisplay"))
 local Effects = require(Shared:WaitForChild("Effects"))
 local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
 local Pool = require(Shared:WaitForChild("Pool"))
@@ -24,7 +24,7 @@ local BAR_DONE = Color3.fromRGB(80, 235, 120)
 local SHOT_COLORS = {
 	note = Color3.fromRGB(255, 235, 60),
 	heart = Color3.fromRGB(255, 80, 140),
-	snack = Color3.fromRGB(255, 160, 50),
+	snack = Color3.fromRGB(150, 90, 40), -- chocolate brown: clearly not spectator orange
 }
 
 local METER_RATE = 14 -- [default] easing of the bar fill
@@ -43,8 +43,7 @@ type Group = {
 	fill: Frame,
 	numeral: TextLabel,
 	reward: TextLabel,
-	shown: number, -- smoothed bar fill
-	lastId: number,
+	meter: MeterDisplay.Meter, -- smoothed bar fill bound to the cluster id (cleared on hide/reset)
 }
 
 export type ClusterView = {
@@ -98,7 +97,7 @@ local function buildGroup(folder: Folder): Group
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(190, 100)
 	gui.StudsOffset = Vector3.new(0, 7, 0)
-	gui.AlwaysOnTop = true
+	gui.AlwaysOnTop = false -- do not cover the gate text from the high camera
 	gui.MaxDistance = 400
 	gui.Parent = root
 	local numeral =
@@ -122,8 +121,7 @@ local function buildGroup(folder: Folder): Group
 		fill = fill,
 		numeral = numeral,
 		reward = reward,
-		shown = 0,
-		lastId = -1,
+		meter = MeterDisplay.new(),
 	}
 end
 
@@ -140,6 +138,7 @@ function ClusterView.new(layout: any): ClusterView
 		g.root.Parent = folder
 	end, function(g: Group)
 		g.root.Parent = nil
+		g.meter:clear()
 		for _, m in g.members do
 			m.body.Parent = nil
 			m.head.Parent = nil
@@ -223,6 +222,7 @@ function ClusterView.new(layout: any): ClusterView
 
 	function view.reset(_)
 		tracker:reset()
+		groups:setCount(0) -- hides every slot, which clears its bar
 		flights:clear()
 		floats:clear()
 		currentPositions = {}
@@ -239,9 +239,6 @@ function ClusterView.new(layout: any): ClusterView
 		for i, v in views do
 			currentPositions[v.id] = { x = v.x, z = v.z }
 			local g = gs[i]
-			if g.lastId ~= v.id then
-				g.lastId, g.shown = v.id, v.fill
-			end
 			g.root.Position = Vector3.new(v.x, 1, v.z)
 			for mi, m in g.members do
 				if mi <= v.members then
@@ -256,8 +253,7 @@ function ClusterView.new(layout: any): ClusterView
 					m.body.Parent, m.head.Parent = nil, nil
 				end
 			end
-			g.shown = CameraRig.smooth(g.shown, v.fill, dt, METER_RATE)
-			g.fill.Size = UDim2.fromScale(g.shown, 1)
+			g.fill.Size = UDim2.fromScale(g.meter:step(v.id, v.fill, dt, METER_RATE), 1)
 			local done = v.phase == "cheering"
 			g.fill.BackgroundColor3 = if done then BAR_DONE else BAR_FILL
 			g.numeral.Text = if done then "" else string.format("%d", v.remaining)
@@ -296,7 +292,7 @@ function ClusterView.new(layout: any): ClusterView
 				p.Position = Vector3.new(x, y, z)
 				p.Color = SHOT_COLORS[f.data.variant] or SHOT_COLORS.note
 				p.Size = if f.data.variant == "note"
-					then Vector3.new(0.8, 1.2, 0.5)
+					then Vector3.new(0.9, 0.9, 0.9)
 					else Vector3.new(1.2, 1.2, 1.2)
 				p.Shape = if f.data.variant == "snack"
 					then Enum.PartType.Block
@@ -309,7 +305,7 @@ function ClusterView.new(layout: any): ClusterView
 		for i, item in fs do
 			local f = fl[i]
 			local m = FeedbackMath.floatText(f.f)
-			item.part.Position = Vector3.new(f.data.x, 9 + m.dy, f.data.z)
+			item.part.Position = Vector3.new(f.data.x, 12 + m.dy, f.data.z)
 			item.text.Text = f.data.text
 			item.text.TextTransparency = 1 - m.alpha
 			item.text.TextStrokeTransparency = 1 - m.alpha * 0.8
