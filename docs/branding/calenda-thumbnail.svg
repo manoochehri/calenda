@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Calenda game thumbnail</title>
+  <desc id="desc">A bright parade of friendly giant puppets and a globo along a festive street.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#63B9E9"/><stop offset="1" stop-color="#FAD89B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#sky)"/>
+  <circle cx="1070" cy="116" r="66" fill="#FAD232"/>
+  <path d="M0 260h1280v460H0z" fill="#E8AC3A"/>
+  <path d="M0 720l360-450h560l360 450z" fill="#403C3E"/>
+  <path d="M0 364h320M960 364h320" stroke="#FAF2E2" stroke-width="16"/>
+  <g fill="#CC5838" stroke="#FAF2E2" stroke-width="12">
+    <path d="M55 360V176h190v184z"/><path d="M1035 360V176h190v184z"/>
+    <path d="M75 176l75-75 75 75z"/><path d="M1055 176l75-75 75 75z"/>
+  </g>
+  <g stroke="#FAF2E2" stroke-width="9">
+    <path d="M80 82q560-78 1120 0" fill="none"/>
+    <path d="M140 74v72M280 61v70M420 54v68M560 49v68M700 49v68M840 54v68M980 61v70M1120 74v72"/>
+  </g>
+  <g>
+    <path d="M105 146h70v65l-35 20-35-20z" fill="#E85496"/>
+    <path d="M245 134h70v65l-35 20-35-20z" fill="#F48228"/>
+    <path d="M385 127h70v65l-35 20-35-20z" fill="#FAD232"/>
+    <path d="M525 122h70v65l-35 20-35-20z" fill="#3CB46E"/>
+    <path d="M665 122h70v65l-35 20-35-20z" fill="#3C8CE6"/>
+    <path d="M805 127h70v65l-35 20-35-20z" fill="#965AC8"/>
+    <path d="M945 134h70v65l-35 20-35-20z" fill="#E85496"/>
+    <path d="M1085 146h70v65l-35 20-35-20z" fill="#F48228"/>
+  </g>
+  <g stroke="#FAF2E2" stroke-width="13" stroke-linejoin="round">
+    <path d="M407 555v-190q0-92 86-92t86 92v190z" fill="#E85496"/>
+    <circle cx="493" cy="270" r="94" fill="#F48228"/>
+    <path d="M654 570V420q0-72 68-72t68 72v150z" fill="#3CB46E"/>
+    <circle cx="722" cy="331" r="67" fill="#E8AC3A"/>
+    <path d="M842 570V472q0-46 44-46t44 46v98z" fill="#965AC8"/>
+    <circle cx="886" cy="408" r="44" fill="#FAD232"/>
+  </g>
+  <g fill="#482E52">
+    <circle cx="463" cy="266" r="10"/><circle cx="522" cy="266" r="10"/>
+    <path d="M465 302q28 26 56 0" fill="none" stroke="#482E52" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="703" cy="326" r="7"/><circle cx="741" cy="326" r="7"/>
+    <path d="M704 350q18 17 37 0" fill="none" stroke="#482E52" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(900 265)">
+    <circle cx="90" cy="78" r="74" fill="#3C8CE6" stroke="#FAF2E2" stroke-width="12"/>
+    <path d="M90 152v110" stroke="#FAF2E2" stroke-width="11"/>
+    <path d="M90 261q0 30 27 30" fill="none" stroke="#FAF2E2" stroke-width="11"/>
+  </g>
+  <rect x="260" y="598" width="760" height="93" rx="30" fill="#482E52" stroke="#FAF2E2" stroke-width="8"/>
+  <text x="640" y="672" text-anchor="middle" font-family="Trebuchet MS,Arial,sans-serif" font-size="84" font-weight="900" letter-spacing="5" fill="#FAD232">CALENDA</text>
+</svg>
