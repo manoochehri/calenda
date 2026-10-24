@@ -18,7 +18,7 @@ This supersedes the synchronized-stems requirement in spec §10 and issue #21 fo
 - Use this Creator Store track as a full mix: chosen because it is available for free in Roblox and is catalogued as Mexican mariachi music; fit for this game remains unverified.
 
 ## Consequences
-The prototype can have one music bed without spending or building an adaptive stem system. Section changes will not add musical layers. Code must use the verified asset ID through the existing configuration path and allow sound to be disabled. A Studio check must verify playback and fit before the audio is described as final.
+The prototype can have one music bed without spending or building an adaptive stem system. Section changes will not add musical layers. Code must use the verified asset ID through the existing configuration path and allow sound to be disabled. Implementation is tracked in [issue #21](https://github.com/manoochehri/calenda/issues/21). A Studio check must verify playback and fit before the audio is described as final.
 
 ## Sources
 - Roblox Creator Hub, [Audio assets](https://create.roblox.com/docs/audio/assets)
