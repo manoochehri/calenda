@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege: read-only token, no secrets are used anywhere in this workflow.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned tool downloads. Each is verified against a sha256 taken from the
+  # upstream release asset digest (gh api repos/<repo>/releases/tags/<tag>).
+  ROKIT_VERSION: v1.2.0
+  ROKIT_SHA256: 951a7f3ec3d2a5e021fd1867d32f69f010ee4c2927f644b759578afc59c65fc0 # rokit-1.2.0-linux-x86_64.zip
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb # gitleaks_8.30.1_linux_x64.tar.gz
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rokit (pinned, sha256-verified)
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$tmp/rokit.zip" \
+            "https://github.com/rojo-rbx/rokit/releases/download/${ROKIT_VERSION}/rokit-${ROKIT_VERSION#v}-linux-x86_64.zip"
+          echo "${ROKIT_SHA256}  $tmp/rokit.zip" | sha256sum -c -
+          unzip -q "$tmp/rokit.zip" -d "$tmp/x"
+          install -D -m 0755 "$tmp/x/rokit" "$HOME/.rokit/bin/rokit"
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+          "$HOME/.rokit/bin/rokit" --version
+
+      - name: make setup
+        run: make setup
+
+      - name: make test
+        run: make test
+
+      - name: Upload built place
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Calenda.rbxl
+          path: build/Calenda.rbxl
+          if-no-files-found: error
+          retention-days: 14
+
+  secret-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # scan full history, not just the tip
+          persist-credentials: false
+
+      - name: Install gitleaks (pinned, sha256-verified)
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$tmp/gitleaks.tgz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $tmp/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$tmp/gitleaks.tgz" -C "$tmp" gitleaks
+          install -m 0755 "$tmp/gitleaks" /usr/local/bin/gitleaks
+
+      - name: gitleaks (git history)
+        run: gitleaks git --redact --verbose --exit-code 1 .
+
+      - name: make scan (pattern grep)
+        run: make scan
