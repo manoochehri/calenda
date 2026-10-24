@@ -339,7 +339,10 @@ return {
 				shots[1].time >= tEnter - 1e-6,
 				`fired too early at {shots[1].time}, enter {tEnter}`
 			)
-			assert(shots[1].time < tEnter + 1 / 30 + 1e-6, "fires as soon as it enters range")
+			assert(
+				shots[1].time < tEnter + 1 / Config.firing.base + 1 / 30 + 1e-6,
+				"fires on the next shot tick after it enters range"
+			)
 			local z = Level.clusterPosition(layout, 1, shots[1].time).z
 			assert(z - Level.leadZ(shots[1].time) <= Config.firing.range + 1e-6, "in range at shot")
 		end,

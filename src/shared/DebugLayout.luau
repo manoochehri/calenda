@@ -1,9 +1,23 @@
 --!strict
--- The fixed debug layout (issue #7), authored against the spec s9 timeline at Config.speed = 16
--- (1 s = 16 studs, plaza at 1440 studs = 90 s). Plain data; LayoutValidator proves the timeline.
+-- The fixed debug layout (issue #7), authored against the spec s9 timeline. Its original authored
+-- distances use a 16 studs/s baseline; scale them with Config.speed so the ~90 s route and beats
+-- stay stable when the forward pace is tuned. LayoutValidator proves the timeline.
 -- Waves alternate left, right, left, ... Left is negative x. Sidewalks are |x| = 16; this fixed
 -- layout keeps clusters on their authored sidewalk as they approach.
 local Level = require("./Level")
+local Config = require("./Config")
+
+local BASE_SPEED = 16
+local function paceDistance(baseZ: number): number
+	return baseZ * Config.speed / BASE_SPEED
+end
+local function waveSpawnZ(spawnTime: number, baseGap: number): number
+	-- Keep the original run-time until a wave reaches the lead as the lead speed changes. Both
+	-- speeds contribute to closure; only the authored spawn gap needs to compensate.
+	local currentClosingSpeed = Config.speed + Config.spectators.approachSpeed
+	local baselineClosingSpeed = BASE_SPEED + Config.spectators.approachSpeed
+	return Config.speed * spawnTime + baseGap * currentClosingSpeed / baselineClosingSpeed
+end
 
 -- Each pair presents one small and one large target on alternating sides. Their offsets tighten
 -- through the route as the authored gates raise firing rate: unattended fire converts early small
@@ -15,7 +29,7 @@ for pair = 1, 10 do
 	local largeWave = pair * 2
 	local smallX = if smallWave % 2 == 1 then -16 else 16
 	local largeX = if largeWave % 2 == 1 then -16 else 16
-	local smallZ = 16 * spawnTime + 20
+	local smallZ = waveSpawnZ(spawnTime, 20)
 	-- Retuned for continuous fire (ADR 0004: base 6/s, cap 20/s; was 3/s, 12/s, offsets 30 and
 	-- 72..28): every offset is shorter so unsteered fire still loses the large targets. Provisional
 	-- until the #17 ladder is re-run.
@@ -28,7 +42,7 @@ for pair = 1, 10 do
 		elseif pair <= 8 then 25
 		elseif pair == 9 then 20
 		else 15
-	local largeZ = 16 * spawnTime + largeOffset
+	local largeZ = waveSpawnZ(spawnTime, largeOffset)
 	table.insert(clusters, {
 		id = #clusters + 1,
 		wave = smallWave,
@@ -60,8 +74,8 @@ end
 local layout: Level.Layout = {
 	name = "debug-1",
 	seed = 0,
-	streetLength = 1600,
-	plazaStart = 1440,
+	streetLength = paceDistance(1600),
+	plazaStart = paceDistance(1440),
 	halfWidth = 20,
 	-- 2500 (was 1500): the continuous-fire base rate of 6/s (ADR 0004) converts more clusters on the
 	-- best route (real scripted run 2010, noisy runs up to about 2430; the validator reports 1785). Provisional until the #17 ladder is re-run.
@@ -70,51 +84,51 @@ local layout: Level.Layout = {
 	gates = {
 		{
 			id = 1,
-			z = 192,
+			z = paceDistance(192),
 			left = { kind = "add", value = 15 },
 			right = { kind = "multiply", value = 2 },
 		}, -- 12s
 		{
 			id = 2,
-			z = 320,
+			z = paceDistance(320),
 			left = { kind = "multiply", value = 2 },
 			right = { kind = "add", value = 20 },
 		}, -- 20s
 		{
 			id = 3,
-			z = 512,
+			z = paceDistance(512),
 			left = { kind = "add", value = 30 },
 			right = { kind = "add", value = 40 },
 		}, -- 32s
 		{
 			id = 4,
-			z = 736,
+			z = paceDistance(736),
 			left = { kind = "add", value = 40 },
 			right = { kind = "add", value = 50 },
 		}, -- 46s
 		{
 			id = 5,
-			z = 928,
+			z = paceDistance(928),
 			left = { kind = "add", value = 50 },
 			right = { kind = "add", value = 40 },
 		}, -- 58s
 		{
 			id = 6,
-			z = 1152,
+			z = paceDistance(1152),
 			left = { kind = "add", value = 80 },
 			right = { kind = "add", value = 100 },
 		}, -- 72s
 		{
 			id = 7,
-			z = 1344,
+			z = paceDistance(1344),
 			left = { kind = "multiply", value = 3 },
 			right = { kind = "add", value = 200 },
 		}, -- 84s
 	},
 	obstacles = {
-		{ id = 1, z = 640, side = "left" }, -- 40s
-		{ id = 2, z = 1024, side = "right" }, -- 64s
-		{ id = 3, z = 1408, side = "left" }, -- 88s
+		{ id = 1, z = paceDistance(640), side = "left" }, -- 40s
+		{ id = 2, z = paceDistance(1024), side = "right" }, -- 64s
+		{ id = 3, z = paceDistance(1408), side = "left" }, -- 88s
 	},
 	clusters = clusters,
 }

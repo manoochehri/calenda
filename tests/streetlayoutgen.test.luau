@@ -257,7 +257,18 @@ return {
 			local checked = 0
 			for _, pullback in { 1, 1.2, 1.4 } do
 				for _, leadX in { -14, -7, 0, 7, 14 } do
-					for _, leadZ in { 0, 150, 400, 700, 1000, 1300, 1430, 1500 } do
+					for _, leadZ in
+						{
+							0,
+							150,
+							400,
+							700,
+							1000,
+							1300,
+							DebugLayout.plazaStart - 10,
+							DebugLayout.plazaStart + 60,
+						}
+					do
 						local n = blockedCount(boxes, leadX, leadZ, pullback)
 						assert(
 							n == 0,

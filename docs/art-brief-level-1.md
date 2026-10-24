@@ -105,11 +105,12 @@ without any Sky asset; fog is pushed far out so the street stays crisp. No asset
 
 ## Zocalo plaza
 
-At the end (z 1440 to 1600): a checker of two warm paving tones, a kiosco (bandstand: round base,
-six posts, a terracotta roof and dome) just behind the end of the street, trees (trunk plus two
-round crowns) in a row on each side outside the plaza floor, the arcade facades, more flag strings
-on the same lanes, and the church-like wall behind. The plaza floor stays clear: the finale
-spreads dancers over all of it.
+At the end (the plaza begins at `layout.plazaStart`, currently 1296 studs, and the street ends at
+`layout.streetLength`, currently 1440 studs at the slower 14.4 studs/s pace): a checker of two warm
+paving tones, a kiosco (bandstand: round base, six posts, a terracotta roof and dome) just behind
+the end of the street, trees (trunk plus two round crowns) in a row on each side outside the plaza
+floor, the arcade facades, more flag strings on the same lanes, and the church-like wall behind.
+The plaza floor stays clear: the finale spreads dancers over all of it.
 
 ## Camera rule (heights against CameraRig)
 
