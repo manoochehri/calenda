@@ -83,7 +83,7 @@ return {
 		end,
 	},
 	{
-		name = "intensity curve is monotonic, bounded and doubles tempo only above its configured threshold",
+		name = "intensity grows monotonically while dance pace stays fixed at every crowd size",
 		run = function()
 			local previous = 0
 			for total = 0, 10000, 25 do
@@ -92,10 +92,45 @@ return {
 					amplitude >= 1 and amplitude <= DanceConfig.maxAmplitude,
 					"amplitude out of bounds"
 				)
-				expect(tempo >= 1 and tempo <= 2, "tempo multiplier out of bounds")
+				expect(tempo == 1, `tempo must stay constant at total {total}`)
 				expect(amplitude >= previous, "amplitude curve must be monotonic")
 				previous = amplitude
 			end
+		end,
+	},
+	{
+		name = "crossing the former high-intensity threshold keeps the same dance pace without a phase jump",
+		run = function()
+			local bpm = 120
+			local time = 5.123
+			local dt = 1 / 60
+			local below: number? = nil
+			local above: number? = nil
+			for total = 0, 10000 do
+				local _, _, intensity = Dance.intensity(total, total // 50)
+				if intensity < 0.72 then
+					below = total
+				elseif above == nil then
+					above = total
+					break
+				end
+			end
+			expect(below ~= nil and above ~= nil, "the former intensity boundary must be exercised")
+			local _, tempoBefore = Dance.intensity(below :: number, (below :: number) // 50)
+			local _, tempoAfter = Dance.intensity(above :: number, (above :: number) // 50)
+			expect(
+				tempoBefore == 1 and tempoAfter == 1,
+				"dance pace stays constant across the boundary"
+			)
+			local before = Dance.beatAt(time * tempoBefore, bpm)
+			local after = Dance.beatAt((time + dt) * tempoAfter, bpm)
+			local beforeBeats = before.index + before.phase
+			local afterBeats = after.index + after.phase
+			local expectedAdvance = dt * bpm / 60
+			expect(
+				math.abs((afterBeats - beforeBeats) - expectedAdvance) < 1e-6,
+				`crossing the threshold must advance by {expectedAdvance} beat(s), got {afterBeats - beforeBeats}`
+			)
 		end,
 	},
 	{

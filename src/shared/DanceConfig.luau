@@ -5,7 +5,6 @@ return table.freeze({
 	chorusStartsAtBar = 3,
 	maxJointRadians = 1.25,
 	maxAmplitude = 1.5,
-	doubleTempoAt = 0.72,
 	maxHopStuds = 0.65,
 	maxSwayRadians = 0.45,
 	maxArmRadians = 1.25,

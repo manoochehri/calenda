@@ -43,8 +43,7 @@ end
 function Dance.intensity(total: number, sections: number): (number, number, number)
 	local value = AudioIntensity.target(total, sections)
 	local amplitude = 1 + (DanceConfig.maxAmplitude - 1) * value
-	local tempo = if value >= DanceConfig.doubleTempoAt then 2 else 1
-	return amplitude, tempo, value
+	return amplitude, 1, value -- crowd size changes movement intensity, never the parade's pace
 end
 
 -- A compact shared pose record for the loose-follower catalogue. All rotations remain inside
