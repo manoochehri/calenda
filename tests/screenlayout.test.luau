@@ -266,8 +266,8 @@ return {
 					end
 				end
 			end)
-			-- Non-vacuous: all six persistent run elements were checked at all four ratios (no HP bar, ADR 0006).
-			assert(checked == 6 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
+			-- Non-vacuous: all five persistent run elements were checked at all four ratios (no HP bar, ADR 0006; the music toggle left the top row in #134).
+			assert(checked == 5 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
 		end,
 	},
 	{

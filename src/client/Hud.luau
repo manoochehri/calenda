@@ -59,7 +59,7 @@ local function placed(parent: Instance, name: string, font: Enum.Font): TextLabe
 	return l
 end
 
-function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
+function Hud.new(onReplay: () -> ()): Hud
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	-- Issue #78: landscape only. PlayerGui.ScreenOrientation reorients a running session at once
 	-- (Roblox docs, Mobile input); the place default is set in default.project.json.
@@ -89,26 +89,6 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	local scale = Instance.new("UIScale")
 	scale.Parent = counter
 	local detail = placed(gui, "Detail", TypeStyle.font("body"))
-	local musicMuted = false
-	local musicToggle = Instance.new("TextButton")
-	musicToggle.Name = "MusicToggle"
-	GuiLayout.place(musicToggle, "MusicToggle") -- top right corner, a >= 44 px target
-	musicToggle.BackgroundColor3 = Color3.fromRGB(48, 29, 55)
-	musicToggle.BackgroundTransparency = 0.15
-	musicToggle.TextColor3 = WHITE
-	musicToggle.TextStrokeColor3 = OUTLINE
-	musicToggle.TextStrokeTransparency = 0
-	musicToggle.TextScaled = true
-	musicToggle.Font = TypeStyle.font("body")
-	musicToggle.Text = Strings.musicOn
-	musicToggle.Parent = gui
-	GuiLayout.limitText(musicToggle, "MusicToggle")
-	musicToggle.Activated:Connect(function()
-		musicMuted = not musicMuted
-		musicToggle.Text = if musicMuted then Strings.musicOff else Strings.musicOn
-		onMusicMute(musicMuted)
-	end)
-
 	local hint = placed(gui, "Hint", TypeStyle.font("body"))
 	hint.Text = Strings.hint
 	TypeStyle.backing(hint) -- issue #104: a panel behind the floating hint

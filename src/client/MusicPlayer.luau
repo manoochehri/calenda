@@ -28,8 +28,6 @@ export type MusicPlayer = {
 	start: (self: MusicPlayer, now: number) -> (),
 	-- Call once per frame with the replicated crowd total and os.clock().
 	update: (self: MusicPlayer, total: number, now: number) -> (),
-	-- Player-facing mute toggle. Muting never pauses gameplay or stops the track timeline.
-	setMuted: (self: MusicPlayer, muted: boolean) -> (),
 	-- Finale music peak hook: FinalePlan.at(t).musicIntensity (0..1). nil/0 = normal level.
 	setPeak: (self: MusicPlayer, musicIntensity: number?) -> (),
 	-- Defeat: duck the music (true) or bring it back (false).
@@ -110,7 +108,6 @@ function MusicPlayer.new(): MusicPlayer
 	local duck = 1
 	local fadeIn = 0 -- single track: start-of-run fade 0..1
 	local self = {} :: MusicPlayer
-	local muted = false
 
 	local function allLoaded(): boolean
 		for _, sound in sounds do
@@ -158,10 +155,6 @@ function MusicPlayer.new(): MusicPlayer
 		tryStart(now)
 	end
 
-	function self.setMuted(_, value: boolean)
-		muted = value
-	end
-
 	function self.update(_, total: number, now: number)
 		if mode == "silent" then
 			return -- silent by default
@@ -198,7 +191,7 @@ function MusicPlayer.new(): MusicPlayer
 			sounds.track.Volume = MusicMixer.volume(fadeIn, peak)
 		end
 		if group then
-			group.Volume = (if muted then 0 else AudioIntensity.masterGain(intensity) * duck * comp)
+			group.Volume = AudioIntensity.masterGain(intensity) * duck * comp
 		end
 	end
 

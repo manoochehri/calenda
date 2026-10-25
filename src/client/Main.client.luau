@@ -141,8 +141,6 @@ stepAt = startupTrace:lap("SfxPlayer.new", stepAt)
 local hud = Hud.new(function()
 	replayRemote:FireServer()
 	sfx:play("replayClick", music:intensity(), os.clock())
-end, function(muted: boolean)
-	music:setMuted(muted)
 end)
 stepAt = startupTrace:lap("Hud.new", stepAt)
 local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here
