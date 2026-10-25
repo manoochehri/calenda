@@ -69,6 +69,26 @@ return {
 		end,
 	},
 	{
+		name = "issue 114: every section's feet stay above the feet band (-0.8 NDC) at pullback 1.0 to 1.4",
+		run = function()
+			local FEET_BAND = -0.8 -- lowest NDC y a section's feet may reach (bottom of the frame is -1)
+			for _, aspect in ASPECTS do
+				for _, pullback in PULLBACKS do
+					for i = 1, Config.visualBudget.sectionRepresentatives do
+						local base = FollowerSlots.base(i)
+						for _, leadX in { -8, 0, 8 } do
+							local ndc = shot(leadX, base.dx, base.dz, 0, pullback, aspect)
+							assert(
+								ndc.y >= FEET_BAND,
+								`section {i} feet at y={ndc.y} below the feet band {FEET_BAND} at pullback {pullback} aspect {aspect} leadX {leadX}`
+							)
+						end
+					end
+				end
+			end
+		end,
+	},
+	{
 		name = "every loose follower slot is on screen (feet and head) at pullback 1.0 to 1.4",
 		run = function()
 			for _, aspect in ASPECTS do

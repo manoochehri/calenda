@@ -43,9 +43,9 @@ FollowerSlots.BASES = table.freeze({
 	table.freeze({ dx = -5, dz = -10.3 }),
 	table.freeze({ dx = -0.5, dz = -12.5 }),
 	table.freeze({ dx = 4, dz = -9.9 }),
-	table.freeze({ dx = -4.5, dz = -18 }),
-	table.freeze({ dx = 0.5, dz = -17 }),
-	table.freeze({ dx = 5.5, dz = -17.4 }),
+	table.freeze({ dx = -4.4, dz = -16.5 }),
+	table.freeze({ dx = 0.9, dz = -16.8 }),
+	table.freeze({ dx = 5.5, dz = -16.2 }),
 })
 
 -- Deterministic unit float in [0, 1) from an integer and a salt (xorshift on 32 bits).
