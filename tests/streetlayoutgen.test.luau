@@ -10,6 +10,7 @@ local theme = LevelTheme.level1
 local info = {
 	streetLength = DebugLayout.streetLength,
 	plazaStart = DebugLayout.plazaStart,
+	startPlazaEnd = DebugLayout.startPlazaEnd,
 	halfWidth = DebugLayout.halfWidth,
 }
 local result = StreetLayoutGen.generate(info, theme, 54)
@@ -107,6 +108,16 @@ local function blockedCount(boxes: { Box }, leadX: number, leadZ: number, pullba
 end
 
 return {
+	{
+		name = "street paving starts beyond the opening plaza, leaving the route continuously walkable",
+		run = function()
+			for _, p in result.ground do
+				if p.group == "road" or p.group == "curb" then
+					assert(p.cz - p.sz / 2 >= DebugLayout.startPlazaEnd - 1e-6, p.name)
+				end
+			end
+		end,
+	},
 	{
 		name = "deterministic: same seed same output, different seed differs",
 		run = function()

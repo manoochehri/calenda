@@ -24,6 +24,7 @@ export type Cluster = {
 export type Layout = {
 	name: string,
 	seed: number, -- recorded seed; the fixed debug layout uses no randomness
+	startPlazaEnd: number?, -- route begins in a distinct plaza before the continuous street
 	streetLength: number,
 	plazaStart: number, -- z where the plaza begins; reaching it ends the run
 	halfWidth: number, -- walkable half width including sidewalks

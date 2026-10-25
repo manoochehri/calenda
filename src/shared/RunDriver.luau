@@ -139,6 +139,7 @@ local function copyForDetection(layout: Level.Layout): Level.Layout
 	return {
 		name = layout.name,
 		seed = layout.seed,
+		startPlazaEnd = layout.startPlazaEnd,
 		streetLength = layout.streetLength,
 		plazaStart = layout.plazaStart,
 		halfWidth = layout.halfWidth,

@@ -9,6 +9,8 @@ local Emergence = require("./Emergence")
 local Level = require("./Level")
 
 local BASE_SPEED = 16
+local START_PLAZA_BASE_LENGTH = 80
+local START_PLAZA_LENGTH = START_PLAZA_BASE_LENGTH * Config.speed / BASE_SPEED
 local function paceDistance(baseZ: number): number
 	return baseZ * Config.speed / BASE_SPEED
 end
@@ -73,6 +75,7 @@ end
 local layout: Level.Layout = {
 	name = "debug-1",
 	seed = 0,
+	startPlazaEnd = START_PLAZA_LENGTH,
 	streetLength = paceDistance(1600),
 	plazaStart = paceDistance(1440),
 	halfWidth = 20,
