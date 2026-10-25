@@ -1,6 +1,6 @@
 --!strict
 -- Spectator MOB tags, projectile arcs and the cheer (issue #12), drawn from primitive Parts. The
--- mobs themselves (hundreds of spectators by level of detail, the charge, the slam, the dispersal)
+-- mobs themselves (individual spectators in a scatter across the lane, the charge, the slam, the dispersal)
 -- are MobView's (issue #65); this file feeds it, keeps the meter tags, and adds the telegraph
 -- chevrons and the screen-edge pulse of the tension-from-the-top rules (Emergence).
 -- What to draw comes from the pure modules (ClusterVisual, ClusterFeed, FeedbackMath, Effects);
@@ -20,7 +20,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local Emergence = require(Shared:WaitForChild("Emergence"))
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local MobCharge = require(Shared:WaitForChild("MobCharge"))
-local MobLod = require(Shared:WaitForChild("MobLod"))
+local SpectatorScatter = require(Shared:WaitForChild("SpectatorScatter"))
 local QualityConfig = require(Shared:WaitForChild("QualityConfig"))
 local MeterDisplay = require(Shared:WaitForChild("MeterDisplay"))
 local Effects = require(Shared:WaitForChild("Effects"))
@@ -532,7 +532,10 @@ function ClusterView.new(layout: any): ClusterView
 		approachThreat = 0
 		for i, v in views do
 			-- Where the mob's body is (its front is v.z): shots and the +N aim at the middle.
-			local _, mobDepth = MobLod.footprint(MobLod.mobSize(v.reward, quality))
+			local mobDepth = SpectatorScatter.extent(
+				SpectatorScatter.individuals(v.reward, quality, Config.spectators.scatter),
+				Config.spectators.scatter
+			)
 			local midZ = v.z + mobDepth * 0.5
 			currentPositions[v.id] = { x = v.x, z = midZ }
 			local fade = Emergence.fade(v.ahead, depth)
@@ -594,7 +597,7 @@ function ClusterView.new(layout: any): ClusterView
 			end
 		end
 		debug.profilebegin("Calenda/Mobs")
-		mobs:update(descs, leadZ, clock, dt)
+		mobs:update(descs, leadZ, clock, dt, pullback)
 		debug.profileend()
 		-- Tags only for DRAWN mobs (a mob waiting for a slot has no tag) and not while it slams.
 		for i, v in views do

@@ -1,15 +1,14 @@
 --!strict
--- How a mob MOVES and LOOKS (issue #65): the wedge formation, the charging stride (hop, forward
+-- How a mob MOVES and LOOKS (issue #65): the charging stride (hop, forward
 -- lean, raised pumping arms), the slam into the parade, the dispersal to the sidewalks, the
 -- recolour of a converted mob and the palettes. Pure and display only: no Roblox APIs, nothing
 -- here decides a hit, a credit, damage or a total. Spectators are attackers until converted, so
 -- the unconverted palette is an "angry mob" (hot red/orange, leaning in, arms up) and the
 -- converted one is party fans (festive blues, gold, pink): friendly cartoon tone, no violence.
 -- Colors are 0..255 triples. The client (MobView) only turns these numbers into Parts.
+-- Where each individual stands is SpectatorScatter's.
 local MobCharge = {}
 
-MobCharge.SPACING_MIN = 0.6 -- [default] studs between figures, never tighter
-MobCharge.SPACING_MAX = 2.4 -- [default]
 MobCharge.STRIDE_HZ = 2.6 -- [default] steps per second
 MobCharge.STRIDE_HOP = 0.45 -- [default] studs
 MobCharge.LEAN = 0.32 -- [default] radians forward lean while charging
@@ -57,28 +56,6 @@ end
 
 local function lerp(a: number, b: number, t: number): number
 	return a + (b - a) * t
-end
-
--- Wedge slot of figure i (1-based) in a full wedge of `capacity` figures filling `width` x
--- `depth` studs. Row r holds up to 2r+1 figures; slot 1 is the apex at the FRONT. Returns
--- (dx lateral offset, dz studs BEHIND the front; the mob charges toward -z so behind = +z).
-function MobCharge.wedgeSlot(
-	i: number,
-	capacity: number,
-	width: number,
-	depth: number
-): (number, number)
-	local rows = math.max(1, math.ceil(math.sqrt(capacity)))
-	local r = math.ceil(math.sqrt(i)) - 1
-	local inRow = math.min(2 * r + 1, capacity - r * r)
-	local k = i - r * r - 1
-	local dxs = if rows > 1 then width / (2 * (rows - 1)) else 0
-	local dzs = depth / rows
-	dxs = math.clamp(dxs, MobCharge.SPACING_MIN, MobCharge.SPACING_MAX)
-	dzs = math.clamp(dzs, MobCharge.SPACING_MIN, MobCharge.SPACING_MAX)
-	local jx = (MobCharge.noise(i) - 0.5) * dxs * 0.4
-	local jz = (MobCharge.noise(i, 1) - 0.5) * dzs * 0.4
-	return (k - (inRow - 1) / 2) * dxs + jx, r * dzs + jz
 end
 
 -- Charging pose of a figure: hop height, forward lean (radians), arm bar height.

@@ -4,6 +4,7 @@
 local Emergence = require("../src/shared/Emergence")
 local MobLod = require("../src/shared/MobLod")
 local QualityConfig = require("../src/shared/QualityConfig")
+local Config = require("../src/shared/Config")
 
 local function near(a: number, b: number, name: string)
 	assert(math.abs(a - b) < 1e-6, `{name}: expected {b}, got {a}`)
@@ -119,23 +120,13 @@ return {
 	{
 		name = "lateral fit: a mob at the sidewalk never reaches |x| 21.5 at any quality, reward or side",
 		run = function()
-			for _, q in QualityConfig.NAMES do
-				for _, reward in { 1, 5, 15, 100, 1e9 } do
-					for _, cx in { -20, -16, -5, 0, 5, 16, 20 } do
-						local size = MobLod.mobSize(reward, q)
-						local w = MobLod.footprint(size)
-						local x = MobLod.lateralFit(cx, w)
-						local edge = math.abs(x) + w / 2 + MobLod.FIGURE_HALF
-						assert(
-							edge <= MobLod.STREET_LIMIT_X + 1e-9,
-							`{q} reward {reward} centre {cx}: edge {edge}`
-						)
-						assert(
-							math.abs(x) <= math.abs(cx) + 1e-9,
-							"only ever shifted toward the lane"
-						)
-					end
-				end
+			-- a mob's individuals spread over 2 x spreadHalfWidth (Config.spectators.scatter)
+			local w = 2 * Config.spectators.scatter.spreadHalfWidth
+			for _, cx in { -20, -16, -5, 0, 5, 16, 20 } do
+				local x = MobLod.lateralFit(cx, w)
+				local edge = math.abs(x) + w / 2 + MobLod.FIGURE_HALF
+				assert(edge <= MobLod.STREET_LIMIT_X + 1e-9, `centre {cx}: edge {edge}`)
+				assert(math.abs(x) <= math.abs(cx) + 1e-9, "only ever shifted toward the lane")
 			end
 			near(MobLod.lateralFit(0, 8), 0, "a centred mob is left alone")
 			near(MobLod.lateralFit(16, 6), 16, "a small mob at 16 does not move")
@@ -159,12 +150,12 @@ return {
 		name = "caps are stated honestly: emitters include the chevrons, bursts are counted",
 		run = function()
 			assert(QualityConfig.CHEVRONS == 6, "chevrons")
-			assert(QualityConfig.maxEmitters("high") == 34, "high emitters")
-			assert(QualityConfig.maxEmitters("medium") == 27, "medium emitters")
-			assert(QualityConfig.maxEmitters("low") == 21, "low emitters")
-			assert(QualityConfig.maxBurst("high") == 960, "high burst")
-			assert(QualityConfig.maxBurst("medium") == 360, "medium burst")
-			assert(QualityConfig.maxBurst("low") == 108, "low burst")
+			assert(QualityConfig.maxEmitters("high") == 14, "high emitters")
+			assert(QualityConfig.maxEmitters("medium") == 11, "medium emitters")
+			assert(QualityConfig.maxEmitters("low") == 9, "low emitters")
+			assert(QualityConfig.maxBurst("high") == 640, "high burst")
+			assert(QualityConfig.maxBurst("medium") == 240, "medium burst")
+			assert(QualityConfig.maxBurst("low") == 72, "low burst")
 		end,
 	},
 	{
