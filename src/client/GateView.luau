@@ -20,6 +20,7 @@ local PortalGeometry = require(Shared:WaitForChild("PortalGeometry"))
 local ParadeTail = require(Shared:WaitForChild("ParadeTail"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunView = require(Shared:WaitForChild("RunView"))
+local ServerClock = require(Shared:WaitForChild("ServerClock"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 local Bits = require(script.Parent:WaitForChild("Bits"))
 
@@ -250,6 +251,9 @@ function GateView.new(parent: Instance, layout: any): GateView
 	local clock = 0
 	local latest: Remotes.StatePayload? = nil
 	local receivedAt = 0
+	-- The same smoothed lead timeline Main draws the camera and lead from (issue #85). The raw State
+	-- extrapolation kinked every banner's fade, pulse and transparency 10 times a second.
+	local serverClock = ServerClock.new()
 	local total = Config.startingTotal
 	local tailDepth = ParadeTail.depth(total)
 
@@ -257,6 +261,7 @@ function GateView.new(parent: Instance, layout: any): GateView
 
 	function view.reset(_)
 		fx:reset()
+		serverClock:reset()
 		table.clear(reactions)
 		bits:clear()
 		ringAt = nil
@@ -282,6 +287,7 @@ function GateView.new(parent: Instance, layout: any): GateView
 		end
 		latest = payload
 		receivedAt = os.clock()
+		serverClock:observe(payload, receivedAt)
 		local nextTotal = RunView.wholeTotal(payload.total)
 		if nextTotal ~= total then
 			total = nextTotal
@@ -318,8 +324,17 @@ function GateView.new(parent: Instance, layout: any): GateView
 		if state == nil then
 			return
 		end
-		local _, leadZ =
-			RunView.leadPosition(state, os.clock() - receivedAt, Config.speed, layout.plazaStart)
+		local _, leadZ
+		if Config.debug.rawExtrapolation then
+			_, leadZ = RunView.leadPosition(
+				state,
+				os.clock() - receivedAt,
+				Config.speed,
+				layout.plazaStart
+			)
+		else
+			_, leadZ = serverClock:sample(os.clock(), Config.speed, layout.plazaStart)
+		end
 		local nextId = PortalFx.nextRowId(layout.gates, leadZ)
 
 		for _, p in portals do
