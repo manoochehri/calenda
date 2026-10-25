@@ -13,6 +13,12 @@ LeadPose.BOB_RATE = DanceConfig.leadBobRadiansPerSecond
 LeadPose.FACING_YAW = math.pi -- a Roblox front is -z; the parade walks toward +z
 LeadPose.FALLBACK_GRACE = 3 -- [default] seconds without an avatar before the block stand-in shows
 LeadPose.AVATAR_TOP = 6 -- studs: a default avatar with a tall hat or hair stays under this
+-- Issue #114: the lead is bigger and its ground ring wider. AVATAR_SCALE is applied to the player's
+-- character by LeadAvatar (Model:ScaleTo). DEFAULT_AVATAR_HEIGHT is a standing default R15 avatar,
+-- about 5 studs: UNVERIFIED in Studio. The scaled lead must stay under CameraRig.LEAD_TOP.
+LeadPose.AVATAR_SCALE = 1.15 -- [default]
+LeadPose.DEFAULT_AVATAR_HEIGHT = 5 -- studs, UNVERIFIED (see above)
+LeadPose.RING_DIAMETER = 10 -- [default] studs; was 8. Fits the road (FollowerSlots.roadHalfWidth).
 
 export type Pose = { x: number, y: number, z: number }
 
