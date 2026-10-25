@@ -125,7 +125,7 @@ return {
 		end,
 	},
 	{
-		name = "numerals (landscape 19.5:9 and 16:9): >= 5.5% of the screen height at pullback 1, never under 4%",
+		name = "numerals (landscape 16:9, 4:3, 19.5:9, 21:9): >= 5.5% of the screen height at pullback 1, never under 4%",
 		run = function()
 			local strings = { "15", "20", "30", "40", "50", "80", "100", "200", "x2", "x3", "999" }
 			local worst: { [number]: number } = {}
@@ -144,7 +144,7 @@ return {
 				end
 				-- The whole lane (both portals) must fit the screen WIDTH at the nearest row.
 				local depthZ = CameraRig.GATE_NEAR - pose.pz
-				for _, aspect in { 19.5 / 9, 16 / 9 } do
+				for _, aspect in { 16 / 9, 4 / 3, 19.5 / 9, 21 / 9 } do
 					local halfVisible = depthZ
 						* math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2))
 						* aspect

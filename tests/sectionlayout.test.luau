@@ -7,7 +7,7 @@ local SectionScale = require("../src/shared/SectionScale")
 local ViewMap = require("../src/shared/ViewMap")
 
 local MARGIN = 0.04
-local ASPECTS = { 16 / 9, 19.5 / 9, 4 / 3 } -- landscape: desktop, modern phone, tablet (portrait is out of scope)
+local ASPECTS = { 16 / 9, 4 / 3, 19.5 / 9, 21 / 9 } -- landscape: desktop, modern phone, tablet (portrait is out of scope)
 local PULLBACKS = { 1, 1.1, 1.2, 1.3, 1.4 }
 local TYPES = { "puppet", "globo", "dancers" }
 
