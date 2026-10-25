@@ -114,6 +114,16 @@ Bright warm daylight: ClockTime 14.5, Brightness 2.6, a warm ColorShift_Top, sof
 (ShadowSoftness 0.6), warm ambient. A blue Atmosphere (light haze, warm decay) gives the sky
 without any Sky asset; fog is pushed far out so the street stays crisp. No asset ids anywhere.
 
+## Distant scenery
+
+The street sits within a broad earth-colored ground plate so the high camera does not show the
+empty baseplate around the route. Beyond the street walls, paired rows of simple trees and broad,
+muted hillside silhouettes continue the view toward the horizon and frame the street and plaza.
+Use a fixed, symmetrical layout: the silhouettes are the same on every reset and sit well outside
+the road and camera corridor. Keep their greens and stone-like hill colors subdued so the bright
+facades, road, gates, lead and parade remain the visual focus. The scenery is made from native,
+anchored, non-interactive geometry with no asset IDs.
+
 ## Zocalo plaza
 
 At the end (the plaza begins at `layout.plazaStart`, currently 1296 studs, and the street ends at
