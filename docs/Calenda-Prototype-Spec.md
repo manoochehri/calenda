@@ -90,6 +90,8 @@ Example: 2,000 followers means 40 logical sections, not 40 fully simulated giant
 
 Use a modest camera pullback and denser formation as the party grows. Give the music and decorations additional intensity without endlessly enlarging models. Do not merge the entire parade into an animal in this prototype; puppets, globos, and dancers are the core identity. The supplied colorful animal sculpture is a possible later collectible or plaza prop.
 
+The parade's size is the life bar (Amendment 4): the exact crowd counter is the only life display, so the representation rules above never hide a loss. There is no separate HP bar.
+
 ## 9. Level, obstacles, and ending
 
 | Run time | Intended experience |
@@ -151,6 +153,8 @@ If players do not understand assembly or want another run, improve the core loop
 ---
 
 ## Amendment 1 — Attacking waves and parade HP (owner decisions, 2026-10-23)
+
+**Superseded in part by Amendment 4 (issue #121):** the separate parade HP, its bar, its defeat check and its HP balance no longer exist. Attacks and tomatoes remove followers instead. Read every HP statement below as the crowd total.
 
 Supersedes, where they conflict: §3 and §4 (static sidewalk clusters; "leave range without a penalty"), §9 ("Reaching the plaza always completes the run") and §12's "no penalty" wording. §5's "No death or destruction animation" is clarified, not removed: defeat is a playful party breakup, never a death or destruction animation. "Zero followers is recoverable" still holds. Everything not listed here is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), and the −10 obstacle.
 
@@ -214,3 +218,36 @@ Supersedes, where they conflict: the Amendment 1 / §4 picture of small groups o
 - **The charge.** Unconverted mobs run straight down the lane as a wedge with stride, raised arms and a forward lean, stop at the front of the parade, and on the server's attack Event slam in (the bump, shake and HP hit of #50) and only then scatter to the sidewalks and dissolve into a puff. Converted mobs recolour to the party palette and stream into the parade. Spectators are attackers until converted: angry-mob colouring before, party fans after, always a friendly cartoon tone.
 - **Tension from the top.** A cluster spawns beyond the camera's visible depth plus a margin (`Emergence`, derived from `CameraRig`); a wave is in view for at least 3 seconds before it arrives; nothing is in view during the first 5 seconds; a mob fades and scales in at the far end; a warning chevron and dust mark the top of the lane; a colour pulse on the mob and a screen-edge pulse grow as it closes in. `LayoutValidator` enforces the spawn, approach and calm-opening rules for every layout.
 - **Balance consequence.** A wave that really approaches from far away is inside `firing.range` for `range / (speed + approachSpeed)` seconds instead of the old 1 second, so it is easier to convert. To keep the Amendment 1 checks true the debug layout was retimed (provisional, flagged for the skeptic): `spectators.approachSpeed` 6 to 20, every pair 9 seconds later, and rising lines of extra small groups. The #17 ladder must be re-run.
+
+
+---
+
+## Amendment 4 — The parade size is the life bar (owner decision, 2026-10-24)
+
+Owner decision on issue #121, recorded in [ADR 0006](../.trazo/project/adr/0006-parade-size-is-the-life-bar.md): "the life bar should be the calenda's candela, the parade's life." A horde that is not shot costs followers; the run ends when the parade has none.
+
+Supersedes, where they conflict: all of Amendment 1's parade HP (its "Crowd size and HP are separate" section, the `hp` integer, `spectators` HP damage, the HP-based ordering in phases 3 and 4, the HUD HP bar and the HP balance paragraph); §9's "Zero followers is recoverable" and the tomato line "costs 5 parade HP"; §11's `parade HP (hp.max)` and `attackDamage` keys; §12's HP checks and "no penalty" wording; Amendment 1's "Amendment 1 checks" HP items; and Amendment 2's balance note where it names HP. Everything else is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), the −10 obstacle, cluster conversion, credit-once, targeting, continuous fire and server authority.
+
+**One life number.**
+- `crowdTotal` is the only life. There is no `hp`, no `maxHp`, no HP bar and no HP in any replicated payload, Config key or run log field. The HUD shows the crowd counter, and a hit reacts through the existing shake, flash and sound.
+- Config owns every loss amount: `clusterTypes.small.attackLoss` and `clusterTypes.large.attackLoss` (followers lost when that type's unconverted cluster reaches the parade) and `hazards.tomatoLoss` (followers lost to an unblocked tomato). Each is one whole-number Config line.
+
+**Losses.**
+- A horde that reaches the parade unconverted (Amendment 1, "Attack") removes its type's `attackLoss` from `crowdTotal`, exactly once, and is removed. A horde is not a fraction of the parade: the amount is fixed per type.
+- An unblocked tomato (§9, issue #96) removes `hazards.tomatoLoss` followers, once. A landed gift still blocks it.
+- The −10 obstacle (§9) is unchanged.
+- Every loss clamps at zero: a total never goes below 0. The loss goes through the same total as every other change, so sections disperse by the normal rule (§5, newest first) and the counter and visuals stay exact.
+- Losses never change gates, the recruit credit, the firing rate or any section's contents beyond the normal total rule.
+
+**Defeat.** The run ends defeated the moment `crowdTotal` reaches 0 (`outcome` "defeated", once, logged). The score is the crowd total at that moment, so a defeated run scores 0. The session best counts completed runs only. Replay resets the total to the starting total.
+
+**Same-tick order (Amendment 1, revised).** Phase 1 (shots and conversions) and phase 2 (lead, gates, obstacle and hazards) run as before. A total that reaches zero in phase 2 ends the run there, and any later event in that tick is ignored. In phase 3, each unconverted cluster that reached the parade attacks once in id order; a total reaching zero during phase 3 ends the run after the remaining attacks of that batch are recorded at zero. Defeat still wins over reaching the plaza on the same tick.
+
+**Balance (provisional).** The `attackLoss` and `tomatoLoss` defaults are first guesses on a starting total of 10 and are UNVERIFIED until the layout validator, the bot runs and the #17 ladder are re-run. The checks are: a no-input run ends defeated; a competent scripted run completes with followers left; a single lost horde never ends a competent run. Owner review sets the final values.
+
+**Checks.**
+- A hit removes exactly its configured loss, once; a second event for the same cluster or tomato removes nothing.
+- The total is clamped at zero and never goes negative.
+- Reaching zero defeats the run once; later events are ignored; reset restores the starting total.
+- No `hp` field exists in RunState, the run snapshot, the State payload or Config.
+- Clients display the server's total only and never compute a loss.
