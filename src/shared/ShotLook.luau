@@ -117,13 +117,18 @@ end
 export type MissPose = { dx: number, dy: number, dz: number, scale: number, alpha: number }
 
 -- A miss at flight progress f (0..1), shot number n: offsets from where it left the lead. It goes
--- straight ahead (+z), rises a little, shrinks and fades out; alpha is the opacity 1..0.
-function ShotLook.miss(f: number, n: number): MissPose
+-- straight ahead (+z), rises a little, shrinks and fades out; alpha is the opacity 1..0. `lateral`
+-- (issue #63) is the stream's constant sideways offset in studs; without it the old 5-lane spread.
+function ShotLook.miss(f: number, n: number, lateral: number?): MissPose
 	local k = math.clamp(f, 0, 1)
 	local lane = (n % 5) - 2 -- -2..2, deterministic variety
 	local fade = math.clamp((k - ShotLook.MISS_FADE_FROM) / (1 - ShotLook.MISS_FADE_FROM), 0, 1)
+	local dx = lane * ShotLook.MISS_SPREAD * k
+	if lateral ~= nil then
+		dx = lateral * math.min(1, 3 * k) -- a parallel stream: it eases out to its lane early
+	end
 	return {
-		dx = lane * ShotLook.MISS_SPREAD * k,
+		dx = dx,
 		dy = ShotLook.MISS_LIFT * k,
 		dz = ShotLook.MISS_DISTANCE * k,
 		scale = 1 - (1 - ShotLook.MISS_SHRINK) * k,
