@@ -194,21 +194,41 @@ local function buildWorld()
 	local sidewalkColor = toColor(palette.sidewalk)
 	local plazaColor = toColor(palette.plazaPaving)
 	local streetEnd = DebugLayout.plazaStart
+	local streetStart = DebugLayout.startPlazaEnd
 	local sidewalkCenter = ROAD_HALF_WIDTH + SIDEWALK_WIDTH / 2
 
+	-- The run begins in its own broad plaza. The route then narrows into the street and ends in
+	-- the existing finale plaza; both transitions are crossed on foot at the same fixed pace.
+	addGround(world, "StartingPlaza", 0, 0, streetStart, DebugLayout.halfWidth * 3, plazaColor)
 	-- The road sits one kerb (0.2) below the sidewalks; OaxacaStreet lays flagstone courses on it.
 	addGround(
 		world,
 		"Street",
 		0,
-		0,
+		streetStart,
 		streetEnd,
 		ROAD_HALF_WIDTH * 2,
 		roadColor,
 		LayerHeights.ROAD_BASE
 	)
-	addGround(world, "LeftSidewalk", -sidewalkCenter, 0, streetEnd, SIDEWALK_WIDTH, sidewalkColor)
-	addGround(world, "RightSidewalk", sidewalkCenter, 0, streetEnd, SIDEWALK_WIDTH, sidewalkColor)
+	addGround(
+		world,
+		"LeftSidewalk",
+		-sidewalkCenter,
+		streetStart,
+		streetEnd,
+		SIDEWALK_WIDTH,
+		sidewalkColor
+	)
+	addGround(
+		world,
+		"RightSidewalk",
+		sidewalkCenter,
+		streetStart,
+		streetEnd,
+		SIDEWALK_WIDTH,
+		sidewalkColor
+	)
 	addGround(
 		world,
 		"Plaza",
