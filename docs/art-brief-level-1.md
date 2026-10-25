@@ -75,10 +75,11 @@ stay outside the camera corridor to the road, gates, spectators and lead (see "C
 
 ## Rey the chicken
 
-One small primitive-Part chicken named Rey appears at a seeded random position along the street's
-forecourt, beyond |x| = 20 and before the plaza. Rey is ambient and visual-only: no collision,
-interaction, scoring, or gameplay effect. The position changes with the layout seed, and the
-camera sight-line test includes the chicken's bounds.
+Rey is a large primitive-Part chicken that marches beside the lead as part of the parade and follows
+it through the street and into the plaza. Keep the full silhouette in the road's outer lane, away
+from the lead and gates. Rey is visual-only: no collision, interaction, recruiting, score, or gameplay
+effect. Her side is deterministic, and camera tests cover the complete silhouette across supported
+seeds and steering positions. Engine appearance remains UNVERIFIED until the owner checks in Studio.
 
 ## Papel picado
 

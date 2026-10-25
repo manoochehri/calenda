@@ -3,7 +3,6 @@
 local CameraRig = require("../src/shared/CameraRig")
 local DebugLayout = require("../src/shared/DebugLayout")
 local LevelTheme = require("../src/shared/LevelTheme")
-local ScreenProject = require("../src/shared/ScreenProject")
 local StreetLayoutGen = require("../src/shared/StreetLayoutGen")
 local ViewMap = require("../src/shared/ViewMap")
 
@@ -16,23 +15,6 @@ local info = {
 local result = StreetLayoutGen.generate(info, theme, 54)
 
 type Box = { cx: number, cy: number, cz: number, sx: number, sy: number, sz: number }
-
-local function reyBounds(rey: StreetLayoutGen.Rey): Box
-	return {
-		cx = rey.x,
-		cy = 1,
-		cz = rey.z + 0.15,
-		sx = 1.5,
-		sy = 2,
-		sz = 2.4,
-	}
-end
-
-local function overlaps(a: Box, b: Box): boolean
-	return math.abs(a.cx - b.cx) * 2 < a.sx + b.sx
-		and math.abs(a.cy - b.cy) * 2 < a.sy + b.sy
-		and math.abs(a.cz - b.cz) * 2 < a.sz + b.sz
-end
 
 -- Slab test: does the segment a->b hit the axis-aligned box?
 local function hits(a: { number }, b: { number }, box: Box): boolean
@@ -66,7 +48,6 @@ local function allBoxes(r: StreetLayoutGen.Result): { Box }
 			table.insert(boxes, p)
 		end
 	end
-	table.insert(boxes, reyBounds(r.rey))
 	for _, s in r.flags do
 		table.insert(boxes, {
 			cx = s.x,
@@ -290,101 +271,6 @@ return {
 		end,
 	},
 	{
-		name = "Rey is a seeded chicken cameo outside gameplay space",
-		run = function()
-			local rey = (result :: any).rey
-			assert(rey ~= nil, "Rey exists")
-			local again = (StreetLayoutGen.generate(info, theme, 54) :: any).rey
-			assert(rey.x == again.x and rey.z == again.z, "same seed places Rey the same way")
-			local other = (StreetLayoutGen.generate(info, theme, 55) :: any).rey
-			assert(rey.x ~= other.x or rey.z ~= other.z, "another seed moves Rey")
-			assert(
-				math.abs(rey.x) > 20 and math.abs(rey.x) < theme.layout.facadeInset,
-				"Rey stays on the forecourt"
-			)
-			assert(rey.z > 0 and rey.z < info.plazaStart, "Rey appears along the street")
-		end,
-	},
-	{
-		name = "Rey's full bounds stay in clear forecourt space across layout seeds",
-		run = function()
-			for seed = 1, 64 do
-				local layout = StreetLayoutGen.generate(info, theme, seed)
-				local bounds = reyBounds(layout.rey)
-				for _, f in layout.facades do
-					local boxes = StreetLayoutGen.facadeBoxes(f)
-					for _, structure in boxes do
-						assert(
-							not overlaps(bounds, structure),
-							`seed {seed}: Rey overlaps facade/roof {f.id}`
-						)
-					end
-					local roof = boxes[2]
-					local sharesStreetDepth = math.abs(bounds.cz - roof.cz) * 2
-						< bounds.sz + roof.sz
-					local sharesRoofFootprint = math.abs(bounds.cx - roof.cx) * 2
-						< bounds.sx + roof.sx
-					assert(
-						not (sharesStreetDepth and sharesRoofFootprint),
-						`seed {seed}: Rey's full footprint sits under roof cap {f.id}`
-					)
-				end
-			end
-		end,
-	},
-	{
-		name = "max-scale Rey reads from the gameplay camera within five seconds",
-		run = function()
-			local rey = result.rey
-			local bounds = reyBounds(rey)
-			local boxes = allBoxes(result)
-			local visible = false
-			for tenth = 0, 50 do
-				local leadZ = 14.4 * tenth / 10
-				local pose = CameraRig.pose(0, leadZ, 1)
-				local center = ScreenProject.project(
-					pose,
-					16 / 9,
-					ViewMap.x(rey.x),
-					bounds.cy,
-					rey.z + 0.15
-				)
-				local top = ScreenProject.project(
-					pose,
-					16 / 9,
-					ViewMap.x(rey.x),
-					bounds.cy + bounds.sy / 2,
-					rey.z + 0.15
-				)
-				local bottom = ScreenProject.project(
-					pose,
-					16 / 9,
-					ViewMap.x(rey.x),
-					bounds.cy - bounds.sy / 2,
-					rey.z + 0.15
-				)
-				local tallEnough = math.abs(top.y - bottom.y) >= 0.08
-				local onScreen = ScreenProject.onScreen(center, 0.05)
-				if onScreen and tallEnough then
-					local cam = { pose.px, pose.py, pose.pz }
-					local target = { ViewMap.x(rey.x), bounds.cy, rey.z + 0.15 }
-					local clear = true
-					for _, box in boxes do
-						if box ~= bounds and hits(cam, target, box) then
-							clear = false
-							break
-						end
-					end
-					if clear then
-						visible = true
-						break
-					end
-				end
-			end
-			assert(visible, "Rey is clearly visible during the first five seconds after Jugar")
-		end,
-	},
-	{
 		name = "camera sight lines to the lead, the next gate row and spectators clear every prop",
 		run = function()
 			local boxes = allBoxes(result)
@@ -461,7 +347,6 @@ return {
 		run = function()
 			local order = StreetLayoutGen.buildOrder(result)
 			local expected = #result.facades
-				+ 1 -- Rey
 				+ #result.flags
 				+ #result.lamps
 				+ #result.ground

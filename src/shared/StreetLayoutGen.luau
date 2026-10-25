@@ -30,7 +30,6 @@ export type Window = {
 export type Door = { u: number, w: number, h: number, arched: boolean }
 export type Arch = { u: number, w: number, h: number }
 export type Balcony = { u: number, y: number, w: number, depth: number }
-export type Rey = { x: number, z: number }
 
 export type Facade = {
 	id: number,
@@ -105,7 +104,6 @@ export type Counts = {
 
 export type Result = {
 	facades: { Facade },
-	rey: Rey,
 	flags: { FlagStrip },
 	lamps: { Lamp },
 	ground: { Prim },
@@ -667,24 +665,6 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 
 	local ground = makeGround(theme, info, z0, z1)
 	local plaza = makePlaza(theme, info, rng)
-	-- Keep Rey on the forecourt beyond the sidewalk, randomly placed along the run. The seeded
-	-- position makes replays/recorded layouts reproducible while still varying with the layout seed.
-	local reySide = if rng() < 0.5 then -1 else 1
-	local reyHalfWidth = 0.75
-	local lampHalfWidth = 0.8 -- the lamp lantern is 1.6 studs wide
-	local minReyX = math.max(
-		info.halfWidth + reyHalfWidth + 0.05,
-		l.lampX + lampHalfWidth + reyHalfWidth + 0.05
-	)
-	local roofInnerEdge = l.facadeInset
-		- StreetLayoutGen.ROOF_CAP_DEPTH_EXTRA / 2
-		- StreetLayoutGen.ROOF_CAP_INNER_SHIFT
-	local maxReyX = roofInnerEdge - reyHalfWidth - 0.05
-	local rey = {
-		x = reySide * (minReyX + rng() * math.max(0, maxReyX - minReyX)),
-		z = 40 + rng() * math.max(1, info.plazaStart - 80),
-	}
-
 	local facadeParts, gui = 0, 0
 	for _, f in facades do
 		facadeParts += f.parts
@@ -696,7 +676,6 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 	end
 	return {
 		facades = facades,
-		rey = rey,
 		flags = flags,
 		lamps = lamps,
 		ground = ground,
@@ -708,7 +687,7 @@ function StreetLayoutGen.generate(info: LayoutInfo, theme: LevelTheme.Theme, see
 			plazaParts = #plaza,
 			groundParts = #ground,
 			guiInstances = gui,
-			totalParts = facadeParts + 7 + #flags + #lamps * 2 + #plaza + #ground,
+			totalParts = facadeParts + #flags + #lamps * 2 + #plaza + #ground,
 		},
 	}
 end
@@ -722,7 +701,6 @@ function StreetLayoutGen.buildOrder(result: Result): { BuildItem }
 	for i, f in result.facades do
 		table.insert(items, { kind = "facade", index = i, z = f.z })
 	end
-	table.insert(items, { kind = "rey", index = 1, z = result.rey.z })
 	for i, s in result.flags do
 		table.insert(items, { kind = "flag", index = i, z = (s.z0 + s.z1) / 2 })
 	end
