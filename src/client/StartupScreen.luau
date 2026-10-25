@@ -5,6 +5,10 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
+local ScreenLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ScreenLayout"))
 
 export type Screen = {
 	setProgress: (self: Screen, fraction: number) -> (),
@@ -172,10 +176,17 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaStartup"
-	gui.IgnoreGuiInset = true
+	GuiLayout.fullScreen(gui) -- decorative backdrop only; the Play button lives in `controls`
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 100
+	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.startup
 	gui.Parent = playerGui
+	-- Issue #78: the primary button is in the safe area, lower right, under the thumb.
+	local controls = Instance.new("ScreenGui")
+	controls.Name = "CalendaStartupControls"
+	GuiLayout.safe(controls)
+	controls.ResetOnSpawn = false
+	controls.DisplayOrder = ScreenLayout.DISPLAY_ORDER.startupControls
+	controls.Parent = playerGui
 
 	local veil = Instance.new("Frame")
 	veil.Name = "Veil"
@@ -196,8 +207,9 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local card = Instance.new("Frame")
 	card.Name = "Card"
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.48)
-	card.Size = UDim2.fromScale(0.84, 0.74)
+	local tc = ScreenLayout.TITLE_CARD -- landscape: ends above the lower right Play button
+	card.Position = UDim2.fromScale(tc.x, tc.y)
+	card.Size = UDim2.fromScale(tc.w, tc.h)
 	card.BackgroundColor3 = Color3.fromRGB(58, 39, 69)
 	card.BackgroundTransparency = 0.06
 	card.BorderSizePixel = 0
@@ -205,7 +217,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	round(card, 30)
 	stroke(card, Color3.fromRGB(255, 223, 166), 3)
 	local bounds = Instance.new("UISizeConstraint")
-	bounds.MinSize = Vector2.new(300, 360)
+	bounds.MinSize = Vector2.new(300, 240) -- was 360: taller than a 390 px phone leaves room
 	bounds.MaxSize = Vector2.new(600, 610)
 	bounds.Parent = card
 
@@ -279,9 +291,10 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 
 	local play = Instance.new("TextButton")
 	play.Name = "Play"
-	play.AnchorPoint = Vector2.new(0.5, 0)
-	play.Position = UDim2.fromScale(0.5, 0.54)
-	play.Size = UDim2.fromScale(0.58, 0.16)
+	local primary = ScreenLayout.PRIMARY_BUTTON
+	play.AnchorPoint = Vector2.new(primary.ax, primary.ay)
+	play.Position = UDim2.fromScale(primary.x, primary.y)
+	play.Size = UDim2.fromScale(primary.w, primary.h)
 	play.BackgroundColor3 = Color3.fromRGB(221, 82, 75)
 	play.BorderSizePixel = 0
 	play.AutoButtonColor = false
@@ -291,7 +304,11 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	play.TextScaled = true
 	play.Font = Enum.Font.FredokaOne
 	play.Visible = false
-	play.Parent = card
+	play.Parent = controls
+	local playLimit = Instance.new("UITextSizeConstraint")
+	playLimit.MinTextSize = ScreenLayout.MIN_TEXT
+	playLimit.MaxTextSize = 36
+	playLimit.Parent = play
 	round(play, 24)
 	stroke(play, Color3.fromRGB(255, 226, 165), 3)
 	local playScale = Instance.new("UIScale")
@@ -312,7 +329,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local footer = label(card, "Version", VERSION_LABEL, Enum.Font.GothamBold)
 	footer.AnchorPoint = Vector2.new(0.5, 1)
 	footer.Position = UDim2.fromScale(0.5, 0.91)
-	footer.Size = UDim2.fromScale(0.36, 0.045)
+	footer.Size = UDim2.fromScale(0.36, 0.06)
 	footer.TextColor3 = Color3.fromRGB(222, 204, 197)
 	footer.TextTransparency = 0.1
 	footer.TextSize = 12
@@ -350,6 +367,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 		if GuiService.SelectedObject == play then
 			GuiService.SelectedObject = nil
 		end
+		controls:Destroy()
 		gui:Destroy() -- releases the looping logo and parade tweens once Play begins
 	end
 

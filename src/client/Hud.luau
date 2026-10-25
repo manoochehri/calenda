@@ -7,6 +7,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
+local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
 local HpBar = require(Shared:WaitForChild("HpBar"))
 local RunView = require(Shared:WaitForChild("RunView"))
@@ -48,45 +50,48 @@ local function label(
 	return l
 end
 
+-- A text label placed by its ScreenLayout element, with that element's text size limits.
+local function placed(parent: Instance, name: string, font: Enum.Font): TextLabel
+	local l = label(parent, name, UDim2.new(), UDim2.new(), font)
+	GuiLayout.place(l, name)
+	GuiLayout.limitText(l, name)
+	return l
+end
+
 function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
+	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	-- Issue #78: landscape only. PlayerGui.ScreenOrientation reorients a running session at once
+	-- (Roblox docs, Mobile input); the place default is set in default.project.json.
+	pcall(function()
+		playerGui.ScreenOrientation = Enum.ScreenOrientation.LandscapeSensor
+	end)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaHud"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hud
+	GuiLayout.safe(gui)
+	gui.Parent = playerGui
+	-- Decorative full-screen layer (hit flash, results dim): no text, no buttons.
+	local fx = Instance.new("ScreenGui")
+	fx.Name = "CalendaHudFx"
+	fx.ResetOnSpawn = false
+	-- Below CalendaHud (order 0) so the results dim sits UNDER the Title/Score/Best/Replay texts; ties
+	-- are unspecified in the docs. Table and test: ScreenLayout.DISPLAY_ORDER.
+	fx.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hudFx
+	GuiLayout.fullScreen(fx)
+	fx.Parent = playerGui
 
 	-- Crowd counter, top center. The big number is the exact total; the line under it is the
-	-- exact loose count and section count.
-	label(
-		gui,
-		"Caption",
-		UDim2.fromScale(0.5, 0.02),
-		UDim2.fromScale(0.4, 0.04),
-		Enum.Font.GothamBold
-	).Text =
-		Strings.followers
-	local counter = label(
-		gui,
-		"Counter",
-		UDim2.fromScale(0.5, 0.06),
-		UDim2.fromScale(0.5, 0.11),
-		Enum.Font.GothamBlack
-	)
+	-- exact loose count and section count. Rects come from ScreenLayout (tested at every aspect).
+	placed(gui, "Caption", Enum.Font.GothamBold).Text = Strings.followers
+	local counter = placed(gui, "Counter", Enum.Font.GothamBlack)
 	local scale = Instance.new("UIScale")
 	scale.Parent = counter
-	local detail = label(
-		gui,
-		"Detail",
-		UDim2.fromScale(0.5, 0.17),
-		UDim2.fromScale(0.4, 0.04),
-		Enum.Font.GothamBold
-	)
+	local detail = placed(gui, "Detail", Enum.Font.GothamBold)
 	local musicMuted = false
 	local musicToggle = Instance.new("TextButton")
 	musicToggle.Name = "MusicToggle"
-	musicToggle.AnchorPoint = Vector2.new(1, 0)
-	musicToggle.Position = UDim2.fromScale(0.98, 0.025)
-	musicToggle.Size = UDim2.fromScale(0.2, 0.055)
+	GuiLayout.place(musicToggle, "MusicToggle") -- top right corner, a >= 44 px target
 	musicToggle.BackgroundColor3 = Color3.fromRGB(48, 29, 55)
 	musicToggle.BackgroundTransparency = 0.15
 	musicToggle.TextColor3 = WHITE
@@ -96,19 +101,14 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	musicToggle.Font = Enum.Font.GothamBold
 	musicToggle.Text = Strings.musicOn
 	musicToggle.Parent = gui
+	GuiLayout.limitText(musicToggle, "MusicToggle")
 	musicToggle.Activated:Connect(function()
 		musicMuted = not musicMuted
 		musicToggle.Text = if musicMuted then Strings.musicOff else Strings.musicOn
 		onMusicMute(musicMuted)
 	end)
 
-	local hint = label(
-		gui,
-		"Hint",
-		UDim2.fromScale(0.5, 0.86),
-		UDim2.fromScale(0.7, 0.07),
-		Enum.Font.GothamBlack
-	)
+	local hint = placed(gui, "Hint", Enum.Font.GothamBlack)
 	hint.Text = Strings.hint
 
 	-- Parade HP bar (issue #50), top left next to the counter: icon, meter and number, so it
@@ -116,9 +116,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	local hpRoot = Instance.new("Frame")
 	hpRoot.Name = "HpBar"
 	hpRoot.BackgroundTransparency = 1
-	hpRoot.AnchorPoint = Vector2.new(0, 0)
-	hpRoot.Position = UDim2.fromScale(0.03, 0.03)
-	hpRoot.Size = UDim2.fromScale(0.22, 0.07)
+	GuiLayout.place(hpRoot, "HpBar")
 	hpRoot.Visible = false
 	hpRoot.Parent = gui
 	local hpScale = Instance.new("UIScale")
@@ -160,7 +158,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	hpNumber.TextStrokeTransparency = 0
 	hpNumber.ZIndex = 2
 	local hpLimit = Instance.new("UITextSizeConstraint")
-	hpLimit.MinTextSize = 12 -- readable on a phone
+	hpLimit.MinTextSize = 14 -- readable on a phone (ScreenLayout.MIN_TEXT)
 	hpLimit.MaxTextSize = 26
 	hpLimit.Parent = hpNumber
 	hpNumber.Parent = hpBack
@@ -179,7 +177,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 		g.Rotation = rotation
 		g.Transparency = NumberSequence.new(0, 1)
 		g.Parent = f
-		f.Parent = gui
+		f.Parent = fx
 		table.insert(flashParts, f)
 	end
 	flashEdge(UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.25), 90) -- top, opaque at the edge
@@ -192,42 +190,31 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	wash.BorderSizePixel = 0
 	wash.BackgroundTransparency = 1
 	wash.Visible = false
-	wash.Parent = gui
+	wash.Parent = fx
 
-	-- End of run panel. Shown purely from State (over/outcome); hidden again on replay.
+	-- End of run panel. Shown purely from State (over/outcome); hidden again on replay. The dim
+	-- is full screen (fx gui); the texts and the replay button sit in the safe area.
+	local dim = Instance.new("Frame")
+	dim.Name = "EndDim"
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
+	dim.BackgroundTransparency = 0.45
+	dim.BorderSizePixel = 0
+	dim.Visible = false
+	dim.Parent = fx
 	local panel = Instance.new("Frame")
 	panel.Name = "EndPanel"
 	panel.Size = UDim2.fromScale(1, 1)
-	panel.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
-	panel.BackgroundTransparency = 0.45
+	panel.BackgroundTransparency = 1
 	panel.Visible = false
 	panel.Parent = gui
-	local title = label(
-		panel,
-		"Title",
-		UDim2.fromScale(0.5, 0.25),
-		UDim2.fromScale(0.8, 0.12),
-		Enum.Font.GothamBlack
-	)
-	local score = label(
-		panel,
-		"Score",
-		UDim2.fromScale(0.5, 0.4),
-		UDim2.fromScale(0.5, 0.08),
-		Enum.Font.GothamBlack
-	)
-	local best = label(
-		panel,
-		"Best",
-		UDim2.fromScale(0.5, 0.5),
-		UDim2.fromScale(0.4, 0.05),
-		Enum.Font.GothamBold
-	)
+	local title = placed(panel, "Title", Enum.Font.GothamBlack)
+	local score = placed(panel, "Score", Enum.Font.GothamBlack)
+	local best = placed(panel, "Best", Enum.Font.GothamBold)
+	-- Primary button: the lower right corner, under the right thumb (ScreenLayout.PRIMARY_BUTTON).
 	local replay = Instance.new("TextButton")
 	replay.Name = "Replay"
-	replay.AnchorPoint = Vector2.new(0.5, 0)
-	replay.Position = UDim2.fromScale(0.5, 0.62)
-	replay.Size = UDim2.fromScale(0.5, 0.1)
+	GuiLayout.place(replay, "Replay")
 	replay.BackgroundColor3 = Color3.fromRGB(240, 120, 20)
 	replay.TextColor3 = WHITE
 	replay.TextStrokeColor3 = OUTLINE
@@ -236,6 +223,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	replay.Font = Enum.Font.GothamBlack
 	replay.Text = Strings.replay
 	replay.Parent = panel
+	GuiLayout.limitText(replay, "Replay")
 	replay.Activated:Connect(onReplay)
 
 	-- Assign text only when it changes: State arrives about 10 times a second.
@@ -254,6 +242,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 		end
 		hint.Visible = hintVisible
 		panel.Visible = view.showEnd
+		dim.Visible = view.showEnd
 		if view.showEnd then
 			if view.endTitle ~= last.title then
 				last.title = view.endTitle

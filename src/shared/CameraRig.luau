@@ -141,6 +141,13 @@ function CameraRig.screenFraction(
 	return studs * foreshortening / (2 * depth * math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2)))
 end
 
+-- Half the visible street width (studs) at the ground row `targetZ`, for a screen `aspect` (width /
+-- height) wide. The vertical field of view is the Roblox default (Camera.FieldOfViewMode =
+-- Vertical, UNVERIFIED here), so a wider aspect shows more street sideways and the same height.
+function CameraRig.visibleHalfWidth(pose: Pose, targetZ: number, aspect: number): number
+	return (targetZ - pose.pz) * math.tan(math.rad(CameraRig.FIELD_OF_VIEW / 2)) * aspect
+end
+
 -- Inverse: studs tall needed to fill `fraction` of the screen height at that target.
 function CameraRig.studsForScreenFraction(
 	pose: Pose,
