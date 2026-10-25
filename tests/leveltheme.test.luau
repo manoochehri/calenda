@@ -112,7 +112,7 @@ return {
 				+ b.maxGroundParts
 			assert(
 				LevelTheme.maxTotalParts(theme) >= componentCaps + 7,
-				"includes Rey's seven Parts"
+				"includes Rey's nine moving parade Parts"
 			)
 			assert(
 				LevelTheme.maxTotalParts(theme) <= 600,

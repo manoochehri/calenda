@@ -10,7 +10,7 @@
 -- Everything is Anchored, CanCollide false, CanQuery false, CanTouch false. Windows, doors, arches,
 -- balcony railings and papel picado flags are Frames inside SurfaceGuis (a few GUIs, not a Part per
 -- detail): flags are colored Frames on ~44 strip Parts, never one Part per flag. Buildings and
--- balconies have real depth, and Rey is a small primitive-Part chicken. Generator x is
+-- balconies have real depth. Rey is drawn by CrowdView as part of the moving parade. Generator x is
 -- WORLD x; ViewMap.x is applied here, to every Part position. Reset-safe: build() destroys the
 -- previous model first, and a destroy() during a build stops it at the next batch.
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
@@ -242,36 +242,6 @@ local function buildFacade(theme: LevelTheme.Theme, root: Model, f: StreetLayout
 	end
 end
 
-local function buildRey(root: Model, rey: StreetLayoutGen.Rey)
-	local white = Color3.fromRGB(250, 242, 226)
-	local ochre = Color3.fromRGB(232, 172, 58)
-	local beak = Color3.fromRGB(244, 130, 40)
-	local comb = Color3.fromRGB(204, 65, 56)
-	local dark = Color3.fromRGB(30, 28, 30)
-	local function ball(name: string, size: Vector3, x: number, y: number, z: number, c: Color3)
-		local part = newPart(root, name, size, x, y, z, c, Enum.Material.SmoothPlastic, true)
-		part.Shape = Enum.PartType.Ball
-	end
-	-- Seven inexpensive 3D Parts: body, head, beak, comb, two eyes and feet.
-	ball("ReyBody", Vector3.new(1.5, 1.1, 1.65), rey.x, 0.68, rey.z, white)
-	ball("ReyHead", Vector3.new(0.72, 0.72, 0.72), rey.x, 1.28, rey.z + 0.56, ochre)
-	ball("ReyBeak", Vector3.new(0.36, 0.26, 0.42), rey.x, 1.2, rey.z + 0.92, beak)
-	ball("ReyComb", Vector3.new(0.24, 0.34, 0.22), rey.x, 1.77, rey.z + 0.52, comb)
-	ball("ReyLeftEye", Vector3.new(0.12, 0.12, 0.12), rey.x - 0.23, 1.34, rey.z + 0.82, dark)
-	ball("ReyRightEye", Vector3.new(0.12, 0.12, 0.12), rey.x + 0.23, 1.34, rey.z + 0.82, dark)
-	newPart(
-		root,
-		"ReyFeet",
-		Vector3.new(1, 0.16, 0.22),
-		rey.x,
-		0.12,
-		rey.z + 0.12,
-		beak,
-		Enum.Material.SmoothPlastic,
-		true
-	)
-end
-
 local function buildFlag(root: Model, s: StreetLayoutGen.FlagStrip)
 	local part = newPart(
 		root,
@@ -378,8 +348,6 @@ function OaxacaStreet.build(
 	for i, item in order do
 		if item.kind == "facade" then
 			buildFacade(useTheme, root, result.facades[item.index])
-		elseif item.kind == "rey" then
-			buildRey(root, result.rey)
 		elseif item.kind == "flag" then
 			buildFlag(root, result.flags[item.index])
 		elseif item.kind == "lamp" then
