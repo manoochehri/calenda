@@ -21,7 +21,7 @@ end
 --    studs ahead) instead of popping in 15-40 studs ahead. A cluster is therefore in firing range
 --    (60 studs) for the whole approach, 60 / (speed + approachSpeed) seconds, instead of the 1 s the
 --    old spawn offsets gave, so the same wave is far easier to convert. To keep the Amendment 1
---    checks true (no-input run defeated, competent run completed with HP left) the data changes:
+--    checks true (no-input run defeated, competent run completed with followers left, ADR 0006) the data changes:
 --    1. spectators.approachSpeed 6 -> 20 (Config): the mob CHARGES; closing speed 34.4 studs/s keeps
 --       the visible approach at 3.7 s (a rule, tested) and the range window at 1.7 s.
 --    2. WAVE_DELAY: every pair arrives 9 s later than before (a calm opening: the first wave is

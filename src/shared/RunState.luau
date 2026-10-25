@@ -4,9 +4,9 @@
 -- and an unknown or already-consumed id is rejected with no state change and no log entry.
 -- All numbers come from Config and CrowdMath. Clients may only ask; they never supply amounts.
 --
--- Open for Amendment 1 (parade HP, issue #36): `Outcome` already allows "defeated", and cluster
--- consumption is a single kind per cluster (`ClusterUse`), so a later attack consumption shares the
--- same slot as a credit: a cluster is credited or attacks, never both and never twice.
+-- Life is the crowd total (ADR 0006, spec Amendment 4). A horde that reaches the parade unconverted,
+-- and an unblocked tomato, remove followers; every loss clamps at zero, and the run ends defeated
+-- the moment the total is empty. There is no separate HP.
 local Config = require("./Config")
 local CrowdMath = require("./CrowdMath")
 
@@ -19,7 +19,7 @@ export type GateSide = { x: number, op: CrowdMath.Op }
 export type GatePair = { id: string, left: GateSide, right: GateSide }
 export type ClusterDef = { id: string, type: ClusterKind }
 export type ObstacleDef = { id: string }
--- `tomatoes` (issue #96) are HP hazards; a cart is an obstacle. Optional: absent means none.
+-- `tomatoes` (issue #96) are follower hazards; a cart is an obstacle. Optional: absent means none.
 export type Layout = {
 	gatePairs: { GatePair },
 	clusters: { ClusterDef },
@@ -43,8 +43,6 @@ export type Result = {
 	before: number?,
 	after: number?,
 	score: number?,
-	hpBefore: number?,
-	hpAfter: number?,
 }
 
 -- Spec s12 Record: run start/seed, first recruitment, gate choice with before/after totals,
@@ -62,8 +60,6 @@ export type Event = {
 	score: number?,
 	firstRecruit: boolean?,
 	firstAssembly: boolean?,
-	hpBefore: number?,
-	hpAfter: number?,
 	outcome: Outcome?,
 }
 
@@ -78,7 +74,6 @@ export type RunState = {
 	defeat: (self: RunState) -> Result,
 	reset: (self: RunState, seed: number?) -> (),
 	total: (self: RunState) -> number,
-	hp: (self: RunState) -> number,
 	isComplete: (self: RunState) -> boolean,
 	outcome: (self: RunState) -> Outcome?,
 	score: (self: RunState) -> number?,
@@ -162,7 +157,6 @@ local function new(opts: Options): RunState
 	-- Per-run state. Everything below is replaced wholesale by reset().
 	local seed = opts.seed
 	local crowdTotal = startTotal
-	local paradeHp = Config.hp.max
 	local outcome: Outcome? = nil
 	local finalScore: number? = nil
 	local usedGates: { [string]: boolean } = {}
@@ -208,7 +202,6 @@ local function new(opts: Options): RunState
 	local function start(newSeed: number)
 		seed = newSeed
 		crowdTotal = startTotal
-		paradeHp = Config.hp.max
 		outcome = nil
 		finalScore = nil
 		usedGates = {}
@@ -311,6 +304,30 @@ local function new(opts: Options): RunState
 		return { ok = true, before = before, after = after }
 	end
 
+	-- Ends the run defeated (ADR 0006): score is the crowd total at this moment (0 when the parade is
+	-- empty), best is untouched, and one "defeated" event is logged (RunLog.fromEvents).
+	local function finishDefeat()
+		outcome = "defeated"
+		finalScore = crowdTotal
+		record("defeated", crowdTotal, crowdTotal, { score = crowdTotal })
+	end
+
+	-- Ends the run as soon as the parade has no followers left. Guarded, so it runs once.
+	local function endIfEmpty()
+		if outcome == nil and crowdTotal == 0 then
+			finishDefeat()
+		end
+	end
+
+	-- A follower loss (ADR 0006): the same total as every other change, clamped at zero. The
+	-- amount is server config, never a client value.
+	local function loseFollowers(amount: number): (number, number)
+		local before = crowdTotal
+		local after = CrowdMath.applyOp(before, { kind = "loss", value = amount })
+		setTotal(after)
+		return before, after
+	end
+
 	function self.hitObstacle(_, id: any): Result
 		local blocked = guard()
 		if blocked then
@@ -325,20 +342,11 @@ local function new(opts: Options): RunState
 		if usedObstacles[id] then
 			return reject("obstacle already consumed")
 		end
-		local before = crowdTotal
-		local after = CrowdMath.applyOp(before, CrowdMath.obstacleOp())
+		local before, after = loseFollowers(Config.obstacleLoss)
 		usedObstacles[id] = true
-		setTotal(after)
 		record("obstacle", before, after, { id = id })
+		endIfEmpty()
 		return { ok = true, before = before, after = after }
-	end
-
-	-- Ends the run defeated: score is the crowd total at this moment (spec s9), best is untouched,
-	-- and one "defeated" event is logged so the run log has the outcome (RunLog.fromEvents).
-	local function finishDefeat()
-		outcome = "defeated"
-		finalScore = crowdTotal
-		record("defeated", crowdTotal, crowdTotal, { score = crowdTotal })
 	end
 
 	local function applyAttack(id: any): Result
@@ -352,22 +360,10 @@ local function new(opts: Options): RunState
 		if usedClusters[id] ~= nil then
 			return reject(`cluster already {usedClusters[id]}`)
 		end
-		local before = paradeHp
-		paradeHp = math.max(0, paradeHp - Config.clusterTypes[cluster.type].attackDamage)
+		local before, after = loseFollowers(Config.clusterTypes[cluster.type].attackLoss)
 		usedClusters[id] = "attacked"
-		record("cluster_attack", crowdTotal, crowdTotal, {
-			id = id,
-			hpBefore = before,
-			hpAfter = paradeHp,
-			outcome = if paradeHp == 0 then "defeated" else outcome,
-		})
-		return {
-			ok = true,
-			before = before,
-			after = paradeHp,
-			hpBefore = before,
-			hpAfter = paradeHp,
-		}
+		record("cluster_attack", before, after, { id = id })
+		return { ok = true, before = before, after = after }
 	end
 
 	function self.attackCluster(_, id: any): Result
@@ -376,12 +372,14 @@ local function new(opts: Options): RunState
 			return blocked
 		end
 		local result = applyAttack(id)
-		if result.ok and paradeHp == 0 then
-			finishDefeat()
+		if result.ok then
+			endIfEmpty()
 		end
 		return result
 	end
 
+	-- Same-tick attacks (Amendment 1): each id is applied in the order given, even at zero, then the
+	-- end check runs once for the batch.
 	function self.attackClusters(_, ids: { any }): { Result }
 		local blocked = guard()
 		if blocked then
@@ -392,14 +390,11 @@ local function new(opts: Options): RunState
 		for _, id in ids do
 			table.insert(results, applyAttack(id))
 		end
-		if paradeHp == 0 and outcome == nil then
-			finishDefeat()
-		end
+		endIfEmpty()
 		return results
 	end
 
-	-- An unblocked tomato (issue #96): parade HP loss of Config.hazards.tomatoDamage, once per
-	-- tomato. The amount is server config, never a client value. HP reaching 0 defeats the run.
+	-- An unblocked tomato (issue #96): followers lost, Config.hazards.tomatoLoss, once per tomato.
 	function self.hitTomato(_, id: any): Result
 		local blocked = guard()
 		if blocked then
@@ -414,28 +409,14 @@ local function new(opts: Options): RunState
 		if usedTomatoes[id] then
 			return reject("hazard already consumed")
 		end
-		local before = paradeHp
-		paradeHp = math.max(0, paradeHp - Config.hazards.tomatoDamage)
+		local before, after = loseFollowers(Config.hazards.tomatoLoss)
 		usedTomatoes[id] = true
-		record("hazard_hit", crowdTotal, crowdTotal, {
-			id = id,
-			hazard = "tomato",
-			hpBefore = before,
-			hpAfter = paradeHp,
-		})
-		if paradeHp == 0 then
-			finishDefeat()
-		end
-		return {
-			ok = true,
-			before = before,
-			after = paradeHp,
-			hpBefore = before,
-			hpAfter = paradeHp,
-		}
+		record("hazard_hit", before, after, { id = id, hazard = "tomato" })
+		endIfEmpty()
+		return { ok = true, before = before, after = after }
 	end
 
-	-- The driver calls this when an end-check hook ends the run (HP already 0 ends it on its own).
+	-- The driver calls this when an end-check hook ends the run (an empty parade already ends it on its own).
 	function self.defeat(_): Result
 		local blocked = guard()
 		if blocked then
@@ -466,9 +447,6 @@ local function new(opts: Options): RunState
 
 	function self.total(_)
 		return crowdTotal
-	end
-	function self.hp(_)
-		return paradeHp
 	end
 	function self.isComplete(_)
 		return outcome == "completed"

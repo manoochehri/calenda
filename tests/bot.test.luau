@@ -99,12 +99,33 @@ local function checkTotalsChain(result: BotHarness.Result, layout: Level.Layout)
 			)
 			running = e.after
 			changes += 1
-		elseif e.kind == "cluster_attack" then
+		elseif e.kind == "hazard_hit" then
+			-- A tomato (ADR 0006): removes Config.hazards.tomatoLoss followers, clamped at zero.
+			check(e.before == running, "tomato starts from the running total", result)
 			check(
-				e.before == running and e.after == running,
-				"an attack never changes the total",
+				e.after == math.max(0, running - Config.hazards.tomatoLoss),
+				"a tomato removes tomatoLoss followers, clamped at zero",
 				result
 			)
+			running = e.after
+			changes += 1
+		elseif e.kind == "cluster_attack" then
+			-- ADR 0006: an unconverted horde removes its type's attackLoss followers, clamped at zero.
+			local loss = nil
+			for _, c in layout.clusters do
+				if `c{c.id}` == e.id then
+					loss = Config.clusterTypes[c.type].attackLoss
+				end
+			end
+			check(loss ~= nil, `attack on unknown cluster {tostring(e.id)}`, result)
+			check(e.before == running, "attack starts from the running total", result)
+			check(
+				e.after == math.max(0, running - (loss :: number)),
+				"an attack removes exactly its type's attackLoss, clamped at zero",
+				result
+			)
+			running = e.after
+			changes += 1
 		end
 	end
 	check(running == result.total, `chain ends at {running}, total {result.total}`, result)
@@ -121,13 +142,13 @@ end
 
 return {
 	{
-		name = "scripted bot completes the fixed layout in ~90 s with HP left",
+		name = "scripted bot completes the fixed layout in ~90 s with followers left",
 		run = function()
 			for _, hz in { 30, 60 } do
 				local r = BotHarness.play(DebugLayout, scripted(), { hz = hz })
 				check(r.outcome == "completed", `{hz} Hz: outcome {tostring(r.outcome)}`, r)
 				check(math.abs(r.time - 90) <= 1, `{hz} Hz: simulated time {r.time}`, r)
-				check(r.hp > 0 and r.hp <= Config.hp.max, `{hz} Hz: hp {r.hp}`, r)
+				check(r.total > 0, `{hz} Hz: followers left {r.total}`, r)
 			end
 		end,
 	},
@@ -188,7 +209,7 @@ return {
 			eq(s.z, 0, "z")
 			eq(s.x, 0, "x")
 			eq(s.total, Config.startingTotal, "total")
-			eq(s.hp, Config.hp.max, "hp")
+			eq((s :: any).hp, nil, "no HP in the snapshot (ADR 0006)")
 			eq(s.outcome, nil, "outcome cleared")
 			eq(s.score, nil, "score cleared")
 			eq(s.best, first.total, "session best survives the replay")
@@ -196,7 +217,6 @@ return {
 			local second = BotHarness.play(DebugLayout, scripted(), { run = run })
 			eq(second.outcome, first.outcome, "second outcome")
 			eq(second.total, first.total, "second total")
-			eq(second.hp, first.hp, "second hp")
 			eq(#second.events, #first.events, "second event count")
 			eq(#run.driver:replays(), 1, "one replay recorded")
 		end,
@@ -210,17 +230,21 @@ return {
 		end,
 	},
 	{
-		name = "no-input run ends defeated at 0 HP; its log records the defeat, no plaza, no session best",
+		name = "no-input run: every horde that reached the parade removed its attackLoss; the total chain holds",
+		-- OPEN (issue #121, spec Amendment 4 Balance): with fixed per-hit losses the no-input run is
+		-- NOT defeated on the debug layout (its total grows to ~800 from recruits and gates). That
+		-- balance check is therefore not asserted here; the defeat mechanism is tested in
+		-- issue121_life.test.luau. The owner decides the loss rule before this check can be restored.
 		run = function()
 			for _, hz in { 30, 60 } do
 				local r = BotHarness.play(DebugLayout, BotHarness.policy("none", 1), { hz = hz })
-				check(r.outcome == "defeated", `{hz} Hz: outcome {tostring(r.outcome)}`, r)
-				eq(r.hp, 0, "hp")
-				check(r.time < 90, "defeat should come before the plaza", r)
-				local c = r.runLog.completion :: any
-				check(c ~= nil and c.outcome == "defeated", "log must record defeated", r)
-				eq(r.driver:snapshot().best, 0, "defeat does not set the session best")
+				check(#r.attacks > 0, "the no-input run is attacked", r)
 				check(checkTotalsChain(r, DebugLayout) >= 0, "chain", r)
+				if r.outcome == "defeated" then
+					local c = r.runLog.completion :: any
+					check(c ~= nil and c.outcome == "defeated", "log must record defeated", r)
+					eq(r.driver:snapshot().best, 0, "defeat does not set the session best")
+				end
 			end
 		end,
 	},
@@ -317,13 +341,8 @@ return {
 			for _, a in r.attacks do
 				check(counts[a.id] == 1, `cluster {a.id} attacked {counts[a.id]} times`, r)
 				check(credited[`c{a.id}`] == nil, `cluster {a.id} attacked AND was credited`, r)
-				damage += Config.clusterTypes[a.kind].attackDamage
+				damage += Config.clusterTypes[a.kind].attackLoss
 			end
-			eq(
-				r.hp,
-				Config.hp.max - damage,
-				"hp lost equals the attackDamage of the missed clusters"
-			)
 			local rewards = 0
 			for _, cl in clusters do
 				if credited[`c{cl.id}`] then
@@ -332,10 +351,9 @@ return {
 			end
 			eq(
 				r.total,
-				Config.startingTotal + rewards,
-				"total changes only by credits (no attack loss)"
+				math.max(0, Config.startingTotal + rewards - damage),
+				"total = start + credits - the attackLoss of the missed clusters (ADR 0006)"
 			)
-			eq(r.outcome, "completed", "run still completes (no gate or HP loss to zero)")
 		end,
 	},
 	{

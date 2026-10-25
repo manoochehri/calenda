@@ -22,4 +22,5 @@ This supersedes ADR 0002's parade HP and its HP defeat, and the HP wording in sp
 - Keep a hidden HP that is derived from the total: the same single number under another name, so it is removed too.
 
 ## Consequences
+OPEN: with fixed per-hit losses the no-input run is not defeated on the debug layout (measured: total about 800 after 12 attacks, one probe per policy and rate), because recruits and gates outgrow the losses; a loss large enough to empty it also ends a competent run at its first hit. The owner must decide the loss rule (fixed per type, or a share of the current parade) before the defeat balance can be met. This is the open count question on issue #121.
 A defeated run's score is 0 by construction; the results screen still shows "defeated". The first minute is the risk: a starting total of 10 means one large horde can end a run, so the balance numbers must be re-tuned before the owner playtest. PR #119 (#93) tunes the old HP balance and is superseded by this decision. Its unmerged ADR 0006 and Amendment 4 collide with the numbers used here; whichever lands second takes the next free numbers.

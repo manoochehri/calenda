@@ -18,7 +18,6 @@ export type View = {
 	z: number,
 	x: number,
 	total: number,
-	hp: number,
 	layout: Level.Layout,
 }
 -- decide returns the lateral target to steer to, or nil to send no steer message this decision.
@@ -27,15 +26,14 @@ export type Policy = {
 	period: number, -- seconds between decisions (0 = never decides)
 	decide: (view: View) -> number?,
 }
-export type Attack = { id: number, kind: string, time: number, hpBefore: number, hpAfter: number }
+export type Attack = { id: number, kind: string, time: number, before: number, after: number }
 export type Result = {
 	policy: string,
 	outcome: string?,
-	hp: number,
 	time: number, -- simulated seconds when the run ended (or maxSeconds)
 	total: number,
 	score: number?,
-	trajectory: { { time: number, hp: number } },
+	trajectory: { { time: number, total: number } }, -- every change of the crowd total
 	attacks: { Attack },
 	credits: number,
 	events: { RunState.Event },
@@ -269,7 +267,7 @@ function BotHarness.play(layout: Level.Layout, policy: Policy, opts: PlayOptions
 	local run = o.run or BotHarness.newRun(layout)
 	local driver = run.driver
 	local snap = driver:snapshot()
-	local trajectory = { { time = snap.time, hp = snap.hp } }
+	local trajectory = { { time = snap.time, total = snap.total } }
 	local attacks: { Attack } = {}
 	local credits = 0
 	local nextDecision = 0
@@ -283,7 +281,6 @@ function BotHarness.play(layout: Level.Layout, policy: Policy, opts: PlayOptions
 				z = snap.z,
 				x = snap.x,
 				total = snap.total,
-				hp = snap.hp,
 				layout = layout,
 			}
 			local target = policy.decide(view)
@@ -292,7 +289,7 @@ function BotHarness.play(layout: Level.Layout, policy: Policy, opts: PlayOptions
 			end
 			nextDecision = snap.time + policy.period
 		end
-		local before = snap.hp
+		local before = snap.total
 		for _, e in driver:tick(dt) do
 			if e.kind == "attack" then
 				local c = Level.findCluster(layout, e.id :: number)
@@ -300,14 +297,14 @@ function BotHarness.play(layout: Level.Layout, policy: Policy, opts: PlayOptions
 					id = c.id,
 					kind = c.type,
 					time = driver:snapshot().time,
-					hpBefore = e.hpBefore :: number,
-					hpAfter = e.hpAfter :: number,
+					before = e.before :: number,
+					after = e.after :: number,
 				})
 			end
 		end
 		snap = driver:snapshot()
-		if snap.hp ~= before then
-			table.insert(trajectory, { time = snap.time, hp = snap.hp })
+		if snap.total ~= before then
+			table.insert(trajectory, { time = snap.time, total = snap.total })
 		end
 		if snap.outcome ~= nil then
 			break
@@ -322,7 +319,6 @@ function BotHarness.play(layout: Level.Layout, policy: Policy, opts: PlayOptions
 	return {
 		policy = policy.name,
 		outcome = snap.outcome,
-		hp = snap.hp,
 		time = snap.time,
 		total = snap.total,
 		score = snap.score,
@@ -338,7 +334,7 @@ end
 -- Readable event log, printed with every failing assertion.
 function BotHarness.formatLog(result: Result): string
 	local lines = {
-		`policy={result.policy} outcome={tostring(result.outcome)} hp={result.hp} total={result.total} t={string.format(
+		`policy={result.policy} outcome={tostring(result.outcome)} total={result.total} t={string.format(
 			"%.3f",
 			result.time
 		)}`,
@@ -355,7 +351,7 @@ function BotHarness.formatLog(result: Result): string
 				tostring(e.side),
 				tostring(e.before),
 				tostring(e.after),
-				if e.hpBefore then ` hp {e.hpBefore}->{tostring(e.hpAfter)}` else ""
+				""
 			)
 		)
 	end

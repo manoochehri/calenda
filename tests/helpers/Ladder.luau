@@ -1,6 +1,6 @@
 --!strict
 -- Policy-ladder evidence report (issue #17). Runs bots through the real RunDriver/RunHooks and
--- prints, for each policy, n, the completed rate, the HP distribution and the time to defeat.
+-- prints, for each policy, n, the completed rate, the defeat time and the final followers (ADR 0006).
 -- It REPORTS observed numbers only. It asserts nothing about balance and never says a layout is
 -- "balanced" or that "the player has to react": any threshold for that is an owner decision.
 local BotHarness = require("./BotHarness")
@@ -38,7 +38,6 @@ type Row = {
 	policy: string,
 	n: number,
 	completed: number,
-	hps: { number },
 	defeatTimes: { number },
 	finalTotals: { number },
 	overMax: number,
@@ -49,13 +48,11 @@ local function summarize(results: { BotHarness.Result }, policy: string, maxTota
 		policy = policy,
 		n = #results,
 		completed = 0,
-		hps = {},
 		defeatTimes = {},
 		finalTotals = {},
 		overMax = 0,
 	}
 	for _, r in results do
-		table.insert(row.hps, r.hp)
 		table.insert(row.finalTotals, r.total)
 		if r.total > maxTotal then
 			row.overMax += 1
@@ -66,7 +63,6 @@ local function summarize(results: { BotHarness.Result }, policy: string, maxTota
 			table.insert(row.defeatTimes, r.time)
 		end
 	end
-	table.sort(row.hps)
 	table.sort(row.defeatTimes)
 	table.sort(row.finalTotals)
 	return row
@@ -86,11 +82,10 @@ end
 
 local function formatRow(row: Row): string
 	return string.format(
-		"%-22s %4d %6.1f%%  %-12s  %3d  %-20s  %s%s",
+		"%-22s %4d %6.1f%%  %3d  %-20s  %s%s",
 		row.policy,
 		row.n,
 		100 * row.completed / row.n,
-		triple(row.hps, "%d"),
 		#row.defeatTimes,
 		triple(row.defeatTimes, "%.1f"),
 		triple(row.finalTotals, "%d"),
@@ -99,11 +94,10 @@ local function formatRow(row: Row): string
 end
 
 local HEADER = string.format(
-	"%-22s %4s %7s  %-12s  %3s  %-20s  %s",
+	"%-22s %4s %7s  %3s  %-20s  %s",
 	"policy",
 	"n",
 	"compl",
-	"HP min/med/max",
 	"nD",
 	"defeat s min/med/max",
 	"final total min/med/max"
@@ -140,7 +134,7 @@ function Ladder.report(cfg: Config): string
 		`n = runs per row. Deterministic policies: 1 run per layout. Random policies (random-side-0.5s, noisy-scripted): {cfg.randomSeeds} fixed seeds (LCG, seed = run index) on cycled layouts.`
 	)
 	line(
-		`HP and final total are over ALL n runs (a defeated run has HP 0). nD = defeated runs; defeat s is over those only. compl = completed rate.`
+		`Final total is over ALL n runs (a defeated run ends at 0 followers). nD = defeated runs; defeat s is over those only. compl = completed rate.`
 	)
 	line(
 		`Perturbation: cluster spawnTime +-0.75 s, spawn z +-8 studs, fixed-seed LCG; gates, obstacles, sides, plaza unchanged.`
@@ -179,19 +173,19 @@ function Ladder.report(cfg: Config): string
 	return table.concat(out, "\n")
 end
 
--- HP trajectory (time, HP after each attack) for the no-input and scripted runs on the fixed layout.
+-- Follower trajectory (time, followers after each attack) for the no-input and scripted runs (ADR 0006).
 function Ladder.trajectories(hz: number): string
 	local out: { string } =
-		{ `--- HP trajectories, fixed debug-1, {hz} Hz (attack time: HP after) ---` }
+		{ `--- Follower trajectories, fixed debug-1, {hz} Hz (attack time: followers after) ---` }
 	for _, name in { "none", "scripted" } do
 		local r = BotHarness.play(DebugLayout, BotHarness.policy(name, 1), { hz = hz })
 		local parts: { string } = {}
 		for _, a in r.attacks do
-			table.insert(parts, string.format("c%d(%s)@%.2fs:%d", a.id, a.kind, a.time, a.hpAfter))
+			table.insert(parts, string.format("c%d(%s)@%.2fs:%d", a.id, a.kind, a.time, a.after))
 		end
 		table.insert(
 			out,
-			`{name}: {tostring(r.outcome)} HP {r.hp} at {string.format("%.2f", r.time)}s, total {r.total}, attacks {#r.attacks}: {table.concat(
+			`{name}: {tostring(r.outcome)} at {string.format("%.2f", r.time)}s, total {r.total}, attacks {#r.attacks}: {table.concat(
 				parts,
 				" "
 			)}`

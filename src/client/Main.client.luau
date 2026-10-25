@@ -24,8 +24,6 @@ local CameraRig = timedRequire("Shared", Shared, "CameraRig")
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
 local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
-local HpBar = timedRequire("Shared", Shared, "HpBar")
-local HpExtension = timedRequire("Shared", Shared, "HpExtension")
 local InputIntent = timedRequire("Shared", Shared, "InputIntent")
 local Remotes = timedRequire("Shared", Shared, "Remotes")
 local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
@@ -233,9 +231,9 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		handlers.clusters = function()
 			clusters:reset()
 		end
-		handlers.hp = function()
+		handlers.hit = function()
 			hitFx:reset()
-			hud:resetHp()
+			hud:resetHit()
 		end
 		handlers.obstacles = function()
 			obstacleFeedback:reset()
@@ -277,8 +275,7 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	elseif payload.kind == "attack" then
 		-- Cartoon bump of flying bits; false for a duplicate event, which must not re-shake.
 		if clusters:onAttack(payload) then
-			local maxHp = if latest then latest.maxHp else nil
-			hitFx:hit(HitFeedback.intensity(payload.hpBefore, payload.hpAfter, maxHp))
+			hitFx:hit(HitFeedback.intensity(payload.before, payload.after))
 		end
 	end
 end)
@@ -382,7 +379,6 @@ RunService:BindToRenderStep(
 			camera.CFrame = cf
 		end
 
-		hud:setHp(HpBar.view(HpExtension.read(state)), hudClock)
 		hud:applyHit(hit)
 		hud:update(
 			fx.view(RunView.hud(state)),

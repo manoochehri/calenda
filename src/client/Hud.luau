@@ -11,7 +11,6 @@ local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
-local HpBar = require(Shared:WaitForChild("HpBar"))
 local RunView = require(Shared:WaitForChild("RunView"))
 local Strings = require(Shared:WaitForChild("Strings"))
 
@@ -21,10 +20,9 @@ local OUTLINE = Color3.fromRGB(28, 22, 34)
 export type Hud = {
 	update: (self: Hud, hud: RunView.Hud, hintVisible: boolean) -> (),
 	pop: (self: Hud) -> (),
-	-- Issue #50: the parade HP bar (nil hides it) and the hit reaction on it and the screen edges.
-	setHp: (self: Hud, view: HpBar.View?, clock: number) -> (),
+	-- The hit reaction: a wobble on the crowd counter (the life bar, ADR 0006) and the screen edges.
 	applyHit: (self: Hud, sample: HitFeedback.Sample) -> (),
-	resetHp: (self: Hud) -> (),
+	resetHit: (self: Hud) -> (),
 }
 
 local Hud = {}
@@ -114,58 +112,6 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	local hint = placed(gui, "Hint", TypeStyle.font("body"))
 	hint.Text = Strings.hint
 	TypeStyle.backing(hint) -- issue #104: a panel behind the floating hint
-
-	-- Parade HP bar (issue #50), top left next to the counter: icon, meter and number, so it
-	-- reads with the sound off. Hidden until HP is replicated.
-	local hpRoot = Instance.new("Frame")
-	hpRoot.Name = "HpBar"
-	hpRoot.BackgroundTransparency = 1
-	GuiLayout.place(hpRoot, "HpBar")
-	hpRoot.Visible = false
-	hpRoot.Parent = gui
-	local hpScale = Instance.new("UIScale")
-	hpScale.Parent = hpRoot
-	local hpIcon = label(
-		hpRoot,
-		"Icon",
-		UDim2.fromScale(0.09, 0),
-		UDim2.fromScale(0.18, 1),
-		Enum.Font.GothamBlack
-	)
-	hpIcon.Text = Strings.hpIcon
-	hpIcon.TextColor3 = Color3.fromRGB(235, 60, 60)
-	local hpBack = Instance.new("Frame")
-	hpBack.Name = "Back"
-	hpBack.Position = UDim2.fromScale(0.2, 0.15)
-	hpBack.Size = UDim2.fromScale(0.8, 0.7)
-	hpBack.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
-	hpBack.BackgroundTransparency = 0.2
-	hpBack.BorderSizePixel = 0
-	hpBack.Parent = hpRoot
-	local hpStroke = Instance.new("UIStroke")
-	hpStroke.Thickness = 2
-	hpStroke.Color = OUTLINE
-	hpStroke.Parent = hpBack
-	local hpFill = Instance.new("Frame")
-	hpFill.Name = "Fill"
-	hpFill.Size = UDim2.fromScale(1, 1)
-	hpFill.BorderSizePixel = 0
-	hpFill.Parent = hpBack
-	local hpNumber = Instance.new("TextLabel")
-	hpNumber.Name = "Number"
-	hpNumber.Size = UDim2.fromScale(1, 1)
-	hpNumber.BackgroundTransparency = 1
-	hpNumber.TextScaled = true
-	hpNumber.Font = Enum.Font.GothamBlack
-	hpNumber.TextColor3 = WHITE
-	hpNumber.TextStrokeColor3 = OUTLINE
-	hpNumber.TextStrokeTransparency = 0
-	hpNumber.ZIndex = 2
-	local hpLimit = Instance.new("UITextSizeConstraint")
-	hpLimit.MinTextSize = 14 -- readable on a phone (ScreenLayout.MIN_TEXT)
-	hpLimit.MaxTextSize = 26
-	hpLimit.Parent = hpNumber
-	hpNumber.Parent = hpBack
 
 	-- Hit flash: a vignette of four edge gradients plus a faint full-screen wash, white then red.
 	local flashParts: { Frame } = {}
@@ -267,43 +213,9 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 		end
 	end
 
-	local hpShown = false
-	local lastHpLabel = ""
-	function hud.setHp(_, view: HpBar.View?, clock: number)
-		if view == nil then
-			if hpShown then
-				hpShown = false
-				hpRoot.Visible = false
-			end
-			return
-		end
-		hpShown = true
-		hpRoot.Visible = true
-		hpFill.Size = UDim2.fromScale(view.fraction, 1)
-		local c = view.color
-		local fillColor = Color3.fromRGB(c[1], c[2], c[3])
-		if view.low then
-			-- Warning pulse: the fill and outline flash toward red-white, the icon beats.
-			local p = HpBar.pulse(clock)
-			fillColor = fillColor:Lerp(Color3.fromRGB(255, 255, 255), p * 0.5)
-			hpStroke.Color = OUTLINE:Lerp(Color3.fromRGB(235, 60, 60), p)
-			hpStroke.Thickness = 2 + 2 * p
-			hpIcon.TextTransparency = 0.5 * (1 - p)
-		else
-			hpStroke.Color = OUTLINE
-			hpStroke.Thickness = 2
-			hpIcon.TextTransparency = 0
-		end
-		hpFill.BackgroundColor3 = fillColor
-		if view.label ~= lastHpLabel then
-			lastHpLabel = view.label
-			hpNumber.Text = view.label
-		end
-	end
-
 	function hud.applyHit(_, s: HitFeedback.Sample)
-		hpScale.Scale = 1 + s.jolt
-		hpRoot.Rotation = s.shakeX * 4 -- a wobble, from the same envelope as the screen shake
+		-- The parade's size is the life bar (ADR 0006): the counter wobbles on a hit.
+		counter.Rotation = s.shakeX * 4
 		local on = s.flash > 0.005
 		local color = Color3.fromRGB(255, 255, 255):Lerp(Color3.fromRGB(235, 40, 50), s.redMix)
 		for _, f in flashParts do
@@ -316,10 +228,9 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 		wash.BackgroundTransparency = 1 - s.flash * 0.25
 	end
 
-	-- Replay: no bar, no flash, no wobble left over from the last run.
-	function hud.resetHp(_)
-		hpShown, lastHpLabel = false, ""
-		hpRoot.Visible = false
+	-- Replay: no flash and no wobble left over from the last run.
+	function hud.resetHit(_)
+		counter.Rotation = 0
 		hud.applyHit(hud, HitFeedback.new():sample())
 	end
 

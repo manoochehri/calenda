@@ -16,7 +16,7 @@ ResetPlan.items = table.freeze({
 	"audio", -- audio intensity, music duck and peak, sound effect cooldowns and voices (issue #62)
 	"bits", -- confetti and other pooled pieces still in the air
 	"finale", -- plaza dancers, gifts and the finale banner
-	"hp", -- the HP bar, its low warning and any hit shake, flash or jolt in progress (issue #50)
+	"hit", -- any hit wobble, screen shake or flash still in progress (issue #50, ADR 0006)
 	"breakup", -- tumbling lead, flying hats and instruments, wandering followers
 	"results", -- the results panel and the new-best flag
 	"flow", -- RunFlow back to its first phase

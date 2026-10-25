@@ -222,16 +222,16 @@ return {
 		end,
 	},
 	{
-		name = "cluster attacks apply configured HP damage once and never change crowd total",
+		name = "cluster attacks remove the configured followers once; the total is the only life",
 		run = function()
 			local run = make()
-			local total, hp = run:total(), run:hp()
+			local loss = Config.clusterTypes.small.attackLoss
+			local total = run:total()
 			local first = run:attackCluster("c1")
 			assert(first.ok, "first attack")
-			eq(first.before, hp, "HP before")
-			eq(first.after, hp - Config.clusterTypes.small.attackDamage, "HP after")
-			eq(run:hp(), first.after, "current HP")
-			eq(run:total(), total, "attack leaves crowd unchanged")
+			eq(first.before, total, "total before")
+			eq(first.after, total - loss, "total after")
+			eq(run:total(), total - loss, "current total")
 			eq(run:clusterConsumption("c1"), "attacked", "consumption")
 			local before = snapshot(run)
 			local again = run:attackCluster("c1")
@@ -251,10 +251,10 @@ return {
 		end,
 	},
 	{
-		name = "HP zero defeats the run, clamps damage, ignores later events, and reset restores HP",
+		name = "a total at zero defeats the run, clamps losses, ignores later events, and reset restores the total",
 		run = function()
-			local attackDamage = Config.clusterTypes.large.attackDamage
-			local attackCount = math.ceil(Config.hp.max / attackDamage)
+			local loss = Config.clusterTypes.large.attackLoss
+			local attackCount = math.ceil(73 / loss)
 			local clusters: { RunState.ClusterDef } = {}
 			for i = 1, attackCount do
 				table.insert(clusters, { id = `c{i}`, type = "large" })
@@ -268,22 +268,22 @@ return {
 			for i = 1, attackCount do
 				assert(run:attackCluster(`c{i}`).ok, `attack {i}`)
 			end
-			eq(run:hp(), 0, "HP clamps at zero")
+			eq(run:total(), 0, "total clamps at zero")
 			eq(run:outcome(), "defeated", "defeated outcome")
-			eq(run:score(), 73, "defeat score is current crowd total")
+			eq(run:score(), 0, "defeat score is the crowd total at that moment")
 			eq(run:best(), 0, "defeat does not update session best")
 			local before = snapshot(run)
 			local later = run:attackCluster(`c{attackCount}`)
 			reject(later.ok, later.reason, run, before, "attack after defeat")
 			run:reset()
-			eq(run:hp(), Config.hp.max, "HP reset")
+			eq(run:total(), 73, "total reset")
 			eq(run:outcome(), nil, "outcome reset")
 		end,
 	},
 	{
-		name = "defeat is recorded once as a defeated event carrying the crowd total as score",
+		name = "defeat is recorded once as a defeated event carrying score 0",
 		run = function()
-			local attackCount = math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local attackCount = math.ceil(73 / Config.clusterTypes.large.attackLoss)
 			local clusters: { RunState.ClusterDef } = {}
 			for i = 1, attackCount do
 				table.insert(clusters, { id = `c{i}`, type = "large" })
@@ -304,9 +304,9 @@ return {
 			for _, e in run:events() do
 				if e.kind == "defeated" then
 					defeats += 1
-					eq(e.score, 73, "defeated event score")
-					eq(e.before, 73, "defeated event before")
-					eq(e.after, 73, "defeated event after")
+					eq(e.score, 0, "defeated event score: the total at that moment")
+					eq(e.before, 0, "defeated event before")
+					eq(e.after, 0, "defeated event after")
 				end
 			end
 			eq(defeats, 1, "exactly one defeated event")
@@ -392,12 +392,7 @@ return {
 				run:resolveGate("g1", 3)
 				run:creditCluster("c1")
 			end
-			eq(run:total(), 50, "total")
-			eq(
-				run:hp(),
-				Config.hp.max - Config.clusterTypes.small.attackDamage,
-				"one attack applied"
-			)
+			eq(run:total(), 50 - Config.clusterTypes.small.attackLoss, "one horde removes its loss")
 			eq(#run:events(), 1 + 7, "one event per consumed item plus run_start")
 		end,
 	},

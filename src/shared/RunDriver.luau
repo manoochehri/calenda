@@ -10,7 +10,8 @@
 -- Same-tick order (Amendment 1): (1) shots/conversions, (2) lead moves, gates, then obstacle,
 -- (3) attacks, (4) end checks (defeat wins over reaching the plaza). The hooks below are the
 -- extension points: #9 plugs targeting/shooting into `shots`, #36 plugs cluster attacks into
--- `attacks` and HP defeat into `endCheck`.
+-- `attacks` and defeat into `endCheck`. Life is the crowd total (ADR 0006): a loss that empties it
+-- ends the run in RunState itself.
 -- A defeat is recorded in RunState's log (event "defeated"), so runLog() shows the outcome.
 local Crossing = require("./Crossing")
 local Config = require("./Config")
@@ -46,8 +47,6 @@ export type DriverEvent = {
 	side: string?,
 	before: number?,
 	after: number?,
-	hpBefore: number?,
-	hpAfter: number?,
 	score: number?,
 	hits: number?, -- cluster: meter value after the shot, integer 0..1000
 	shot: ("note" | "gift")?, -- cluster, miss: visual variant
@@ -119,7 +118,7 @@ function RunDriver.toRunLayout(layout: Level.Layout, hazards: { Hazards.Hazard }
 	for _, o in layout.obstacles do
 		table.insert(obstacles, { id = `o{o.id}` })
 	end
-	-- Issue #96: a cart is an obstacle (one crowd loss, once); a tomato is an HP hazard.
+	-- Issue #96: a cart is an obstacle (one crowd loss, once); a tomato is a follower hazard.
 	local tomatoes: { RunState.ObstacleDef } = {}
 	for _, h in hazards or {} do
 		if h.kind == "cart" then
@@ -283,7 +282,7 @@ function RunDriver.new(opts: Options): RunDriver
 		end
 
 		-- (2b) hazards (issue #96). Warnings first, then each hazard resolves once: a tomato at its
-		-- impact (in its lane? a landed gift in its warning window blocks it; otherwise HP), a cart
+		-- impact (in its lane? a landed gift in its warning window blocks it; otherwise followers lost), a cart
 		-- on the sweep through its blocked band (crowd loss).
 		for _, h in hazards do
 			if not hazardWarned[h.id] and t1 >= h.warnAt then
@@ -326,8 +325,8 @@ function RunDriver.new(opts: Options): RunDriver
 									kind = "hazard_hit",
 									id = h.id,
 									hazard = "tomato",
-									hpBefore = r.hpBefore,
-									hpAfter = r.hpAfter,
+									before = r.before,
+									after = r.after,
 								})
 							end
 						end
@@ -433,8 +432,6 @@ function RunDriver.new(opts: Options): RunDriver
 			z = z,
 			x = x,
 			total = state:total(),
-			hp = state:hp(),
-			maxHp = Config.hp.max,
 			best = state:best(),
 			outcome = finalOutcome,
 			score = finalScore,

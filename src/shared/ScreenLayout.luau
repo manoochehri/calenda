@@ -47,7 +47,7 @@ ScreenLayout.GLYPH_EM = 0.62 -- estimate: average advance of a bold sans glyph, 
 -- two layers that overlap share a number. The hit flash and results dim sit UNDER the HUD text.
 ScreenLayout.DISPLAY_ORDER = table.freeze({
 	hudFx = -1, -- CalendaHudFx: hit flash, results dim (decorative, full screen)
-	hud = 0, -- CalendaHud: counter, HP bar, hint, results texts and Replay
+	hud = 0, -- CalendaHud: counter, hint, results texts and Replay
 	runHud = 5, -- CalendaRunHud: section meter, banner
 	sections = 6, -- CalendaSections: +N secciones (kept above the HUD, below the title)
 	startup = 100, -- CalendaStartup: title backdrop and card
@@ -132,7 +132,7 @@ local play = el("Play", 1, 1, 1, 1, 0.28, 0.17, TITLE, {
 play.touch = true
 play.primary = true
 
--- Top row: HP bar left, crowd counter centre, "+N secciones" right. The centre column below the
+-- Top row: crowd counter centre (the life bar, ADR 0006), "+N secciones" right. The centre column below the
 -- counter holds the meter; the middle of the screen is left to the street and the portals.
 local ELEMENTS = {
 	el(
@@ -145,17 +145,6 @@ local ELEMENTS = {
 		0.15,
 		BOTH,
 		{ minSize = 14, maxSize = 24, sample = Strings.musicOn }
-	),
-	el(
-		"HpBar",
-		0,
-		0,
-		0,
-		0,
-		0.22,
-		0.10,
-		BOTH,
-		{ minSize = 14, maxSize = 26, sample = "100/100", heightShare = 0.7, widthShare = 0.8 }
 	),
 	el(
 		"Caption",

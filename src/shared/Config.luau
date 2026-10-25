@@ -3,7 +3,7 @@
 -- Values marked [spec] come from docs/Calenda-Prototype-Spec.md; values marked [default] are
 -- placeholders chosen by the engineer because the spec gives no number (all are tuning defaults).
 
-export type ClusterType = { hits: number, reward: number, attackDamage: number }
+export type ClusterType = { hits: number, reward: number, attackLoss: number }
 export type GateOp = { kind: string, value: number }
 export type Curve = { start: number, max: number, sectionsToMax: number }
 export type MusicConfig = {
@@ -17,11 +17,10 @@ export type MusicConfig = {
 export type ConfigType = {
 	sectionSize: number,
 	startingTotal: number,
-	hp: { max: number },
 	clusterTypes: { small: ClusterType, large: ClusterType },
 	gateOps: { GateOp },
 	obstacleLoss: number,
-	hazards: { tomatoDamage: number },
+	hazards: { tomatoLoss: number },
 	speed: number,
 	firing: { base: number, cap: number, perSection: number, range: number },
 	spectators: { approachSpeed: number, centerTolerance: number },
@@ -125,16 +124,13 @@ local function validate(c: any): (boolean, string?)
 			type(ct) ~= "table"
 			or not isPositiveInt(ct.hits)
 			or not isPositiveInt(ct.reward)
-			or not isPositiveInt(ct.attackDamage)
+			or not isPositiveInt(ct.attackLoss)
 		then
-			return false, `clusterTypes.{name} needs positive integer hits, reward and attackDamage`
+			return false, `clusterTypes.{name} needs positive integer hits, reward and attackLoss`
 		end
 	end
-	if type(c.hazards) ~= "table" or not isPositiveInt(c.hazards.tomatoDamage) then
-		return false, "hazards.tomatoDamage must be a positive integer"
-	end
-	if type(c.hp) ~= "table" or not isPositiveInt(c.hp.max) then
-		return false, "hp.max must be a positive integer"
+	if type(c.hazards) ~= "table" or not isPositiveInt(c.hazards.tomatoLoss) then
+		return false, "hazards.tomatoLoss must be a positive integer"
 	end
 
 	if type(c.gateOps) ~= "table" or #c.gateOps == 0 then
@@ -264,10 +260,11 @@ end
 local config: ConfigType = {
 	sectionSize = 50, -- [spec s5]
 	startingTotal = 10, -- [spec s5]
-	hp = { max = 100 }, -- [default] initial parade HP; no regeneration
 	clusterTypes = {
-		small = { hits = 3, reward = 5, attackDamage = 5 }, -- hits/reward [spec s4], attackDamage [default]
-		large = { hits = 8, reward = 15, attackDamage = 12 }, -- hits/reward [spec s4], attackDamage [default]
+		-- hits/reward [spec s4]. attackLoss [default, provisional, ADR 0006]: followers an unconverted
+		-- horde of this type removes from the parade when it reaches it. Tune with the #17 ladder.
+		small = { hits = 3, reward = 5, attackLoss = 5 },
+		large = { hits = 8, reward = 15, attackLoss = 10 },
 	},
 	-- [default] The spec only gives +N and xN as the allowed forms; +20 and x2 are its examples (s6).
 	gateOps = {
@@ -275,8 +272,9 @@ local config: ConfigType = {
 		{ kind = "multiply", value = 2 },
 	},
 	obstacleLoss = 10, -- [spec s9]
-	-- Issue #96: HP lost once when an unblocked tomato hits the lead. Blocking is by a landed gift.
-	hazards = { tomatoDamage = 5 }, -- [default]
+	-- Issue #96: followers lost once when an unblocked tomato hits the lead (ADR 0006). Blocking is by
+	-- a landed gift. [default, provisional]
+	hazards = { tomatoLoss = 5 },
 	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
@@ -327,7 +325,7 @@ local config: ConfigType = {
 		shotImpact = "",
 		obstacleThud = "",
 		attackBonk = "",
-		hpHit = "",
+		followerHit = "",
 		sectionRise = "",
 		finalePeak = "",
 		defeatBreakup = "",

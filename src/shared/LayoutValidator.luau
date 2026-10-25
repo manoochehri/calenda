@@ -7,8 +7,9 @@
 -- Extension point (issues #36 / #17): `check(layout, config, extraChecks)` runs each extra check
 -- `(ctx) -> (boolean, string?)` after the base checks, with ctx = { layout, config, report }.
 -- report.clusters[id] = { encounterTime, convertTime, reachTime } is the per-cluster arrival data
--- (an unconverted cluster has reachTime and no convertTime: that is when it attacks). The HP
--- trajectory checks (no-input run defeated, competent run completed with HP left) plug in there.
+-- (an unconverted cluster has reachTime and no convertTime: that is when it attacks). The life
+-- trajectory checks (no-input run defeated, competent run completed with followers left, ADR 0006)
+-- plug in there.
 -- Those checks use the same RunDriver.TICK_DT and phase order as the server.
 local CrowdMath = require("./CrowdMath")
 local Config = require("./Config")
@@ -19,8 +20,8 @@ local RunDriver = require("./RunDriver")
 type Layout = Level.Layout
 
 export type ClusterInfo = { encounterTime: number?, convertTime: number?, reachTime: number? }
-export type HPTrajectoryPoint = { time: number, hp: number }
-export type HPScenario = { outcome: string?, hp: number, trajectory: { HPTrajectoryPoint } }
+export type LifeTrajectoryPoint = { time: number, total: number }
+export type LifeScenario = { outcome: string?, total: number, trajectory: { LifeTrajectoryPoint } }
 export type Report = {
 	ok: boolean,
 	errors: { string },
@@ -37,7 +38,7 @@ export type Report = {
 	recruitTotalBaseRate: number,
 	recruitTotalAvailable: number,
 	clusters: { [number]: ClusterInfo },
-	hpScenarios: { [string]: HPScenario }?,
+	lifeScenarios: { [string]: LifeScenario }?,
 }
 export type Context = { layout: any, config: any, report: Report }
 export type ExtraCheck = (ctx: Context) -> (boolean, string?)
@@ -313,7 +314,7 @@ local function simulate(layout: any, cfg: any, report: Report, errs: { string })
 			end
 		end
 
-		-- 3. unconverted clusters that reached the parade (attack time for the HP extension)
+		-- 3. unconverted clusters that reached the parade (attack time for the life extension)
 		for _, c in clusters do
 			local s = state[c.id]
 			if t0 >= c.spawnTime and not s.converted and not s.reached then

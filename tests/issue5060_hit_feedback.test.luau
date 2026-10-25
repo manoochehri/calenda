@@ -1,11 +1,9 @@
 --!strict
--- Issues #50 and #60: HP bar view, hit feedback envelopes, cluster event budget and dedupe, and
--- the finale depth fix. All pure.
+-- Issues #50 and #60: hit feedback envelopes, cluster event budget and dedupe, and the finale depth
+-- fix. All pure. The HP bar is gone (ADR 0006): the crowd counter is the life bar.
 local ClusterEvents = require("../src/shared/ClusterEvents")
 local FinalePlan = require("../src/shared/FinalePlan")
 local HitFeedback = require("../src/shared/HitFeedback")
-local HpBar = require("../src/shared/HpBar")
-local HpExtension = require("../src/shared/HpExtension")
 local ResetPlan = require("../src/shared/ResetPlan")
 
 local function eq(actual: any, expected: any, name: string)
@@ -16,82 +14,19 @@ local function near(actual: number, expected: number, name: string)
 	assert(math.abs(actual - expected) < 1e-6, `{name}: expected {expected}, got {actual}`)
 end
 
-local function hp(h: number, m: number): HpExtension.Hp?
-	return HpExtension.read({ hp = h, maxHp = m })
-end
-
 return {
 	{
-		name = "hp bar is hidden when HP is unavailable",
+		name = "hit intensity scales with the share of followers lost, has a floor and a cap, and survives bad input",
 		run = function()
-			eq(HpBar.view(nil), nil, "nil")
-			eq(HpBar.view(HpExtension.read({})), nil, "no fields")
-		end,
-	},
-	{
-		name = "hp bar fraction and number: full, partial, empty; never shows 0 while alive",
-		run = function()
-			local full = HpBar.view(hp(100, 100)) :: HpBar.View
-			near(full.fraction, 1, "full")
-			eq(full.label, "100/100", "label")
-			local part = HpBar.view(hp(37.2, 100)) :: HpBar.View
-			eq(part.label, "38/100", "rounds up while alive")
-			local dead = HpBar.view(hp(0, 100)) :: HpBar.View
-			near(dead.fraction, 0, "empty")
-			eq(dead.label, "0/100", "zero")
-			eq(dead.low, false, "no warning once defeated")
-		end,
-	},
-	{
-		name = "hp bar colour runs green to yellow to red and is a valid colour",
-		run = function()
-			local prev = nil
-			for i = 10, 0, -1 do
-				local v = HpBar.view(hp(i, 10)) :: HpBar.View
-				for _, c in v.color do
-					assert(c >= 0 and c <= 255 and c == math.floor(c), "byte")
-				end
-				if prev then
-					assert(v.color[1] >= prev[1] - 1 or true, "ok")
-				end
-				prev = v.color
-			end
-			local g = (HpBar.view(hp(10, 10)) :: HpBar.View).color
-			local r = (HpBar.view(hp(1, 10)) :: HpBar.View).color
-			assert(g[2] > g[1], "full is green")
-			assert(r[1] > r[2], "nearly empty is red")
-		end,
-	},
-	{
-		name = "low warning starts at the named threshold and pulses between 0 and 1",
-		run = function()
-			eq(HpBar.LOW_FRACTION, 0.3, "named default")
-			eq((HpBar.view(hp(31, 100)) :: HpBar.View).low, false, "above")
-			eq((HpBar.view(hp(30, 100)) :: HpBar.View).low, true, "at the threshold")
-			eq((HpBar.view(hp(1, 100)) :: HpBar.View).low, true, "below")
-			for i = 0, 40 do
-				local p = HpBar.pulse(i / 13)
-				assert(p >= 0 and p <= 1, "pulse in range")
-			end
-			assert(HpBar.pulse(0.1) ~= HpBar.pulse(0.2), "it moves")
-		end,
-	},
-	{
-		name = "hit intensity scales with damage, has a floor and a cap, and survives bad input",
-		run = function()
-			near(HitFeedback.intensity(nil, nil, nil), HitFeedback.MIN_INTENSITY, "missing")
-			near(
-				HitFeedback.intensity(100, 95, 100),
-				HitFeedback.MIN_INTENSITY,
-				"small hit floored"
-			)
+			near(HitFeedback.intensity(nil, nil), HitFeedback.MIN_INTENSITY, "missing")
+			near(HitFeedback.intensity(100, 99), HitFeedback.MIN_INTENSITY, "small hit floored")
 			assert(
-				HitFeedback.intensity(100, 80, 100) > HitFeedback.intensity(100, 95, 100),
+				HitFeedback.intensity(100, 80) > HitFeedback.intensity(100, 95),
 				"bigger hit stronger"
 			)
-			near(HitFeedback.intensity(100, 0, 100), 1, "capped at 1")
-			near(HitFeedback.intensity(0 / 0, 1, 100), HitFeedback.MIN_INTENSITY, "nan")
-			near(HitFeedback.intensity(100, 50, 0), HitFeedback.MIN_INTENSITY, "maxHp 0")
+			near(HitFeedback.intensity(100, 0), 1, "capped at 1")
+			near(HitFeedback.intensity(0 / 0, 1), HitFeedback.MIN_INTENSITY, "nan")
+			near(HitFeedback.intensity(0, 0), HitFeedback.MIN_INTENSITY, "empty parade")
 		end,
 	},
 	{
@@ -351,9 +286,10 @@ return {
 		end,
 	},
 	{
-		name = "ResetPlan has an hp item",
+		name = "ResetPlan has a hit item and no hp item",
 		run = function()
-			assert(table.find(ResetPlan.items, "hp") ~= nil, "hp is on the replay checklist")
+			assert(table.find(ResetPlan.items, "hit") ~= nil, "hit is on the replay checklist")
+			assert(table.find(ResetPlan.items, "hp") == nil, "no HP on the checklist")
 		end,
 	},
 }

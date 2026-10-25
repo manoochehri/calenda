@@ -449,7 +449,7 @@ function ClusterView.new(layout: any): ClusterView
 	end
 
 	-- An unfilled cluster reached the parade (issue #50): a cartoon bump of flying hats and
-	-- instrument bits at the lead. The HP bar, shake and flash are driven by Main from the same
+	-- instrument bits at the lead. The counter wobble, shake and flash are driven by Main from the same
 	-- Event. A repeated event for the same cluster, or a flood, plays nothing extra.
 	function view.onAttack(_, payload: any): boolean
 		if type(payload) ~= "table" then
@@ -457,7 +457,7 @@ function ClusterView.new(layout: any): ClusterView
 		end
 		local id = if type(payload.id) == "number" then payload.id else nil
 		if not attacked:first(id) then
-			return false -- a duplicate event: nothing again, not even the HP shake
+			return false -- a duplicate event: nothing again, not even the counter wobble
 		end
 		-- The server's attack Event is what starts the mob's slam (issue #65): the pure tracker keeps
 		-- it pinned at the front of the parade until now (or a short fallback), then slams and

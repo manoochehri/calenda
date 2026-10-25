@@ -1,5 +1,5 @@
 --!strict
--- Hit feedback envelopes (issue #50): the jolt on the HP bar, a short decaying screen shake and a
+-- Hit feedback envelopes (issue #50): the wobble on the crowd counter, a short decaying screen shake and a
 -- red-white flash, all driven by one tiny state that an "attack" Event restarts. Pure and capped:
 -- no matter how many attacks arrive, nothing exceeds the MAX_* values. Hits are playful but
 -- impactful (Amendment 1): quick and bouncy, never lingering.
@@ -14,7 +14,7 @@ HitFeedback.MAX_FLASH_ALPHA = 0.45 -- [default] the vignette never hides the gam
 HitFeedback.SHAKE_HZ = 22 -- [default]
 HitFeedback.WHITE_SECONDS = 0.08 -- [default] the flash starts white, then turns red
 HitFeedback.MIN_INTENSITY = 0.35 -- [default] even a small hit is visible
-HitFeedback.INTENSITY_GAIN = 6 -- [default] damage share of max HP -> intensity
+HitFeedback.INTENSITY_GAIN = 6 -- [default] share of the crowd lost -> intensity
 
 local function decay(age: number, seconds: number): number
 	if age < 0 or age >= seconds then
@@ -45,12 +45,13 @@ local function finite(v: any): boolean
 	return type(v) == "number" and v == v and v > -math.huge and v < math.huge
 end
 
--- 0..1 from the HP an attack took; missing or odd numbers give the floor.
-function HitFeedback.intensity(hpBefore: any, hpAfter: any, maxHp: any): number
-	if not (finite(hpBefore) and finite(hpAfter) and finite(maxHp)) or maxHp <= 0 then
+-- 0..1 from the followers a hit took (ADR 0006: the crowd total is the life bar); missing or odd
+-- numbers give the floor.
+function HitFeedback.intensity(before: any, after: any): number
+	if not (finite(before) and finite(after)) or before <= 0 then
 		return HitFeedback.MIN_INTENSITY
 	end
-	local share = math.max(0, hpBefore - hpAfter) / maxHp
+	local share = math.max(0, before - after) / before
 	return math.clamp(share * HitFeedback.INTENSITY_GAIN, HitFeedback.MIN_INTENSITY, 1)
 end
 

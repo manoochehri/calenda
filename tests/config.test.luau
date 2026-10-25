@@ -47,13 +47,13 @@ return {
 			local c = Config
 			eq(c.sectionSize, 50, "sectionSize")
 			eq(c.startingTotal, 10, "startingTotal")
-			eq(c.hp.max, 100, "hp.max")
 			eq(c.clusterTypes.small.hits, 3, "small.hits")
 			eq(c.clusterTypes.small.reward, 5, "small.reward")
-			eq(c.clusterTypes.small.attackDamage, 5, "small.attackDamage")
+			eq(c.clusterTypes.small.attackLoss, 5, "small.attackLoss")
 			eq(c.clusterTypes.large.hits, 8, "large.hits")
 			eq(c.clusterTypes.large.reward, 15, "large.reward")
-			eq(c.clusterTypes.large.attackDamage, 12, "large.attackDamage")
+			eq(c.clusterTypes.large.attackLoss, 10, "large.attackLoss")
+			eq(c.hazards.tomatoLoss, 5, "hazards.tomatoLoss")
 			eq(c.obstacleLoss, 10, "obstacleLoss")
 			eq(c.firing.base, 6, "firing.base (ADR 0004; was 3)")
 			eq(c.firing.cap, 20, "firing.cap (ADR 0004; was 12)")
@@ -82,7 +82,6 @@ return {
 			assert(table.isfrozen(Config))
 			assert(table.isfrozen(Config.clusterTypes))
 			assert(table.isfrozen(Config.clusterTypes.small))
-			assert(table.isfrozen(Config.hp))
 			assert(table.isfrozen(Config.debug))
 			assert(table.isfrozen(Config.finaleThresholds))
 			assert(table.isfrozen(Config.gateOps))
@@ -110,11 +109,14 @@ return {
 	expectInvalid("startingTotal negative", function(c)
 		c.startingTotal = -1
 	end),
-	expectInvalid("HP maximum zero", function(c)
-		c.hp.max = 0
+	expectInvalid("small attack loss non-integer", function(c)
+		c.clusterTypes.small.attackLoss = 2.5
 	end),
-	expectInvalid("small attack damage non-integer", function(c)
-		c.clusterTypes.small.attackDamage = 2.5
+	expectInvalid("large attack loss zero", function(c)
+		c.clusterTypes.large.attackLoss = 0
+	end),
+	expectInvalid("tomato loss zero", function(c)
+		c.hazards.tomatoLoss = 0
 	end),
 	expectInvalid("missing field", function(c)
 		c.obstacleLoss = nil

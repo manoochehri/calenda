@@ -21,7 +21,7 @@ return {
 			local shot = SfxMap.forEvent({ kind = "cluster", id = 1, hits = 1, shot = "note" })
 			assert(table.find(shot, "shotLaunch") and table.find(shot, "shotImpact"), "shot")
 			local atk = SfxMap.forEvent({ kind = "attack", id = 1 })
-			assert(table.find(atk, "attackBonk") and table.find(atk, "hpHit"), "attack")
+			assert(table.find(atk, "attackBonk") and table.find(atk, "followerHit"), "attack")
 			one(SfxMap.forEvent({ kind = "replay" }), "replayClick")
 		end,
 	},

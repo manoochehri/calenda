@@ -151,7 +151,7 @@ return {
 	{
 		name = "encodeState carries a validated phase",
 		run = function()
-			local base = { time = 0, z = 0, x = 0, total = 1, hp = 3, maxHp = 3, best = 1 }
+			local base = { time = 0, z = 0, x = 0, total = 1, best = 1 }
 			local function with(phase: any, outcome: string?): Remotes.StatePayload
 				local s = table.clone(base) :: any
 				s.phase = phase

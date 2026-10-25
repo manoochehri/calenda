@@ -28,8 +28,6 @@ export type StatePayload = {
 	z: number,
 	x: number,
 	total: number,
-	hp: number,
-	maxHp: number,
 	best: number,
 	over: boolean,
 	phase: string, -- "ready" (paused, waiting for Start) | "running" | "over"; see isPhase
@@ -44,8 +42,6 @@ export type EventPayload = {
 	side: string?,
 	before: number?,
 	after: number?,
-	hpBefore: number?,
-	hpAfter: number?,
 	score: number?,
 	hits: number?, -- cluster: meter value after the shot, integer 0..1000 (ClusterFeed)
 	shot: string?, -- cluster, miss: "note" | "gift"
@@ -105,8 +101,6 @@ export type Snapshot = {
 	z: number,
 	x: number,
 	total: number,
-	hp: number,
-	maxHp: number,
 	best: number,
 	phase: string?, -- optional; derived from outcome when absent or invalid
 	outcome: string?,
@@ -125,8 +119,6 @@ function Remotes.encodeState(s: Snapshot): StatePayload
 		z = round2(s.z),
 		x = round2(s.x),
 		total = s.total,
-		hp = s.hp,
-		maxHp = s.maxHp,
 		best = s.best,
 		over = s.outcome ~= nil,
 		outcome = s.outcome,

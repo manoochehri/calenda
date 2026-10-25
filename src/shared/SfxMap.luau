@@ -17,7 +17,7 @@ SfxMap.SLOTS = table.freeze({
 	"shotImpact", -- it lands on a spectator group
 	"obstacleThud", -- the parade bumps an obstacle
 	"attackBonk", -- an unconverted group reaches the parade
-	"hpHit", -- the HP bar takes the damage
+	"followerHit", -- the parade loses followers to a horde (ADR 0006)
 	"sectionRise", -- a new section forms
 	"finalePeak", -- the plaza finale
 	"defeatBreakup", -- the party breaks up
@@ -48,7 +48,7 @@ function SfxMap.forEvent(payload: any): { string }
 	elseif kind == "cluster" then
 		return { "shotLaunch", "shotImpact" }
 	elseif kind == "attack" then
-		return { "attackBonk", "hpHit" }
+		return { "attackBonk", "followerHit" }
 	elseif kind == "complete" then
 		return { "finalePeak" }
 	elseif kind == "defeated" then
