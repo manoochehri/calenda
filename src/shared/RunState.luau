@@ -49,7 +49,7 @@ export type Result = {
 -- first assembly, obstacle losses, completion/final total.
 export type Event = {
 	index: number,
-	kind: string, -- run_start | gate | cluster_credit | obstacle | cluster_attack | complete | defeated
+	kind: string, -- run_start | level_start | gate | cluster_credit | obstacle | cluster_attack | complete | defeated
 	time: number,
 	seed: number,
 	automated: boolean,
@@ -73,6 +73,7 @@ export type RunState = {
 	complete: (self: RunState) -> Result,
 	defeat: (self: RunState) -> Result,
 	reset: (self: RunState, seed: number?) -> (),
+	enterLevel: (self: RunState, layout: Layout, label: string) -> (),
 	total: (self: RunState) -> number,
 	isComplete: (self: RunState) -> boolean,
 	outcome: (self: RunState) -> Outcome?,
@@ -139,20 +140,14 @@ local function new(opts: Options): RunState
 		)
 	end
 
-	local gates: { [string]: GatePair } = {}
-	for _, p in opts.layout.gatePairs do
-		gates[p.id] = p
-	end
-	local clusters: { [string]: ClusterDef } = {}
-	for _, c in opts.layout.clusters do
-		clusters[c.id] = c
-	end
-	local obstacles: { [string]: ObstacleDef } = {}
-	for _, o in opts.layout.obstacles do
-		obstacles[o.id] = o
-	end
 	local now: () -> number = opts.now or os.clock
 	local startTotal = opts.startingTotal or CrowdMath.startingTotal()
+
+	-- The level's own id maps (issue #128). enterLevel swaps them; the crowd total does not move.
+	local gates: { [string]: GatePair } = {}
+	local clusters: { [string]: ClusterDef } = {}
+	local obstacles: { [string]: ObstacleDef } = {}
+	local tomatoes: { [string]: boolean } = {}
 
 	-- Per-run state. Everything below is replaced wholesale by reset().
 	local seed = opts.seed
@@ -162,10 +157,6 @@ local function new(opts: Options): RunState
 	local usedGates: { [string]: boolean } = {}
 	local usedClusters: { [string]: ClusterUse } = {}
 	local usedObstacles: { [string]: boolean } = {}
-	local tomatoes: { [string]: boolean } = {}
-	for _, t in opts.layout.tomatoes or {} do
-		tomatoes[t.id] = true
-	end
 	local usedTomatoes: { [string]: boolean } = {}
 	local log: { Event } = {}
 	local seenRecruit = false
@@ -174,6 +165,24 @@ local function new(opts: Options): RunState
 	local bestScore = 0
 
 	local self = {} :: RunState
+
+	-- Loads one level's ids. Consumption resets too: a level's gates and clusters are its own.
+	local function loadLevel(layout: Layout)
+		gates, clusters, obstacles, tomatoes = {}, {}, {}, {}
+		for _, p in layout.gatePairs do
+			gates[p.id] = p
+		end
+		for _, c in layout.clusters do
+			clusters[c.id] = c
+		end
+		for _, o in layout.obstacles do
+			obstacles[o.id] = o
+		end
+		for _, t in layout.tomatoes or {} do
+			tomatoes[t.id] = true
+		end
+		usedGates, usedClusters, usedObstacles, usedTomatoes = {}, {}, {}, {}
+	end
 
 	local function record(
 		kind: string,
@@ -454,6 +463,15 @@ local function new(opts: Options): RunState
 		start(newSeed or seed)
 	end
 
+	-- Issue #128: the run moves on to the next level. The crowd total, the event log and the session
+	-- best carry over; the level's gates, clusters, obstacles and tomatoes replace the old ones, and
+	-- each starts unconsumed. `label` names the level in the log (e.g. "level2").
+	function self.enterLevel(_, layout: Layout, label: string)
+		checkLayout(layout)
+		loadLevel(layout)
+		record("level_start", crowdTotal, crowdTotal, { id = label })
+	end
+
 	function self.total(_)
 		return crowdTotal
 	end
@@ -483,6 +501,7 @@ local function new(opts: Options): RunState
 		return copy
 	end
 
+	loadLevel(opts.layout)
 	start(seed)
 	return self
 end

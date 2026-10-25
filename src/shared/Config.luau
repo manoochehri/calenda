@@ -60,6 +60,7 @@ export type ConfigType = {
 		formationDensity: Curve,
 	},
 	finaleThresholds: { number },
+	levelPlayOrder: { string }, -- level ids in play order (issue #128); reaching a level's finale moves on
 	giftEveryNthShot: number,
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
@@ -281,6 +282,18 @@ local function validate(c: any): (boolean, string?)
 		end
 	end
 
+	-- Issue #128: a non-empty list of distinct, non-empty level ids. LevelChain maps them to layouts.
+	if type(c.levelPlayOrder) ~= "table" or #c.levelPlayOrder == 0 then
+		return false, "levelPlayOrder must be a non-empty list of level ids"
+	end
+	local seenLevel: { [string]: boolean } = {}
+	for _, id in c.levelPlayOrder do
+		if type(id) ~= "string" or id == "" or seenLevel[id] then
+			return false, "levelPlayOrder must hold distinct, non-empty level ids"
+		end
+		seenLevel[id] = true
+	end
+
 	if not ascending(c.finaleThresholds, 1) then
 		return false, "finaleThresholds must be a strictly ascending list of positive integers"
 	end
@@ -413,6 +426,8 @@ local config: ConfigType = {
 		formationDensity = { start = 0.5, max = 1.0, sectionsToMax = 40 }, -- [default] 0..1 compactness
 	},
 	finaleThresholds = { 50, 150, 300 }, -- [spec s9, provisional]
+	-- [default] issue #128: the play order. One entry today; a level's finale advances to the next.
+	levelPlayOrder = { "oaxacan-street" },
 	giftEveryNthShot = 4, -- [spec s4] every fourth shot once a dancer section exists
 	durations = {
 		assemblySeconds = 0.8, -- [spec s7]

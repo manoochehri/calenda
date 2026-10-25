@@ -61,6 +61,7 @@ export type TickContext = {
 	z0: number,
 	z1: number,
 	x: number,
+	layout: Level.Layout, -- the authored level being played now (issue #128); hooks follow it
 	state: RunState.RunState,
 	emit: (DriverEvent) -> (),
 	passedClusters: { number },
@@ -73,7 +74,8 @@ export type Hooks = {
 	reset: (() -> ())?, -- clear per-run hook state when replay begins
 }
 export type Options = {
-	layout: Level.Layout,
+	layout: Level.Layout, -- the first level; must be levels[1] when `levels` is given
+	levels: { Level.Layout }?, -- the play order (issue #128); absent = a one-level run of `layout`
 	automated: boolean?,
 	hooks: Hooks?,
 	startReady: boolean?, -- true: begin "ready" (paused) until start(); default begins "running"
@@ -168,10 +170,14 @@ end
 
 function RunDriver.new(opts: Options): RunDriver
 	assert(type(opts) == "table" and type(opts.layout) == "table", "layout required")
+	-- Issue #128: the play order. Without `levels` the run is one level, exactly as before.
+	local levels: { Level.Layout } = opts.levels or { opts.layout }
+	assert(#levels >= 1 and levels[1] == opts.layout, "levels must start with layout")
+	local levelIndex = 1
 	local layout = copyForDetection(opts.layout)
 	local hooks: Hooks = opts.hooks or {}
 	-- Issue #96: the hazard schedule is drawn from the run seed, once, here on the server. Replay
-	-- keeps the same seed, so the same hazards come back.
+	-- keeps the same seed, so the same hazards come back. Each level draws its own from that seed.
 	local runSeed = opts.runSeed or layout.seed
 	local hazards = Hazards.schedule(layout.hazardSet, runSeed, layout.halfWidth, Config.speed)
 	-- Deliberately NOT forwarded: any startingTotal on opts (never client or caller data).
@@ -188,6 +194,18 @@ function RunDriver.new(opts: Options): RunDriver
 	local bound = Steering.bound(layout.halfWidth)
 
 	local time, z, x, target = 0, 0, 0, 0
+
+	-- Moves the run to level `index` (issue #128): the lead, the clock and the level's hazards start
+	-- over; the crowd total, x, the steer target and the run log carry on. Gifts never block across.
+	local function enterLevel(index: number)
+		levelIndex = index
+		local authored = levels[index]
+		layout = copyForDetection(authored)
+		hazards = Hazards.schedule(layout.hazardSet, runSeed, layout.halfWidth, Config.speed)
+		state:enterLevel(RunDriver.toRunLayout(authored, hazards), `level{index}`)
+		time, z = 0, 0
+		hazardWarned, hazardDone, gifts = {}, {}, {}
+	end
 	local ended = false
 	local finalOutcome: string? = nil
 	local finalScore: number? = nil
@@ -233,6 +251,7 @@ function RunDriver.new(opts: Options): RunDriver
 			z0 = z0,
 			z1 = z1,
 			x = x0,
+			layout = levels[levelIndex],
 			state = state,
 			emit = function(e: DriverEvent)
 				if e.kind == "cluster" or e.kind == "miss" then
@@ -371,6 +390,9 @@ function RunDriver.new(opts: Options): RunDriver
 			end
 			ended, finalOutcome, finalScore = true, "defeated", state:score() or state:total()
 			table.insert(events, { kind = "defeated", score = finalScore })
+		elseif z1 >= layout.plazaStart and levelIndex < #levels then
+			-- A level's finale (issue #128): the run moves on, the crowd total carries over.
+			enterLevel(levelIndex + 1)
 		elseif z1 >= layout.plazaStart then
 			local r = state:complete()
 			ended, finalOutcome, finalScore = true, "completed", r.score
@@ -393,6 +415,10 @@ function RunDriver.new(opts: Options): RunDriver
 		table.insert(replays, { time = now :: number })
 		while #replays > RunLog.MAX_LOGS_PER_PLAYER do
 			table.remove(replays, 1)
+		end
+		-- Back to the first level of the play order (issue #128), then a fresh run in it.
+		if levelIndex ~= 1 then
+			enterLevel(1)
 		end
 		state:reset()
 		if hooks.reset then
@@ -435,6 +461,7 @@ function RunDriver.new(opts: Options): RunDriver
 			best = state:best(),
 			outcome = finalOutcome,
 			score = finalScore,
+			level = levelIndex,
 		}
 	end
 
