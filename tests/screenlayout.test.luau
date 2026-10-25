@@ -34,7 +34,7 @@ return {
 				assert(a.ratio > 1, "landscape")
 			end
 			assert(table.concat(names, ",") == "16:9,4:3,19.5:9,21:9", table.concat(names, ","))
-			assert(ScreenLayout.REFERENCE_HEIGHT == 390)
+			assert(ScreenLayout.REFERENCE_HEIGHT == 390, "layout")
 			local full = ScreenLayout.screenRect(ScreenLayout.ASPECTS[3])
 			assert(full.h == 390 and full.w == 845, `19.5:9 is 845x390, got {full.w}x{full.h}`)
 		end,
@@ -124,7 +124,7 @@ return {
 			do
 				assert(ScreenLayout.element(n) ~= nil, `missing {n}`)
 			end
-			assert(ScreenLayout.element("Nope") == nil)
+			assert(ScreenLayout.element("Nope") == nil, "layout")
 		end,
 	},
 	{
@@ -172,7 +172,7 @@ return {
 				end
 			end)
 			assert(buttons >= 4, "replay is tested at every aspect")
-			assert(ScreenLayout.element("Replay").primary == true)
+			assert(ScreenLayout.element("Replay").primary == true, "layout")
 		end,
 	},
 	{
@@ -181,7 +181,10 @@ return {
 			local p = ScreenLayout.PRIMARY_BUTTON
 			assert(p.ay == 1 and (p.ax == 1 or p.ax == 0), "a lower corner")
 			local replay = ScreenLayout.element("Replay") :: ScreenLayout.Element
-			assert(replay.x == p.x and replay.y == p.y and replay.w == p.w and replay.h == p.h)
+			assert(
+				replay.x == p.x and replay.y == p.y and replay.w == p.w and replay.h == p.h,
+				"layout"
+			)
 		end,
 	},
 	{

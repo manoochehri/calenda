@@ -6,6 +6,8 @@
 -- placed in fractions of the SAFE rect, which is what a ScreenGui with ScreenInsets =
 -- CoreUISafeInsets gives (its 0..1 space is the safe area). The inset VALUES are estimates
 -- (UNVERIFIED on devices): see the Studio checklist in the PR.
+local Strings = require("./Strings")
+
 local ScreenLayout = {}
 
 export type Aspect = { name: string, ratio: number, notched: boolean }
@@ -107,7 +109,18 @@ replay.primary = true
 
 -- Top row: HP bar left, crowd counter centre, "+N secciones" right. The centre column below the
 -- counter holds the meter; the middle of the screen is left to the street and the portals.
-ScreenLayout.ELEMENTS = table.freeze({
+local ELEMENTS = {
+	el(
+		"MusicToggle",
+		1,
+		0,
+		1,
+		0,
+		0.22,
+		0.15,
+		BOTH,
+		{ minSize = 14, maxSize = 24, sample = Strings.musicOn }
+	),
 	el(
 		"HpBar",
 		0,
@@ -157,8 +170,8 @@ ScreenLayout.ELEMENTS = table.freeze({
 		1,
 		0,
 		1,
-		0,
-		0.26,
+		0.17,
+		0.24,
 		0.09,
 		RUN,
 		{ minSize = 14, maxSize = 32, sample = "+99 secciones" }
@@ -230,7 +243,13 @@ ScreenLayout.ELEMENTS = table.freeze({
 		{ minSize = 14, maxSize = 32, sample = "Mejor: 99999" }
 	),
 	replay,
-})
+}
+for _, e in ELEMENTS do
+	if e.name == "MusicToggle" then
+		e.touch = true
+	end
+end
+ScreenLayout.ELEMENTS = table.freeze(ELEMENTS)
 
 function ScreenLayout.element(name: string): Element?
 	for _, e in ScreenLayout.ELEMENTS do

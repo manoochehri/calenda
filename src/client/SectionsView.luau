@@ -13,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local Dance = require(Shared:WaitForChild("Dance"))
 local Formation = require(Shared:WaitForChild("Formation"))
 local FollowerSlots = require(Shared:WaitForChild("FollowerSlots"))
@@ -165,13 +166,11 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaSections"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
+	GuiLayout.safe(gui) -- same convention as the other HUD guis (issue #78)
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local indicator = Instance.new("TextLabel")
 	indicator.Name = "PlusSections"
-	indicator.AnchorPoint = Vector2.new(0.5, 0)
-	indicator.Position = UDim2.fromScale(0.5, 0.17) -- under the counter, off the gates ahead
-	indicator.Size = UDim2.fromScale(0.5, 0.07)
+	GuiLayout.place(indicator, "PlusSections") -- top right, clear of the counter and the meter
 	indicator.BackgroundTransparency = 1
 	indicator.TextColor3 = Color3.fromRGB(255, 221, 0)
 	indicator.TextStrokeColor3 = OUTLINE
@@ -179,6 +178,7 @@ function SectionsView.new(initialTotal: number): SectionsView
 	indicator.TextScaled = true
 	indicator.Font = Enum.Font.GothamBlack
 	indicator.Visible = false
+	GuiLayout.limitText(indicator, "PlusSections")
 	indicator.Parent = gui
 
 	local view = {} :: SectionsView

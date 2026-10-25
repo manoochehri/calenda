@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local HudMeters = require(Shared:WaitForChild("HudMeters"))
 
 local WHITE = Color3.fromRGB(255, 255, 255)
@@ -25,16 +26,14 @@ function RunHud.new(): RunHud
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaRunHud"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
+	GuiLayout.safe(gui)
 	gui.DisplayOrder = 5
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 	-- Meter: a bar under the counter that fills as loose followers approach the next section.
 	local back = Instance.new("Frame")
 	back.Name = "SectionMeter"
-	back.AnchorPoint = Vector2.new(0.5, 0)
-	back.Position = UDim2.fromScale(0.5, 0.215)
-	back.Size = UDim2.fromScale(0.5, 0.06)
+	GuiLayout.place(back, "SectionMeter")
 	back.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
 	back.BackgroundTransparency = 0.35
 	back.BorderSizePixel = 0
@@ -50,10 +49,7 @@ function RunHud.new(): RunHud
 	caption.Size = UDim2.fromScale(1, 1)
 	caption.BackgroundTransparency = 1
 	caption.TextScaled = true
-	local limit = Instance.new("UITextSizeConstraint")
-	limit.MinTextSize = 14 -- readable on a phone
-	limit.MaxTextSize = 28
-	limit.Parent = caption
+	GuiLayout.limitText(caption, "SectionMeter")
 	caption.Font = Enum.Font.GothamBold
 	caption.TextColor3 = WHITE
 	caption.TextStrokeColor3 = OUTLINE
@@ -64,9 +60,8 @@ function RunHud.new(): RunHud
 
 	local banner = Instance.new("TextLabel")
 	banner.Name = "Banner"
-	banner.AnchorPoint = Vector2.new(0.5, 0.5)
-	banner.Position = UDim2.fromScale(0.5, 0.4)
-	banner.Size = UDim2.fromScale(0.9, 0.14)
+	GuiLayout.place(banner, "Banner")
+	GuiLayout.limitText(banner, "Banner")
 	banner.BackgroundTransparency = 1
 	banner.TextScaled = true
 	banner.Font = Enum.Font.GothamBlack
