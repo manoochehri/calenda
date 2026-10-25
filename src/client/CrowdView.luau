@@ -46,8 +46,6 @@ type Avatar = {
 	skirt: Piece,
 	hat: Piece,
 	flower: Piece,
-	armL: Piece,
-	armR: Piece,
 	variant: string,
 	look: FollowerLook.Look,
 	lastClock: number,
@@ -249,19 +247,16 @@ local function buildFollower(parent: Instance): Avatar
 	local skirt = piece(model, "Skirt", Enum.PartType.Block, Vector3.new(2, 0.7, 2), 0, 0.45)
 	local hat = piece(model, "Hat", Enum.PartType.Block, Vector3.new(1, 0.9, 1), 0, 3.75)
 	local flower = piece(model, "Flower", Enum.PartType.Ball, Vector3.new(0.7, 0.7, 0.7), 0.55, 3.4)
-	local armL = piece(model, "ArmL", Enum.PartType.Block, Vector3.new(0.45, 1.5, 0.45), -0.85, 1.8)
-	local armR = piece(model, "ArmR", Enum.PartType.Block, Vector3.new(0.45, 1.5, 0.45), 0.85, 1.8)
 	model.PrimaryPart = body.part
+	-- Issue #114: five pieces, no arms (FollowerLook.PIECES).
 	return {
 		id = -1,
-		pieces = { body, head, skirt, hat, flower, armL, armR },
+		pieces = { body, head, skirt, hat, flower },
 		body = body,
 		head = head,
 		skirt = skirt,
 		hat = hat,
 		flower = flower,
-		armL = armL,
-		armR = armR,
 		variant = "march",
 		look = FollowerLook.of(0),
 		lastClock = 0,
@@ -279,12 +274,12 @@ local function restyle(avatar: Avatar, id: number, clock: number)
 	local look = FollowerLook.of(id)
 	avatar.id, avatar.look, avatar.lastClock, avatar.steps = id, look, clock, 0
 	avatar.variant = Dance.variant(id)
-	local color, accent = rgb(look.color), rgb(look.accent)
-	avatar.body.part.Color = color
-	avatar.skirt.part.Color = color:Lerp(Color3.new(1, 1, 1), 0.35)
-	avatar.head.part.Color = color:Lerp(Color3.new(1, 1, 1), 0.6)
-	avatar.hat.part.Color = accent
-	avatar.flower.part.Color = accent
+	local tints = FollowerLook.tints(look)
+	avatar.body.part.Color = rgb(tints.body)
+	avatar.skirt.part.Color = rgb(tints.skirt)
+	avatar.head.part.Color = rgb(tints.head)
+	avatar.hat.part.Color = rgb(tints.accent)
+	avatar.flower.part.Color = rgb(tints.accent)
 	avatar.hat.part.Transparency = if look.topper == "hat" then 0 else 1
 	avatar.flower.part.Transparency = if look.topper == "flower" then 0 else 1
 end
@@ -294,7 +289,8 @@ local function buildRing(parent: Instance): Part
 	local ring = Instance.new("Part")
 	ring.Name = "LeadRing"
 	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.2, 8, 8) -- cylinder axis is X; rotated upright below
+	-- Issue #114: wider than before (LeadPose.RING_DIAMETER). Cylinder axis is X; rotated upright below.
+	ring.Size = Vector3.new(0.2, LeadPose.RING_DIAMETER, LeadPose.RING_DIAMETER)
 	ring.Color = RING_COLOR
 	ring.Material = Enum.Material.Neon
 	ring.Transparency = 0.2
@@ -358,11 +354,12 @@ function CrowdView.new(): CrowdView
 		local look = avatar.look
 		local isFar = lastLeadZ ~= nil and math.abs(z - lastLeadZ) > DanceConfig.farDistance
 		local beat = clock * Config.music.bpm / 60 * danceTempo + look.phase / (2 * math.pi)
-		local danceHop: number, danceSway: number, arm: number, spin: number
+		local danceHop: number, danceSway: number, _arm: number, spin: number
+		-- The arm swing is unused: followers have no arms (issue #114).
 		if isFar then
-			danceHop, danceSway, arm, spin = Dance.lowDetailPose(beat)
+			danceHop, danceSway, _arm, spin = Dance.lowDetailPose(beat)
 		else
-			danceHop, danceSway, arm, spin = Dance.pose(avatar.variant, beat, danceAmplitude)
+			danceHop, danceSway, _arm, spin = Dance.pose(avatar.variant, beat, danceAmplitude)
 		end
 		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
 		local marchY, marchSquashY, marchSquashXZ =
@@ -391,11 +388,6 @@ function CrowdView.new(): CrowdView
 		for _, p in avatar.pieces do
 			p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
 			local localFrame = CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
-			if p == avatar.armL then
-				localFrame *= CFrame.Angles(0, 0, -arm)
-			elseif p == avatar.armR then
-				localFrame *= CFrame.Angles(0, 0, arm)
-			end
 			p.part.CFrame = base * localFrame
 		end
 	end

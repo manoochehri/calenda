@@ -129,6 +129,9 @@ function LeadAvatar.new(): LeadAvatar
 				freeze(d)
 			end
 			table.insert(connections, character.DescendantAdded:Connect(freeze))
+			-- Issue #114: a bigger lead (LeadPose.AVATAR_SCALE). Model:ScaleTo is documented; the in-engine
+			-- result is UNVERIFIED until the Studio checklist runs.
+			character:ScaleTo(LeadPose.AVATAR_SCALE)
 			hrp.Anchored = true
 			standing = LeadPose.rootHeight(humanoid.RigType.Name, humanoid.HipHeight, hrp.Size.Y)
 			if humanoid.Health <= 0 then

@@ -35,6 +35,10 @@ FollowerLook.ACCENT = table.freeze({
 	table.freeze({ 255, 230, 90 }),
 	table.freeze({ 120, 60, 200 }),
 })
+-- Issue #114: one dominant costume colour (body and skirt match), one skin-tone head, one accent
+-- for the hat or flower. The follower is built from these five pieces only (no arms).
+FollowerLook.SKIN = table.freeze({ 236, 196, 160 })
+FollowerLook.PIECES = table.freeze({ "body", "head", "skirt", "hat", "flower" })
 FollowerLook.SCALE_MIN = 0.9 -- [default]
 FollowerLook.SCALE_MAX = 1.18 -- [default]
 FollowerLook.HAT_SHARE = 0.25 -- [default] share of followers with a hat
@@ -77,6 +81,21 @@ function FollowerLook.of(id: number): Look
 		tempo = FollowerLook.TEMPO_MIN
 			+ u(id, 66) * (FollowerLook.TEMPO_MAX - FollowerLook.TEMPO_MIN),
 		phase = u(id, 67) * math.pi * 2,
+	}
+end
+
+-- The colours of each visible part: the costume is one dominant colour on body and skirt alike.
+function FollowerLook.tints(look: Look): {
+	body: { number },
+	skirt: { number },
+	head: { number },
+	accent: { number },
+}
+	return {
+		body = look.color,
+		skirt = look.color,
+		head = FollowerLook.SKIN,
+		accent = look.accent,
 	}
 end
 
