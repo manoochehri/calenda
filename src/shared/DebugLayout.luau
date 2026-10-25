@@ -57,7 +57,8 @@ for pair = 1, 4 do
 		add(pair * 2, "large", 16, arrive, base)
 		for soak = 1, SOAKS[pair] do
 			local x = if pair == 1 then 16 else -16
-			add(pair * 2 - 1, "large", x, arrive, base - SOAK_STEP * soak)
+			local wave = if pair == 1 then pair * 2 else pair * 2 - 1
+			add(wave, "large", x, arrive, base - SOAK_STEP * soak)
 		end
 	end
 end

@@ -78,7 +78,8 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 			add(pair * 2, "large", bigX, arrive, base)
 			for soak = 1, spec.soaks[pair] do
 				local x = if pair == 1 then bigX else smallX
-				add(pair * 2 - 1, "large", x, arrive, base - SOAK_STEP * soak)
+				local wave = if pair == 1 then pair * 2 else pair * 2 - 1
+				add(wave, "large", x, arrive, base - SOAK_STEP * soak)
 			end
 		end
 	end
