@@ -110,8 +110,10 @@ local function buildRey(parent: Instance): Rey
 		offset: Vector3,
 		color: Color3
 	)
+		local piecePart = part(parent, name, shape, size * s, offset * s, color)
+		piecePart.CanTouch = false
 		table.insert(pieces, {
-			part = part(parent, name, shape, size * s, offset * s, color),
+			part = piecePart,
 			offset = offset * s,
 		})
 	end
@@ -186,7 +188,7 @@ local function drawRey(rey: Rey, leadX: number, leadZ: number, seed: number)
 	for _, piece in rey.pieces do
 		piece.part.CFrame = CFrame.new(
 			ViewMap.x(pose.x) + ViewMap.x(piece.offset.X),
-			piece.offset.Y,
+			piece.offset.Y + pose.bob,
 			pose.z + piece.offset.Z
 		)
 	end

@@ -51,9 +51,10 @@ return {
 					local pose = ReyFormation.pose(leadX, 50, seed, DebugLayout.halfWidth - 6)
 					local again = ReyFormation.pose(leadX, 50, seed, DebugLayout.halfWidth - 6)
 					assert(
-						pose.x == again.x and pose.z == again.z,
+						pose.x == again.x and pose.z == again.z and pose.bob == again.bob,
 						"same inputs give the same march pose"
 					)
+					assert(pose.bob >= 0 and pose.bob <= 0.25, "march bob stays subtle")
 					assert(
 						pose.z == 50 - ReyFormation.BEHIND,
 						"Rey moves with the lead through the parade"
@@ -73,6 +74,14 @@ return {
 					assert(pose.x * pose.side > 0, "Rey stays in her outer lane as the lead steers")
 				end
 			end
+			assert(
+				ReyFormation.pose(0, 0, 1, DebugLayout.halfWidth - 6).bob == 0,
+				"bob starts at baseline"
+			)
+			assert(
+				ReyFormation.pose(0, 2, 1, DebugLayout.halfWidth - 6).bob > 0,
+				"bob follows the deterministic parade phase"
+			)
 			assert(
 				9.9 + 0.79 * (ReyFormation.SCALE + 0.1) > 13.2,
 				"the next larger model would cross the curb at full steering"

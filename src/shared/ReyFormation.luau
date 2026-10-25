@@ -1,6 +1,6 @@
 --!strict
--- Pure placement for Rey inside the moving parade (issue #100). Keep her in the outer lane,
--- behind the lead, and use a deterministic side that changes only when steering would crowd her.
+-- Pure pose for Rey inside the moving parade (issue #100). Keep her in the outer lane, behind the
+-- lead, on a deterministic side, with a march bob derived only from the lead's run position.
 local ReyFormation = {}
 
 -- At the outermost steering pose the center reaches 9.9 studs. The wings extend 0.79 studs from
@@ -14,7 +14,7 @@ ReyFormation.CENTER_Z = -0.1525 * ReyFormation.SCALE
 ReyFormation.OFFSET = 8.5
 ReyFormation.BEHIND = 6
 
-export type Pose = { x: number, z: number, side: number }
+export type Pose = { x: number, z: number, side: number, bob: number }
 
 function ReyFormation.pose(leadX: number, leadZ: number, seed: number, roadHalfWidth: number): Pose
 	assert(
@@ -36,7 +36,8 @@ function ReyFormation.pose(leadX: number, leadZ: number, seed: number, roadHalfW
 	local side = if math.floor(seed) % 2 == 0 then 1 else -1
 	local edge = roadHalfWidth - ReyFormation.HALF_WIDTH - 0.2
 	local x = math.clamp(side * ReyFormation.OFFSET + leadX * 0.1, -edge, edge)
-	return { x = x, z = leadZ - ReyFormation.BEHIND, side = side }
+	local bob = 0.25 * math.abs(math.sin(leadZ * 0.35))
+	return { x = x, z = leadZ - ReyFormation.BEHIND, side = side, bob = bob }
 end
 
 return ReyFormation
