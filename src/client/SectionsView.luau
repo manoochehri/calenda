@@ -262,7 +262,9 @@ function SectionsView.new(initialTotal: number): SectionsView
 	end
 
 	function view.onShot(_, payload: any)
-		local shot = ClusterFeed.decode(payload) or ClusterFeed.decodeMiss(payload)
+		local shot = ClusterFeed.decode(payload)
+			or ClusterFeed.decodeMiss(payload)
+			or ClusterFeed.decodeRey(payload)
 		if shot == nil or shot.shot ~= "gift" then
 			return
 		end

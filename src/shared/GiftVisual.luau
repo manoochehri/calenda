@@ -3,6 +3,7 @@
 -- nor a spectator, and the spectators' catch celebration. Visual only: a gift is exactly one hit on
 -- the server, and nothing here is a reward. Colors are 0..255 triples (the client makes Color3s).
 -- Placeholder treats only; specific foods await local reference review (spec s4).
+local Config = require("./Config")
 local GiftVisual = {}
 
 GiftVisual.NOTE_RGB = table.freeze({ 255, 235, 60 })
@@ -29,6 +30,24 @@ function GiftVisual.look(hits: number): Look
 		wrapper = hits % #GiftVisual.WRAPPERS + 1,
 		spin = if hits % 2 == 0 then 9 else -9,
 	}
+end
+
+-- The gift's flight path (ADR 0006, #93): a high arc that rises to `giftArc.height` at the middle
+-- and comes back down, with `giftArc.loops` whole loops swinging sideways by `giftArc.loopRadius`.
+-- Returns the offsets (studs) to add to the straight line from launch to target at progress f.
+-- Both offsets are 0 at f = 0 and f = 1, so the gift still lands exactly on its target.
+function GiftVisual.arc(f: number, config: any?): { dx: number, dy: number }
+	local cfg = (config or Config).giftArc
+	local k = math.clamp(f, 0, 1)
+	return {
+		dx = cfg.loopRadius * math.sin(2 * math.pi * cfg.loops * k),
+		dy = cfg.height * 4 * k * (1 - k),
+	}
+end
+
+-- A gift's flight time over a distance that a note covers in `noteSeconds` (ADR 0006, #93).
+function GiftVisual.flightSeconds(noteSeconds: number, config: any?): number
+	return noteSeconds * (config or Config).giftArc.slowdown
 end
 
 -- Tumble angle at flight progress 0..1: two whole turns on the way.

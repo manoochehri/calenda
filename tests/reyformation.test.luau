@@ -1,5 +1,6 @@
 --!strict
 local CameraRig = require("../src/shared/CameraRig")
+local Config = require("../src/shared/Config")
 local DebugLayout = require("../src/shared/DebugLayout")
 local ReyFormation = require("../src/shared/ReyFormation")
 local ScreenProject = require("../src/shared/ScreenProject")
@@ -56,8 +57,8 @@ return {
 					)
 					assert(pose.bob >= 0 and pose.bob <= 0.25, "march bob stays subtle")
 					assert(
-						pose.z == 50 - ReyFormation.BEHIND,
-						"Rey moves with the lead through the parade"
+						pose.z == 50 + Config.rey.aheadStuds,
+						"Rey moves with the lead, ahead of it by Config.rey.aheadStuds (ADR 0006)"
 					)
 					assert(
 						math.abs(pose.x) <= edge,

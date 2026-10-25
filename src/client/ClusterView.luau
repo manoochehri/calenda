@@ -29,6 +29,8 @@ local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ShotLook = require(Shared:WaitForChild("ShotLook"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
+local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local ReyFormation = require(Shared:WaitForChild("ReyFormation"))
 
 local Bits = require(script.Parent:WaitForChild("Bits"))
 local MobView = require(script.Parent:WaitForChild("MobView"))
@@ -81,6 +83,7 @@ type Chevron = { left: Part, right: Part, dust: ParticleEmitter }
 export type ClusterView = {
 	onCluster: (self: ClusterView, payload: any) -> boolean,
 	onMiss: (self: ClusterView, payload: any) -> (), -- a continuous-fire shot with no target
+	onRey: (self: ClusterView, payload: any) -> (), -- a shot that hit Rey (ADR 0006, #93)
 	onAttack: (self: ClusterView, payload: any) -> boolean, -- false for a duplicate event
 	reset: (self: ClusterView) -> (),
 	update: (self: ClusterView, t: number, leadX: number, leadZ: number, dt: number) -> (),
@@ -262,13 +265,17 @@ function ClusterView.new(layout: any): ClusterView
 	end)
 
 	type Flight = {
-		id: number?, -- nil for a miss
+		id: number?, -- nil for a miss or a Rey hit
 		variant: string,
 		hits: number,
 		fromX: number,
 		fromZ: number,
 		miss: boolean,
 		n: number,
+		gift: boolean, -- a gift flies the high, slow looping arc (ADR 0006)
+		rey: boolean, -- aimed at Rey's drawn position (toX, toZ), not a cluster
+		toX: number, -- only for rey
+		toZ: number, -- only for rey
 	}
 	local flights: Effects.Effects<Flight> = Effects.new(PROJECTILE_CAPACITY)
 	-- A shot (issue #67): a glowing Neon core inside a larger translucent halo, a Trail, and up to
@@ -401,7 +408,11 @@ function ClusterView.new(layout: any): ClusterView
 		end
 		local variant = FeedbackMath.variant(shot.shot, shot.hits)
 		local dist = math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2)
+		local gift = shot.shot == "gift"
 		local seconds = FeedbackMath.flightSeconds(dist)
+		if gift then
+			seconds = GiftVisual.flightSeconds(seconds) -- a gift is slower than a note (ADR 0006)
+		end
 		if
 			flights:start(clock, seconds, {
 				id = shot.id,
@@ -411,6 +422,10 @@ function ClusterView.new(layout: any): ClusterView
 				fromZ = lastLeadZ,
 				miss = false,
 				n = shot.hits,
+				gift = gift,
+				rey = false,
+				toX = 0,
+				toZ = 0,
 			})
 		then
 			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })
@@ -422,6 +437,52 @@ function ClusterView.new(layout: any): ClusterView
 			catches[shot.id] = clock + seconds
 		end
 		return converted
+	end
+
+	-- A shot that hit Rey (ADR 0006, #93): a Rey hit is not a cluster, so it moves no meter and
+	-- spawns no catch. It flies to where Rey is drawn now; the "+N" plays on the run's first hit.
+	function view.onRey(_, payload: any)
+		local shot = ClusterFeed.decodeRey(payload)
+		if shot == nil or not shotBudget:take() then
+			return
+		end
+		local pose = ReyFormation.pose(
+			lastLeadX,
+			lastLeadZ,
+			DebugLayout.seed,
+			DebugLayout.halfWidth - Config.rey.roadInset
+		)
+		if shot.bonus then
+			floats:start(clock, FLOAT_SECONDS, {
+				x = pose.x,
+				z = pose.z,
+				text = string.format("+%d", Config.rey.bonus),
+			})
+		end
+		local variant = FeedbackMath.variant(shot.shot, shot.n // Config.giftEveryNthShot)
+		local gift = shot.shot == "gift"
+		local dist = math.sqrt((pose.x - lastLeadX) ^ 2 + (pose.z - lastLeadZ) ^ 2)
+		local seconds = FeedbackMath.flightSeconds(dist)
+		if gift then
+			seconds = GiftVisual.flightSeconds(seconds)
+		end
+		if
+			flights:start(clock, seconds, {
+				id = nil,
+				variant = variant,
+				hits = 0,
+				fromX = lastLeadX,
+				fromZ = lastLeadZ,
+				miss = false,
+				n = shot.n,
+				gift = gift,
+				rey = true,
+				toX = pose.x,
+				toZ = pose.z,
+			})
+		then
+			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })
+		end
 	end
 
 	-- A continuous-fire shot with no target (issue #67): flies straight ahead and fades. Display
@@ -442,6 +503,10 @@ function ClusterView.new(layout: any): ClusterView
 				fromZ = lastLeadZ,
 				miss = true,
 				n = miss.n,
+				gift = false,
+				rey = false,
+				toX = 0,
+				toZ = 0,
 			})
 		then
 			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })
@@ -682,7 +747,10 @@ function ClusterView.new(layout: any): ClusterView
 		for i, p in ps do
 			local f = live[i]
 			local look = ShotLook.LOOKS[f.data.variant] or ShotLook.LOOKS.note
-			local to = if f.data.id ~= nil then currentPositions[f.data.id] else nil
+			local to = if f.data.rey
+				then { x = f.data.toX, z = f.data.toZ }
+				elseif f.data.id ~= nil then currentPositions[f.data.id]
+				else nil
 			local gone = not f.data.miss and to == nil -- the target left: hide, never retarget
 			local alpha = 1
 			local x, y, z = 0.0, 0.0, 0.0
@@ -692,16 +760,32 @@ function ClusterView.new(layout: any): ClusterView
 				x, y, z = ViewMap.x(f.data.fromX + m.dx), 2.5 + m.dy, f.data.fromZ + m.dz
 				alpha, size = m.alpha, size * m.scale
 			elseif to ~= nil then
-				x, y, z = FeedbackMath.arc(
-					ViewMap.x(f.data.fromX),
-					2.5,
-					f.data.fromZ,
-					ViewMap.x(to.x),
-					3,
-					to.z,
-					f.f,
-					FeedbackMath.ARC_HEIGHT
-				)
+				if f.data.gift then
+					-- ADR 0006: the gift's high, slow looping arc, added to the straight line.
+					local g = GiftVisual.arc(f.f)
+					x, y, z = FeedbackMath.arc(
+						ViewMap.x(f.data.fromX),
+						2.5,
+						f.data.fromZ,
+						ViewMap.x(to.x),
+						3,
+						to.z,
+						f.f,
+						0
+					)
+					x, y = x + g.dx, y + g.dy
+				else
+					x, y, z = FeedbackMath.arc(
+						ViewMap.x(f.data.fromX),
+						2.5,
+						f.data.fromZ,
+						ViewMap.x(to.x),
+						3,
+						to.z,
+						f.f,
+						FeedbackMath.ARC_HEIGHT
+					)
+				end
 			end
 			local gift = f.data.variant == "snack"
 			local core = look.core

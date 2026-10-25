@@ -214,3 +214,18 @@ Supersedes, where they conflict: the Amendment 1 / §4 picture of small groups o
 - **The charge.** Unconverted mobs run straight down the lane as a wedge with stride, raised arms and a forward lean, stop at the front of the parade, and on the server's attack Event slam in (the bump, shake and HP hit of #50) and only then scatter to the sidewalks and dissolve into a puff. Converted mobs recolour to the party palette and stream into the parade. Spectators are attackers until converted: angry-mob colouring before, party fans after, always a friendly cartoon tone.
 - **Tension from the top.** A cluster spawns beyond the camera's visible depth plus a margin (`Emergence`, derived from `CameraRig`); a wave is in view for at least 3 seconds before it arrives; nothing is in view during the first 5 seconds; a mob fades and scales in at the far end; a warning chevron and dust mark the top of the lane; a colour pulse on the mob and a screen-edge pulse grow as it closes in. `LayoutValidator` enforces the spawn, approach and calm-opening rules for every layout.
 - **Balance consequence.** A wave that really approaches from far away is inside `firing.range` for `range / (speed + approachSpeed)` seconds instead of the old 1 second, so it is easier to convert. To keep the Amendment 1 checks true the debug layout was retimed (provisional, flagged for the skeptic): `spectators.approachSpeed` 6 to 20, every pair 9 seconds later, and rising lines of extra small groups. The #17 ladder must be re-run.
+
+---
+
+## Amendment 4 — Gift arc, two-hit gifts and Rey (owner decisions, 2026-10-24, issue #93)
+
+Recorded in [ADR 0006](../.trazo/project/adr/0006-gift-arc-and-rey-bonus.md).
+
+Supersedes, where they conflict: §4 and Amendment 2's "every shot is exactly one hit" and "a gift is exactly one hit like a note" (ADR 0004). Notes and hearts are still one hit. Everything else is unchanged: the firing schedule and event budget, cadence, eligibility, side preference, credit-once, the same-tick order, server authority, crowd math, gates, sections and budgets.
+
+- **Gift = two meter hits.** A gift shot applies two hits to its one target cluster. A cluster that fills converts and pays its existing reward once. No surplus carries to another cluster.
+- **Gift arc.** A gift travels a high, slow looping arc with one whole loop, and takes longer to fly than a note.
+- **Rey is a bonus target.** Rey (the parade cameo) takes a shot only when no cluster is eligible and the lead is steering toward Rey's lane. The first Rey hit per run adds +5 to followers. A Rey hit moves no cluster meter and is not a miss.
+- **Checks.** Gift two-hit fill, no overflow, one conversion and one reward, note one-hit, Rey +5 once per run, Rey never moves a meter, cadence and fire rate unchanged, event budget unchanged.
+- **Balance.** The large cluster's `attackDamage` is provisionally 20 (was 12) to keep the no-input defeat check. Needs a ladder re-run and skeptic review.
+

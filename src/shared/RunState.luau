@@ -51,7 +51,7 @@ export type Result = {
 -- first assembly, obstacle losses, completion/final total.
 export type Event = {
 	index: number,
-	kind: string, -- run_start | gate | cluster_credit | obstacle | cluster_attack | complete | defeated
+	kind: string, -- run_start | gate | cluster_credit | rey_bonus | obstacle | cluster_attack | complete | defeated
 	time: number,
 	seed: number,
 	automated: boolean,
@@ -70,6 +70,7 @@ export type Event = {
 export type RunState = {
 	resolveGate: (self: RunState, pairId: any, leadX: any) -> Result,
 	creditCluster: (self: RunState, id: any) -> Result,
+	awardRey: (self: RunState) -> Result,
 	attackCluster: (self: RunState, id: any) -> Result,
 	attackClusters: (self: RunState, ids: { any }) -> { Result },
 	hitObstacle: (self: RunState, id: any) -> Result,
@@ -173,6 +174,7 @@ local function new(opts: Options): RunState
 		tomatoes[t.id] = true
 	end
 	local usedTomatoes: { [string]: boolean } = {}
+	local reyAwarded = false -- ADR 0006: Rey's bonus is paid once per run, on the first Rey hit
 	local log: { Event } = {}
 	local seenRecruit = false
 	local seenAssembly = false
@@ -213,6 +215,7 @@ local function new(opts: Options): RunState
 		finalScore = nil
 		usedGates = {}
 		usedClusters = {}
+		reyAwarded = false
 		usedObstacles = {}
 		usedTomatoes = {}
 		log = {}
@@ -308,6 +311,24 @@ local function new(opts: Options): RunState
 			after,
 			{ id = id, firstRecruit = first, firstAssembly = assembled }
 		)
+		return { ok = true, before = before, after = after }
+	end
+
+	-- Rey's bonus (ADR 0006, #93): Config.rey.bonus followers on the first Rey hit of the run. Later
+	-- Rey hits return a rejection and add nothing, so the award can never farm.
+	function self.awardRey(_): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		if reyAwarded then
+			return reject("rey already awarded this run")
+		end
+		reyAwarded = true
+		local before = crowdTotal
+		local after = CrowdMath.applyOp(before, { kind = "add", value = Config.rey.bonus })
+		local assembled = setTotal(after)
+		record("rey_bonus", before, after, { firstAssembly = assembled })
 		return { ok = true, before = before, after = after }
 	end
 

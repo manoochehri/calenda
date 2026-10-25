@@ -33,6 +33,9 @@ export type ConfigType = {
 	},
 	finaleThresholds: { number },
 	giftEveryNthShot: number,
+	giftMeterHits: number, -- meter hits one gift shot applies to its one cluster (ADR 0006)
+	rey: { bonus: number, aheadStuds: number, roadInset: number }, -- Rey bonus target (ADR 0006)
+	giftArc: { height: number, loops: number, loopRadius: number, slowdown: number }, -- gift look
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
 	music: MusicConfig,
@@ -88,7 +91,7 @@ local function validate(c: any): (boolean, string?)
 	if type(c) ~= "table" then
 		return false, "config must be a table"
 	end
-	for _, key in { "sectionSize", "obstacleLoss", "giftEveryNthShot" } do
+	for _, key in { "sectionSize", "obstacleLoss", "giftEveryNthShot", "giftMeterHits" } do
 		if not isPositiveInt(c[key]) then
 			return false, `{key} must be a positive integer`
 		end
@@ -170,6 +173,35 @@ local function validate(c: any): (boolean, string?)
 	end
 	if not isPositive(f.range) then
 		return false, "firing.range must be a positive number"
+	end
+
+	-- Rey (ADR 0006): a bonus target only, paid once per run. aheadStuds must sit inside range so
+	-- he can be hit at all; roadInset is the same lane inset the client draws him in.
+	local r = c.rey
+	if type(r) ~= "table" or not isPositiveInt(r.bonus) then
+		return false, "rey.bonus must be a positive integer"
+	end
+	if not isPositive(r.aheadStuds) or r.aheadStuds > f.range then
+		return false, "rey.aheadStuds must be a positive number no greater than firing.range"
+	end
+	if type(r.roadInset) ~= "number" or r.roadInset < 0 or r.roadInset == math.huge then
+		return false, "rey.roadInset must be a non-negative number"
+	end
+
+	local ga = c.giftArc
+	if
+		type(ga) ~= "table"
+		or type(ga.height) ~= "number"
+		or ga.height < 0
+		or ga.height == math.huge
+		or not isPositiveInt(ga.loops)
+		or type(ga.loopRadius) ~= "number"
+		or ga.loopRadius < 0
+		or ga.loopRadius == math.huge
+		or not isPositive(ga.slowdown)
+	then
+		return false,
+			"giftArc needs height and loopRadius >= 0, positive integer loops and slowdown"
 	end
 
 	local sp = c.spectators
@@ -267,7 +299,10 @@ local config: ConfigType = {
 	hp = { max = 100 }, -- [default] initial parade HP; no regeneration
 	clusterTypes = {
 		small = { hits = 3, reward = 5, attackDamage = 5 }, -- hits/reward [spec s4], attackDamage [default]
-		large = { hits = 8, reward = 15, attackDamage = 12 }, -- hits/reward [spec s4], attackDamage [default]
+		-- attackDamage large: 12 -> 20 (#93, PROVISIONAL): with gifts worth two hits the no-input run no
+		-- longer ends defeated (Amendment 1 check); 20 restores it at 30 and 60 Hz and the competent run
+		-- still ends with 60 HP. Needs the skeptic and a ladder re-run before it is trusted.
+		large = { hits = 8, reward = 15, attackDamage = 20 }, -- hits/reward [spec s4], attackDamage [default]
 	},
 	-- [default] The spec only gives +N and xN as the allowed forms; +20 and x2 are its examples (s6).
 	gateOps = {
@@ -300,6 +335,18 @@ local config: ConfigType = {
 	},
 	finaleThresholds = { 50, 150, 300 }, -- [spec s9, provisional]
 	giftEveryNthShot = 4, -- [spec s4] every fourth shot once a dancer section exists
+	giftMeterHits = 2, -- [owner 2026-10-24, #93] a gift is two meter hits on one cluster; notes stay 1
+	rey = {
+		bonus = 5, -- [owner 2026-10-24, #93] followers, once per run on the first Rey hit
+		aheadStuds = 12, -- [default] how far ahead of the lead Rey is drawn and targeted; inside range
+		roadInset = 6, -- [default] studs in from the road edge; the client draws Rey in the same lane
+	},
+	giftArc = {
+		height = 9, -- [default] studs the gift rises above the straight line at the apex
+		loops = 1, -- [owner 2026-10-24, #93] whole loops the gift makes on the way (high, slow looping arc)
+		loopRadius = 1.4, -- [default] studs of sideways swing of each loop
+		slowdown = 1.6, -- [default] a gift flies this many times longer than a note over the same distance
+	},
 	durations = {
 		assemblySeconds = 0.8, -- [spec s7]
 		dispersalSeconds = 0.5, -- [default] spec says only "brief animation" (s5)

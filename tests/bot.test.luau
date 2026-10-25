@@ -90,6 +90,12 @@ local function checkTotalsChain(result: BotHarness.Result, layout: Level.Layout)
 			check(e.after == running + def.reward, `credit {e.id} after {e.after}`, result)
 			running = e.after
 			changes += 1
+		elseif e.kind == "rey_bonus" then
+			-- ADR 0006: Rey's +N, paid once per run, is a total change like a credit
+			check(e.before == running, `rey_bonus before {e.before} ~= running {running}`, result)
+			check(e.after == running + Config.rey.bonus, `rey_bonus after {e.after}`, result)
+			running = e.after
+			changes += 1
 		elseif e.kind == "obstacle" then
 			check(e.before == running, `obstacle {e.id} before ~= running`, result)
 			check(

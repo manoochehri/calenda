@@ -183,29 +183,33 @@ return {
 		end,
 	},
 	{
-		name = "a gift is one hit like a note: same shots to fill, same credit once, same reward",
+		name = "a gift is two meter hits (ADR 0006): credited once, same reward, notes still one hit",
 		run = function()
 			local notesOnly = table.clone(Config)
 			notesOnly.giftEveryNthShot = 1e9
 			local plain, plainCredits, plainTotal = runLarge(3, notesOnly)
 			local gifty, giftCredits, giftTotal = runLarge(3)
 			eq(#plain, Config.clusterTypes.large.hits, "notes fill in the cluster's hits")
-			eq(#gifty, Config.clusterTypes.large.hits, "gifts fill in the same hits")
+			-- Shots 1-3 are notes (hits 1..3); shot 4 is a gift (+2, so 5); shots 5-7 notes fill to 8.
+			eq(#gifty, 7, "the gift's second hit saves one shot")
 			eq(plainCredits, 1, "credited once (notes)")
 			eq(giftCredits, 1, "credited once (gifts)")
+			eq(
+				plainTotal,
+				Config.startingTotal + Config.clusterTypes.large.reward,
+				"notes: start + reward"
+			)
 			eq(giftTotal, plainTotal, "same total, so no extra reward")
-			eq(giftTotal, Config.startingTotal + Config.clusterTypes.large.reward, "start + reward")
 			local giftCount = 0
 			for i, s in gifty do
-				eq(s.hits, plain[i].hits, `hit value of shot {i}`)
-				eq(s.targetId, plain[i].targetId, `target of shot {i}`)
 				if s.kind == "gift" then
 					giftCount += 1
+					eq(i, 4, "the only gift in the fill is shot 4")
+					eq(s.hits, 3 + Config.giftMeterHits, "a gift moves the meter by giftMeterHits")
 				end
 			end
-			eq(giftCount, 2, "shots 4 and 8 of 8 are gifts")
-			eq(gifty[8].kind, "gift", "the filling shot may be a gift")
-			eq(gifty[8].filled, true, "and still fills once")
+			eq(giftCount, 1, "one gift in the fill")
+			eq(gifty[7].filled, true, "the cluster fills on shot 7")
 		end,
 	},
 }

@@ -53,7 +53,11 @@ return {
 			eq(c.clusterTypes.small.attackDamage, 5, "small.attackDamage")
 			eq(c.clusterTypes.large.hits, 8, "large.hits")
 			eq(c.clusterTypes.large.reward, 15, "large.reward")
-			eq(c.clusterTypes.large.attackDamage, 12, "large.attackDamage")
+			eq(
+				c.clusterTypes.large.attackDamage,
+				20,
+				"large.attackDamage (#93 provisional: was 12)"
+			)
 			eq(c.obstacleLoss, 10, "obstacleLoss")
 			eq(c.firing.base, 6, "firing.base (ADR 0004; was 3)")
 			eq(c.firing.cap, 20, "firing.cap (ADR 0004; was 12)")

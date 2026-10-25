@@ -184,7 +184,7 @@ local function buildRey(parent: Instance): Rey
 end
 
 local function drawRey(rey: Rey, leadX: number, leadZ: number, seed: number)
-	local pose = ReyFormation.pose(leadX, leadZ, seed, DebugLayout.halfWidth - 6)
+	local pose = ReyFormation.pose(leadX, leadZ, seed, DebugLayout.halfWidth - Config.rey.roadInset)
 	for _, piece in rey.pieces do
 		piece.part.CFrame = CFrame.new(
 			ViewMap.x(pose.x) + ViewMap.x(piece.offset.X),

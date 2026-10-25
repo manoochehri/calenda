@@ -14,6 +14,13 @@
 -- A shot with none is a MISS: `miss = true`, no targetId, and it touches no meter, no RunState and
 -- no HP. Misses still advance the shot counter, so the gift cadence (every Nth shot) is unchanged.
 --
+-- ADR 0006 (#93): a GIFT applies Config.giftMeterHits (2) hits to its one target, still credit-once
+-- and never overflowing to another cluster. REY is a bonus target: he takes a shot only when no
+-- cluster is eligible AND the lead is steering to Rey's side (ReyFormation.side(seed)). A centred
+-- lead keeps the continuous-fire miss exactly as before. Such a shot is a hit on Rey (`rey = true`,
+-- no targetId), and the first one per run pays Config.rey.bonus through RunState.awardRey. A Rey
+-- shot never touches a cluster meter.
+--
 -- Per advance() the order matches the same-tick ordering of Amendment 1: shots land, meters fill
 -- and conversions are credited (RunState.creditCluster, exactly once), then unconverted clusters
 -- that reached the parade are reported. Cluster ids are numbers in Level; RunState ids are the
@@ -21,6 +28,7 @@
 local Config = require("./Config")
 local CrowdMath = require("./CrowdMath")
 local Level = require("./Level")
+local ReyFormation = require("./ReyFormation")
 local RunState = require("./RunState")
 
 export type Steer = "left" | "right" | "center"
@@ -32,12 +40,13 @@ export type Shot = {
 	number: number, -- 1-based shot count for this session (hits and misses)
 	time: number,
 	miss: boolean, -- true: no eligible target; display only, never credits or damages
-	targetId: number?, -- nil exactly when miss
-	kind: ShotKind, -- visual variant only; every shot is exactly one hit
-	hits: number, -- meter value after this hit (0 for a miss)
-	needed: number, -- 0 for a miss
-	filled: boolean, -- true when the meter is full (this hit or earlier); false for a miss
-	credit: RunState.Result?, -- set only on the hit that fills the meter
+	targetId: number?, -- nil when miss, and when rey (the shot hit Rey, not a cluster)
+	rey: boolean, -- true: the shot hit Rey (ADR 0006); credit is set on the first such shot per run
+	kind: ShotKind, -- visual variant only; a note is one hit, a gift is Config.giftMeterHits hits
+	hits: number, -- meter value after this shot (0 for a miss or a Rey hit)
+	needed: number, -- 0 for a miss or a Rey hit
+	filled: boolean, -- true when the meter is full (this shot or earlier); false for a miss or Rey
+	credit: RunState.Result?, -- set only on the hit that fills the meter, or on Rey's first hit
 }
 export type HitResult = { hits: number, needed: number, filled: boolean, credit: RunState.Result? }
 export type Step = { shots: { Shot }, passed: { number } }
@@ -204,6 +213,15 @@ function Targeting.new(opts: Options): Session
 		return list
 	end
 
+	-- Rey (ADR 0006) is ahead of the lead by Config.rey.aheadStuds (inside range, validated in Config)
+	-- and on the lane side the seed picks. He is a fallback target only when the lead steers there.
+	local reyLaneSide = if ReyFormation.side(layout.seed) == 1 then "right" else "left"
+	local function reyTargetable(steer: Steer): boolean
+		return steer == reyLaneSide
+			and cfg.rey.aheadStuds > 0
+			and cfg.rey.aheadStuds <= cfg.firing.range
+	end
+
 	local function pick(t: number, steer: Steer): number?
 		return Targeting.selectTarget(candidatesAt(t), Level.leadZ(t, cfg), steer, cfg)
 	end
@@ -242,13 +260,29 @@ function Targeting.new(opts: Options): Session
 			local target = pick(shotPositionTime or at, steer)
 			shotCount += 1
 			local kind = Targeting.shotKind(shotCount, sectionCount, cfg)
-			if target == nil then
+			if target == nil and reyTargetable(steer) then
+				-- ADR 0006: no cluster is eligible, so the shot hits Rey. Bonus, not a meter.
+				local r = runState:awardRey()
+				table.insert(shots, {
+					number = shotCount,
+					time = at,
+					miss = false,
+					targetId = nil,
+					rey = true,
+					kind = kind,
+					hits = 0,
+					needed = 0,
+					filled = false,
+					credit = if r.ok then r else nil,
+				})
+			elseif target == nil then
 				-- Continuous fire: nothing to hit, so the shot flies on as a display-only miss.
 				table.insert(shots, {
 					number = shotCount,
 					time = at,
 					miss = true,
 					targetId = nil,
+					rey = false,
 					kind = kind,
 					hits = 0,
 					needed = 0,
@@ -256,17 +290,25 @@ function Targeting.new(opts: Options): Session
 					credit = nil,
 				})
 			else
-				local r = self:hit(target)
+				-- A gift is Config.giftMeterHits hits on the same cluster; a note is one. The meter
+				-- caps and credits once, so a gift that fills the meter cannot overflow elsewhere.
+				local r: HitResult = self:hit(target)
+				local credit = r.credit
+				for _ = 2, if kind == "gift" then cfg.giftMeterHits else 1 do
+					r = self:hit(target)
+					credit = credit or r.credit
+				end
 				table.insert(shots, {
 					number = shotCount,
 					time = at,
 					miss = false,
 					targetId = target,
+					rey = false,
 					kind = kind,
 					hits = r.hits,
 					needed = r.needed,
 					filled = r.filled,
-					credit = r.credit,
+					credit = credit,
 				})
 			end
 			nextShot = at + interval

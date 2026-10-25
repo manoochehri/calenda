@@ -294,14 +294,19 @@ return {
 		end,
 	},
 	{
-		name = "scheduler stamps shots with the gift kind, still one hit each",
+		name = "scheduler stamps shots with the gift kind: gifts are two hits (ADR 0006), notes one",
 		run = function()
 			local layout = layoutOf({ cluster(1, 16, 30, "large") })
 			local session = newSession(layout)
 			local shots = drive(session, 0, 5, 1 / 60, 3, "center")
-			assert(#shots == Config.clusterTypes.large.hits, "gifts count as one hit each")
-			assert(shots[4].kind == "gift" and shots[8].kind == "gift", "4th and 8th are gifts")
-			assert(shots[1].kind == "note" and shots[5].kind == "note", "others are notes")
+			assert(shots[4].kind == "gift", "4th is a gift")
+			assert(shots[1].kind == "note" and shots[2].kind == "note", "others are notes")
+			assert(
+				shots[4].hits == shots[3].hits + Config.giftMeterHits,
+				"a gift adds giftMeterHits"
+			)
+			assert(shots[5].hits == shots[4].hits + 1, "a note after a gift adds one")
+			assert(shots[#shots].filled == true, "the cluster fills")
 		end,
 	},
 	{
