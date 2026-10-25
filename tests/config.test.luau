@@ -192,7 +192,7 @@ return {
 	{
 		name = "wave and range defaults (issue #7)",
 		run = function()
-			eq(Config.spectators.approachSpeed, 20, "approachSpeed") -- issue #65: the mob charges
+			eq(Config.spectators.approachSpeed, 6, "approachSpeed") -- issue #65: preserve the original mob pace
 			eq(Config.spectators.centerTolerance, 3, "centerTolerance")
 			eq(Config.firing.range, 60, "firing.range")
 			assert(table.isfrozen(Config.spectators), "spectators frozen")
