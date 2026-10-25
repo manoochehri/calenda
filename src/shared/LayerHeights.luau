@@ -51,6 +51,7 @@ export type LayoutInfo = {
 	runIn: number?,
 	gates: { { z: number } }?,
 	obstacles: { { z: number } }?,
+	startPlazaEnd: number?, -- the start plaza spans z 0 to here (WorldBuilder StartingPlaza)
 }
 
 -- Flat surfaces drawn by WorldBuilder, Backdrop, GateView, CrowdView, WorldBuilder's cones and
@@ -64,9 +65,23 @@ function LayerHeights.surfaces(layout: LayoutInfo): { Surface }
 	end
 	add(surface("EarthPlate", LayerHeights.EARTH, -1500, 1500, -1500, layout.streetLength + 1500))
 	add(surface("RunIn", LayerHeights.ROAD_BASE, -road, road, -runIn, 0))
-	add(surface("Street", LayerHeights.ROAD_BASE, -road, road, 0, layout.plazaStart))
-	add(surface("LeftSidewalk", LayerHeights.GROUND, -half, -road, 0, layout.plazaStart))
-	add(surface("RightSidewalk", LayerHeights.GROUND, road, half, 0, layout.plazaStart))
+	if layout.startPlazaEnd then
+		add(
+			surface(
+				"StartingPlaza",
+				LayerHeights.GROUND,
+				-1.5 * half,
+				1.5 * half,
+				0,
+				layout.startPlazaEnd
+			)
+		)
+	end
+	-- WorldBuilder draws the street and sidewalks from the end of the start plaza, not from z = 0.
+	local streetStart = layout.startPlazaEnd or 0
+	add(surface("Street", LayerHeights.ROAD_BASE, -road, road, streetStart, layout.plazaStart))
+	add(surface("LeftSidewalk", LayerHeights.GROUND, -half, -road, streetStart, layout.plazaStart))
+	add(surface("RightSidewalk", LayerHeights.GROUND, road, half, streetStart, layout.plazaStart))
 	add(surface("Plaza", LayerHeights.GROUND, -half, half, layout.plazaStart, layout.streetLength))
 	for z = 48, layout.plazaStart - 48, 96 do
 		add(surface(`RoadMark{z}`, LayerHeights.MARKING, -0.225, 0.225, z - 12, z + 12))

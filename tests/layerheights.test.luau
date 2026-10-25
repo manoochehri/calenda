@@ -14,6 +14,7 @@ local info = {
 	halfWidth = DebugLayout.halfWidth,
 	gates = DebugLayout.gates,
 	obstacles = DebugLayout.obstacles,
+	startPlazaEnd = DebugLayout.startPlazaEnd,
 }
 local theme = LevelTheme.level1
 local generated = StreetLayoutGen.generate(info, theme, 54)
@@ -115,6 +116,31 @@ return {
 				end
 				assert(named, `{s.name} top {s.top} is not a LayerHeights layer`)
 			end
+		end,
+	},
+	{
+		name = "the audit lists the StartingPlaza slab WorldBuilder draws (issue #85 coverage)",
+		run = function()
+			local start = DebugLayout.startPlazaEnd
+			local list = LayerHeights.surfaces({
+				streetLength = DebugLayout.streetLength,
+				plazaStart = DebugLayout.plazaStart,
+				halfWidth = DebugLayout.halfWidth,
+				gates = DebugLayout.gates,
+				obstacles = DebugLayout.obstacles,
+				startPlazaEnd = start,
+			})
+			local found: LayerHeights.Surface? = nil
+			for _, s in list do
+				if s.name == "StartingPlaza" then
+					found = s
+				end
+			end
+			assert(found ~= nil, "StartingPlaza must be an audited surface")
+			local plaza = found :: LayerHeights.Surface
+			assert(plaza.top == LayerHeights.GROUND, "starting plaza sits at GROUND")
+			assert(plaza.z0 == 0 and plaza.z1 == start, "starting plaza spans z 0 to startPlazaEnd")
+			assert(plaza.x1 == DebugLayout.halfWidth * 1.5, "starting plaza is 3 halfWidths wide")
 		end,
 	},
 	{
