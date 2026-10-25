@@ -49,11 +49,11 @@ return {
 			eq(c.startingTotal, 10, "startingTotal")
 			eq(c.clusterTypes.small.hits, 3, "small.hits")
 			eq(c.clusterTypes.small.reward, 5, "small.reward")
-			eq(c.clusterTypes.small.attackLoss, 5, "small.attackLoss")
 			eq(c.clusterTypes.large.hits, 8, "large.hits")
 			eq(c.clusterTypes.large.reward, 15, "large.reward")
-			eq(c.clusterTypes.large.attackLoss, 10, "large.attackLoss")
-			eq(c.hazards.tomatoLoss, 5, "hazards.tomatoLoss")
+			eq(c.attackSharePercent, 10, "attackSharePercent (ADR 0006)")
+			eq(c.minShareLoss, 1, "minShareLoss (ADR 0006)")
+			eq(c.hazards.tomatoSharePercent, 10, "hazards.tomatoSharePercent")
 			eq(c.obstacleLoss, 10, "obstacleLoss")
 			eq(c.firing.base, 6, "firing.base (ADR 0004; was 3)")
 			eq(c.firing.cap, 20, "firing.cap (ADR 0004; was 12)")
@@ -109,14 +109,20 @@ return {
 	expectInvalid("startingTotal negative", function(c)
 		c.startingTotal = -1
 	end),
-	expectInvalid("small attack loss non-integer", function(c)
-		c.clusterTypes.small.attackLoss = 2.5
+	expectInvalid("attack share non-integer", function(c)
+		c.attackSharePercent = 2.5
 	end),
-	expectInvalid("large attack loss zero", function(c)
-		c.clusterTypes.large.attackLoss = 0
+	expectInvalid("attack share zero", function(c)
+		c.attackSharePercent = 0
 	end),
-	expectInvalid("tomato loss zero", function(c)
-		c.hazards.tomatoLoss = 0
+	expectInvalid("attack share above 100", function(c)
+		c.attackSharePercent = 101
+	end),
+	expectInvalid("minimum share loss zero", function(c)
+		c.minShareLoss = 0
+	end),
+	expectInvalid("tomato share zero", function(c)
+		c.hazards.tomatoSharePercent = 0
 	end),
 	expectInvalid("missing field", function(c)
 		c.obstacleLoss = nil

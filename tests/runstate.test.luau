@@ -3,6 +3,16 @@ local Config = require("../src/shared/Config")
 local CrowdMath = require("../src/shared/CrowdMath")
 local RunState = require("../src/shared/RunState")
 
+-- Whole hits a parade of `total` survives to reach zero under the share rule (ADR 0006).
+local function hitsToEmpty(total: number): number
+	local n, t = 0, total
+	while t > 0 do
+		t = math.max(0, t - CrowdMath.shareLoss(t, Config.attackSharePercent, Config.minShareLoss))
+		n += 1
+	end
+	return n
+end
+
 local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {expected}, got {actual}`)
 end
@@ -225,8 +235,8 @@ return {
 		name = "cluster attacks remove the configured followers once; the total is the only life",
 		run = function()
 			local run = make()
-			local loss = Config.clusterTypes.small.attackLoss
 			local total = run:total()
+			local loss = CrowdMath.shareLoss(total, Config.attackSharePercent, Config.minShareLoss)
 			local first = run:attackCluster("c1")
 			assert(first.ok, "first attack")
 			eq(first.before, total, "total before")
@@ -253,8 +263,7 @@ return {
 	{
 		name = "a total at zero defeats the run, clamps losses, ignores later events, and reset restores the total",
 		run = function()
-			local loss = Config.clusterTypes.large.attackLoss
-			local attackCount = math.ceil(73 / loss)
+			local attackCount = hitsToEmpty(73)
 			local clusters: { RunState.ClusterDef } = {}
 			for i = 1, attackCount do
 				table.insert(clusters, { id = `c{i}`, type = "large" })
@@ -283,7 +292,7 @@ return {
 	{
 		name = "defeat is recorded once as a defeated event carrying score 0",
 		run = function()
-			local attackCount = math.ceil(73 / Config.clusterTypes.large.attackLoss)
+			local attackCount = hitsToEmpty(73)
 			local clusters: { RunState.ClusterDef } = {}
 			for i = 1, attackCount do
 				table.insert(clusters, { id = `c{i}`, type = "large" })
@@ -392,7 +401,23 @@ return {
 				run:resolveGate("g1", 3)
 				run:creditCluster("c1")
 			end
-			eq(run:total(), 50 - Config.clusterTypes.small.attackLoss, "one horde removes its loss")
+			local attacks = {}
+			for _, e in run:events() do
+				if e.kind == "cluster_attack" then
+					table.insert(attacks, e)
+				end
+			end
+			eq(#attacks, 1, "one horde attacked")
+			eq(
+				attacks[1].after,
+				attacks[1].before
+					- CrowdMath.shareLoss(
+						attacks[1].before,
+						Config.attackSharePercent,
+						Config.minShareLoss
+					),
+				"one horde removes its share of the parade"
+			)
 			eq(#run:events(), 1 + 7, "one event per consumed item plus run_start")
 		end,
 	},

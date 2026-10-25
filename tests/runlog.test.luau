@@ -1,9 +1,20 @@
 --!strict
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local Level = require("../src/shared/Level")
 local RunDriver = require("../src/shared/RunDriver")
 local RunLog = require("../src/shared/RunLog")
 local RunState = require("../src/shared/RunState")
+
+-- Whole hits a parade of `total` survives to reach zero under the share rule (ADR 0006).
+local function hitsToEmpty(total: number): number
+	local n, t = 0, total
+	while t > 0 do
+		t = math.max(0, t - CrowdMath.shareLoss(t, Config.attackSharePercent, Config.minShareLoss))
+		n += 1
+	end
+	return n
+end
 
 local DT = 1 / 30
 
@@ -393,7 +404,7 @@ return {
 	{
 		name = "defeated run: fromEvents and format show the defeated outcome and score",
 		run = function()
-			local attackCount = math.ceil(12 / Config.clusterTypes.large.attackLoss)
+			local attackCount = hitsToEmpty(12)
 			local clusters: { RunState.ClusterDef } = {}
 			local ids = {}
 			for i = 1, attackCount do

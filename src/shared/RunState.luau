@@ -320,12 +320,19 @@ local function new(opts: Options): RunState
 	end
 
 	-- A follower loss (ADR 0006): the same total as every other change, clamped at zero. The
-	-- amount is server config, never a client value.
-	local function loseFollowers(amount: number): (number, number)
+	-- amount is server config, never a client value. `amountOf` maps the total before the hit to
+	-- the loss, so a share is taken from the parade as it stood before this hit.
+	local function loseFollowers(amountOf: (number) -> number): (number, number)
 		local before = crowdTotal
-		local after = CrowdMath.applyOp(before, { kind = "loss", value = amount })
+		local after = CrowdMath.applyOp(before, { kind = "loss", value = amountOf(before) })
 		setTotal(after)
 		return before, after
+	end
+
+	local function shareOf(percent: number): (number) -> number
+		return function(total: number): number
+			return CrowdMath.shareLoss(total, percent, Config.minShareLoss)
+		end
 	end
 
 	function self.hitObstacle(_, id: any): Result
@@ -342,7 +349,9 @@ local function new(opts: Options): RunState
 		if usedObstacles[id] then
 			return reject("obstacle already consumed")
 		end
-		local before, after = loseFollowers(Config.obstacleLoss)
+		local before, after = loseFollowers(function(_)
+			return Config.obstacleLoss
+		end)
 		usedObstacles[id] = true
 		record("obstacle", before, after, { id = id })
 		endIfEmpty()
@@ -360,7 +369,7 @@ local function new(opts: Options): RunState
 		if usedClusters[id] ~= nil then
 			return reject(`cluster already {usedClusters[id]}`)
 		end
-		local before, after = loseFollowers(Config.clusterTypes[cluster.type].attackLoss)
+		local before, after = loseFollowers(shareOf(Config.attackSharePercent))
 		usedClusters[id] = "attacked"
 		record("cluster_attack", before, after, { id = id })
 		return { ok = true, before = before, after = after }
@@ -394,7 +403,7 @@ local function new(opts: Options): RunState
 		return results
 	end
 
-	-- An unblocked tomato (issue #96): followers lost, Config.hazards.tomatoLoss, once per tomato.
+	-- An unblocked tomato (issue #96): a share of the parade, Config.hazards.tomatoSharePercent, once per tomato.
 	function self.hitTomato(_, id: any): Result
 		local blocked = guard()
 		if blocked then
@@ -409,7 +418,7 @@ local function new(opts: Options): RunState
 		if usedTomatoes[id] then
 			return reject("hazard already consumed")
 		end
-		local before, after = loseFollowers(Config.hazards.tomatoLoss)
+		local before, after = loseFollowers(shareOf(Config.hazards.tomatoSharePercent))
 		usedTomatoes[id] = true
 		record("hazard_hit", before, after, { id = id, hazard = "tomato" })
 		endIfEmpty()

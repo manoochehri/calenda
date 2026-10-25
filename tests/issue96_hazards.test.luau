@@ -2,6 +2,7 @@
 -- Issue #96: level-specific hazards (tomato throws from the buildings, a tlayuda cart).
 -- Fail-first: these were written before src/shared/Hazards.luau and the RunDriver wiring existed.
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local Crossing = require("../src/shared/Crossing")
 local Hazards = require("../src/shared/Hazards")
 local RunDriver = require("../src/shared/RunDriver")
@@ -226,7 +227,12 @@ return {
 			eq(countKind(events, "hazard_hit"), 1, "one hit, applied once")
 			eq(
 				driver:snapshot().total,
-				Config.startingTotal - Config.hazards.tomatoLoss,
+				Config.startingTotal
+					- CrowdMath.shareLoss(
+						Config.startingTotal,
+						Config.hazards.tomatoSharePercent,
+						Config.minShareLoss
+					),
 				"followers lost once"
 			)
 		end,
@@ -251,7 +257,12 @@ return {
 			local driver = drive(ONLY_TOMATO_ONCE, seed, h.x, h.impactAt + 4, h.warnAt - 1)
 			eq(
 				driver:snapshot().total,
-				Config.startingTotal - Config.hazards.tomatoLoss,
+				Config.startingTotal
+					- CrowdMath.shareLoss(
+						Config.startingTotal,
+						Config.hazards.tomatoSharePercent,
+						Config.minShareLoss
+					),
 				"followers lost"
 			)
 		end,

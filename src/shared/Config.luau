@@ -3,7 +3,7 @@
 -- Values marked [spec] come from docs/Calenda-Prototype-Spec.md; values marked [default] are
 -- placeholders chosen by the engineer because the spec gives no number (all are tuning defaults).
 
-export type ClusterType = { hits: number, reward: number, attackLoss: number }
+export type ClusterType = { hits: number, reward: number }
 export type GateOp = { kind: string, value: number }
 export type Curve = { start: number, max: number, sectionsToMax: number }
 export type MusicConfig = {
@@ -20,7 +20,9 @@ export type ConfigType = {
 	clusterTypes: { small: ClusterType, large: ClusterType },
 	gateOps: { GateOp },
 	obstacleLoss: number,
-	hazards: { tomatoLoss: number },
+	attackSharePercent: number,
+	minShareLoss: number,
+	hazards: { tomatoSharePercent: number },
 	speed: number,
 	firing: { base: number, cap: number, perSection: number, range: number },
 	spectators: { approachSpeed: number, centerTolerance: number },
@@ -49,6 +51,10 @@ export type ConfigType = {
 
 local function isPositiveInt(v: any): boolean
 	return type(v) == "number" and v > 0 and v == math.floor(v) and v < math.huge
+end
+
+local function isPercent(v: any): boolean
+	return type(v) == "number" and v >= 1 and v <= 100 and v == math.floor(v)
 end
 
 local function isPositive(v: any): boolean
@@ -87,7 +93,7 @@ local function validate(c: any): (boolean, string?)
 	if type(c) ~= "table" then
 		return false, "config must be a table"
 	end
-	for _, key in { "sectionSize", "obstacleLoss", "giftEveryNthShot" } do
+	for _, key in { "sectionSize", "obstacleLoss", "giftEveryNthShot", "minShareLoss" } do
 		if not isPositiveInt(c[key]) then
 			return false, `{key} must be a positive integer`
 		end
@@ -120,17 +126,15 @@ local function validate(c: any): (boolean, string?)
 	end
 	for _, name in { "small", "large" } do
 		local ct = c.clusterTypes[name]
-		if
-			type(ct) ~= "table"
-			or not isPositiveInt(ct.hits)
-			or not isPositiveInt(ct.reward)
-			or not isPositiveInt(ct.attackLoss)
-		then
-			return false, `clusterTypes.{name} needs positive integer hits, reward and attackLoss`
+		if type(ct) ~= "table" or not isPositiveInt(ct.hits) or not isPositiveInt(ct.reward) then
+			return false, `clusterTypes.{name} needs positive integer hits and reward`
 		end
 	end
-	if type(c.hazards) ~= "table" or not isPositiveInt(c.hazards.tomatoLoss) then
-		return false, "hazards.tomatoLoss must be a positive integer"
+	if not isPercent(c.attackSharePercent) then
+		return false, "attackSharePercent must be a whole number from 1 to 100"
+	end
+	if type(c.hazards) ~= "table" or not isPercent(c.hazards.tomatoSharePercent) then
+		return false, "hazards.tomatoSharePercent must be a whole number from 1 to 100"
 	end
 
 	if type(c.gateOps) ~= "table" or #c.gateOps == 0 then
@@ -261,20 +265,24 @@ local config: ConfigType = {
 	sectionSize = 50, -- [spec s5]
 	startingTotal = 10, -- [spec s5]
 	clusterTypes = {
-		-- hits/reward [spec s4]. attackLoss [default, provisional, ADR 0006]: followers an unconverted
-		-- horde of this type removes from the parade when it reaches it. Tune with the #17 ladder.
-		small = { hits = 3, reward = 5, attackLoss = 5 },
-		large = { hits = 8, reward = 15, attackLoss = 10 },
+		-- hits/reward [spec s4]. An unconverted horde costs attackSharePercent of the parade (any type).
+		small = { hits = 3, reward = 5 },
+		large = { hits = 8, reward = 15 },
 	},
 	-- [default] The spec only gives +N and xN as the allowed forms; +20 and x2 are its examples (s6).
 	gateOps = {
 		{ kind = "add", value = 20 },
 		{ kind = "multiply", value = 2 },
 	},
-	obstacleLoss = 10, -- [spec s9]
-	-- Issue #96: followers lost once when an unblocked tomato hits the lead (ADR 0006). Blocking is by
-	-- a landed gift. [default, provisional]
-	hazards = { tomatoLoss = 5 },
+	obstacleLoss = 10, -- [spec s9] fixed
+	-- ADR 0006 (provisional, Amendment 4): an unconverted horde and an unblocked tomato each remove
+	-- floor(percent * parade / 100) followers, the parade as it stood before the hit, and never fewer
+	-- than minShareLoss. Tune with the #17 ladder.
+	attackSharePercent = 10, -- [default, provisional]
+	minShareLoss = 1, -- [default, provisional]
+	-- Issue #96: followers lost once when an unblocked tomato hits the lead. Blocking is by a landed
+	-- gift. [default, provisional]
+	hazards = { tomatoSharePercent = 10 },
 	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.

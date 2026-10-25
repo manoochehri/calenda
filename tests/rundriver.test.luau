@@ -1,10 +1,21 @@
 --!strict
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
 local Level = require("../src/shared/Level")
 local RunDriver = require("../src/shared/RunDriver")
 local RunHooks = require("../src/shared/RunHooks")
 local Steering = require("../src/shared/Steering")
+
+-- Whole hits a parade of `total` survives to reach zero under the share rule (ADR 0006).
+local function hitsToEmpty(total: number): number
+	local n, t = 0, total
+	while t > 0 do
+		t = math.max(0, t - CrowdMath.shareLoss(t, Config.attackSharePercent, Config.minShareLoss))
+		n += 1
+	end
+	return n
+end
 
 local DT = RunDriver.TICK_DT
 
@@ -392,8 +403,7 @@ return {
 		name = "server driver attacks passed clusters in ID order before ending defeated",
 		run = function()
 			local clusters: { Level.Cluster } = {}
-			local lethalAttackCount =
-				math.ceil(Config.startingTotal / Config.clusterTypes.large.attackLoss)
+			local lethalAttackCount = hitsToEmpty(Config.startingTotal)
 			local attackCount = lethalAttackCount + 2
 			for i = attackCount, 1, -1 do
 				table.insert(clusters, {
@@ -606,7 +616,7 @@ return {
 				+ Config.spectators.approachSpeed * (t1 - spawnTime)
 				- 1e-6 -- place every unconverted cluster just behind the lead at the plaza tick
 			local clusters: { Level.Cluster } = {}
-			for id = 1, math.ceil(Config.startingTotal / Config.clusterTypes.large.attackLoss) do
+			for id = 1, hitsToEmpty(Config.startingTotal) do
 				table.insert(clusters, {
 					id = id,
 					wave = 1,

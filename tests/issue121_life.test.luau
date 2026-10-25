@@ -1,8 +1,10 @@
 --!strict
--- Issue #121 (ADR 0006, spec Amendment 4): the parade size is the life bar. Hordes that reach the
--- parade unconverted and unblocked tomatoes remove followers from the crowd total; the run ends
+-- Issue #121 (ADR 0006, spec Amendment 4): the parade size is the life bar. An unconverted horde
+-- and an unblocked tomato each remove a share of the parade as it stood before the hit (floor of
+-- percent of the total, at least Config.minShareLoss); the -10 obstacle stays fixed. The run ends
 -- defeated the moment the total reaches zero. There is no separate HP anywhere.
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
 local Remotes = require("../src/shared/Remotes")
 local RunDriver = require("../src/shared/RunDriver")
@@ -40,13 +42,30 @@ end
 
 return {
 	{
-		name = "a horde that reaches the parade removes its attackLoss followers, once",
+		name = "share rule: floor of the percent of the parade, at least minShareLoss",
 		run = function()
-			local loss = Config.clusterTypes.small.attackLoss
+			eq(
+				CrowdMath.shareLoss(0, 10, 1),
+				1,
+				"empty parade still loses the minimum (clamped later)"
+			)
+			eq(CrowdMath.shareLoss(5, 10, 1), 1, "5 followers: 10% floors to 0, minimum 1")
+			eq(CrowdMath.shareLoss(9, 10, 1), 1, "9 followers: 0.9 floors to 0, minimum 1")
+			eq(CrowdMath.shareLoss(10, 10, 1), 1, "10 followers: exactly 1")
+			eq(CrowdMath.shareLoss(95, 10, 1), 9, "95 followers: 9.5 floors to 9")
+			eq(CrowdMath.shareLoss(1000, 10, 1), 100, "1000 followers: 100")
+			eq(CrowdMath.shareLoss(100, 25, 1), 25, "the percent is a parameter, not a constant")
+			eq(CrowdMath.shareLoss(10, 1, 3), 3, "the minimum wins over a small share")
+		end,
+	},
+	{
+		name = "a horde that reaches the parade removes 10% of it, once",
+		run = function()
 			local r = run(40, { "small" })
 			local first = r:attackCluster("c1")
 			assert(first.ok, "first attack is accepted")
-			eq(r:total(), 40 - loss, "total after one hit")
+			eq(first.before, 40, "before")
+			eq(r:total(), 36, "40 - floor(10% of 40)")
 			eq(r:outcome(), nil, "still running")
 			local before = snapshotText(r)
 			local again = r:attackCluster("c1")
@@ -55,27 +74,50 @@ return {
 		end,
 	},
 	{
-		name = "the loss is per type: a large horde takes its own attackLoss",
+		name = "the share is the same for every horde type and uses the parade size before the hit",
 		run = function()
 			local r = run(100, { "large" })
 			assert(r:attackCluster("c1").ok, "attack")
-			eq(r:total(), 100 - Config.clusterTypes.large.attackLoss, "large loss")
+			eq(r:total(), 90, "large horde: 100 - 10")
+			local s = run(100, { "small" })
+			assert(s:attackCluster("c1").ok, "attack")
+			eq(s:total(), 90, "small horde: 100 - 10")
+		end,
+	},
+	{
+		name = "a same-batch pair of hits: the second share is taken from the total after the first",
+		run = function()
+			local r = run(100, { "small", "small" })
+			local results = r:attackClusters({ "c1", "c2" })
+			assert(results[1].ok and results[2].ok, "both accepted")
+			eq(results[1].before, 100, "first before")
+			eq(results[1].after, 90, "first after")
+			eq(results[2].before, 90, "second before is the total before its own hit")
+			eq(results[2].after, 81, "90 - floor(10% of 90)")
+		end,
+	},
+	{
+		name = "minimum of 1: a small parade still loses one follower per hit",
+		run = function()
+			local r = run(5, { "small" })
+			assert(r:attackCluster("c1").ok, "attack")
+			eq(r:total(), 4, "5 - max(1, floor(0.5))")
 		end,
 	},
 	{
 		name = "losses clamp at zero: the total never goes negative",
 		run = function()
-			local r = run(3, { "large", "large" })
-			local ok = r:attackCluster("c1")
-			assert(ok.ok, "attack")
+			local r = run(1, { "small", "small" })
+			local results = r:attackClusters({ "c1", "c2" })
+			assert(results[1].ok and results[2].ok, "both accepted")
 			eq(r:total(), 0, "clamped at zero")
-			eq(ok.after, 0, "result reports the clamped total")
+			eq(results[2].after, 0, "result reports the clamped total")
 		end,
 	},
 	{
 		name = "a total at zero defeats the run once; later events are ignored; score is 0",
 		run = function()
-			local r = run(Config.clusterTypes.small.attackLoss, { "small", "small" })
+			local r = run(1, { "small", "small" })
 			assert(r:attackCluster("c1").ok, "lethal attack")
 			eq(r:total(), 0, "total at zero")
 			eq(r:outcome(), "defeated", "defeated at zero")
@@ -95,35 +137,36 @@ return {
 		end,
 	},
 	{
-		name = "a same-batch attack after the total reaches zero still clamps and defeat is logged once",
+		name = "the obstacle stays a fixed -Config.obstacleLoss",
 		run = function()
-			local r = run(Config.clusterTypes.small.attackLoss, { "small", "small" })
-			local results = r:attackClusters({ "c1", "c2" })
-			assert(results[1].ok and results[2].ok, "both attacks in the batch are accepted")
-			eq(r:total(), 0, "clamped")
-			eq(r:outcome(), "defeated", "defeated")
-		end,
-	},
-	{
-		name = "an obstacle that empties the parade defeats the run",
-		run = function()
-			local r = run(Config.obstacleLoss, {})
+			local r = run(25, {}, nil)
 			assert(r:hitObstacle("o1").ok, "obstacle hit")
-			eq(r:total(), 0, "total at zero")
-			eq(r:outcome(), "defeated", "defeated by the obstacle")
+			eq(r:total(), 25 - Config.obstacleLoss, "25 - 10")
+			local empty = run(Config.obstacleLoss, {})
+			assert(empty:hitObstacle("o1").ok, "obstacle hit")
+			eq(empty:total(), 0, "total at zero")
+			eq(empty:outcome(), "defeated", "an obstacle that empties the parade defeats the run")
 		end,
 	},
 	{
-		name = "an unblocked tomato removes tomatoLoss followers once and defeats at zero",
+		name = "an unblocked tomato removes tomatoSharePercent of the parade once",
 		run = function()
-			local loss = Config.hazards.tomatoLoss
-			local r = run(loss + 5, {}, { { id = "t1" } })
+			local r = run(55, {}, { { id = "t1" } })
 			assert(r:hitTomato("t1").ok, "tomato hit")
-			eq(r:total(), 5, "tomato loss")
+			eq(r:total(), 50, "55 - floor(10% of 55) = 55 - 5")
 			local before = snapshotText(r)
 			assert(not r:hitTomato("t1").ok, "the same tomato cannot hit twice")
 			eq(snapshotText(r), before, "no second loss")
-			eq(r:outcome(), nil, "still running at 5 followers")
+			eq(r:outcome(), nil, "still running")
+		end,
+	},
+	{
+		name = "a tomato on a small parade removes the minimum of 1 and can defeat at zero",
+		run = function()
+			local r = run(1, {}, { { id = "t1" } })
+			assert(r:hitTomato("t1").ok, "tomato hit")
+			eq(r:total(), 0, "1 - max(1, 0)")
+			eq(r:outcome(), "defeated", "defeated at zero")
 		end,
 	},
 	{
@@ -149,14 +192,20 @@ return {
 		end,
 	},
 	{
-		name = "attack and hazard losses are server config, positive whole numbers",
+		name = "share percents and the minimum are server config, positive whole numbers",
 		run = function()
-			for _, name in { "small", "large" } do
-				local loss = (Config.clusterTypes :: any)[name].attackLoss
-				assert(type(loss) == "number" and loss > 0 and loss == math.floor(loss), name)
-			end
-			local tl = Config.hazards.tomatoLoss
-			assert(type(tl) == "number" and tl > 0 and tl == math.floor(tl), "tomatoLoss")
+			local p = Config.attackSharePercent
+			assert(
+				type(p) == "number" and p >= 1 and p <= 100 and p == math.floor(p),
+				"attackSharePercent"
+			)
+			local t = Config.hazards.tomatoSharePercent
+			assert(
+				type(t) == "number" and t >= 1 and t <= 100 and t == math.floor(t),
+				"tomatoSharePercent"
+			)
+			local m = Config.minShareLoss
+			assert(type(m) == "number" and m >= 1 and m == math.floor(m), "minShareLoss")
 		end,
 	},
 }

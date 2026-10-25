@@ -6,7 +6,7 @@
 -- client. Two kinds exist so far:
 --  * "tomato": thrown from a building side. Warned TOMATO_WARNING s ahead. Only a landed gift
 --    shot inside the warning window blocks it; a note does not. Unblocked, it hits a lead standing
---    in its lane and costs Config.hazards.tomatoLoss followers, once.
+--    in its lane and costs a share of the parade (Config.hazards.tomatoSharePercent, at least Config.minShareLoss), once.
 --  * "cart": a tlayuda cart across the street with one clear gap. Warned CART_WARNING s ahead.
 --    The lead must be in the gap when it passes; a collision costs the existing obstacle loss,
 --    once.

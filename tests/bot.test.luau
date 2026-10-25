@@ -100,28 +100,32 @@ local function checkTotalsChain(result: BotHarness.Result, layout: Level.Layout)
 			running = e.after
 			changes += 1
 		elseif e.kind == "hazard_hit" then
-			-- A tomato (ADR 0006): removes Config.hazards.tomatoLoss followers, clamped at zero.
+			-- A tomato (ADR 0006): removes a share of the parade before the hit, clamped at zero.
 			check(e.before == running, "tomato starts from the running total", result)
+			local tomato =
+				CrowdMath.shareLoss(running, Config.hazards.tomatoSharePercent, Config.minShareLoss)
 			check(
-				e.after == math.max(0, running - Config.hazards.tomatoLoss),
-				"a tomato removes tomatoLoss followers, clamped at zero",
+				e.after == math.max(0, running - tomato),
+				"a tomato removes its share of the parade, clamped at zero",
 				result
 			)
 			running = e.after
 			changes += 1
 		elseif e.kind == "cluster_attack" then
-			-- ADR 0006: an unconverted horde removes its type's attackLoss followers, clamped at zero.
-			local loss = nil
+			-- ADR 0006: an unconverted horde removes attackSharePercent of the parade before the hit.
+			local known = false
 			for _, c in layout.clusters do
 				if `c{c.id}` == e.id then
-					loss = Config.clusterTypes[c.type].attackLoss
+					known = true
 				end
 			end
-			check(loss ~= nil, `attack on unknown cluster {tostring(e.id)}`, result)
+			check(known, `attack on unknown cluster {tostring(e.id)}`, result)
 			check(e.before == running, "attack starts from the running total", result)
+			local loss =
+				CrowdMath.shareLoss(running, Config.attackSharePercent, Config.minShareLoss)
 			check(
-				e.after == math.max(0, running - (loss :: number)),
-				"an attack removes exactly its type's attackLoss, clamped at zero",
+				e.after == math.max(0, running - loss),
+				"an attack removes its share of the parade, clamped at zero",
 				result
 			)
 			running = e.after
@@ -230,7 +234,7 @@ return {
 		end,
 	},
 	{
-		name = "no-input run: every horde that reached the parade removed its attackLoss; the total chain holds",
+		name = "no-input run: every horde that reached the parade removed its share; the total chain holds",
 		-- OPEN (issue #121, spec Amendment 4 Balance): with fixed per-hit losses the no-input run is
 		-- NOT defeated on the debug layout (its total grows to ~800 from recruits and gates). That
 		-- balance check is therefore not asserted here; the defeat mechanism is tested in
@@ -337,22 +341,36 @@ return {
 			end
 			check(#r.attacks >= 1, "expected at least one missed wave", r)
 			local counts = attackedIds(r)
-			local damage = 0
 			for _, a in r.attacks do
 				check(counts[a.id] == 1, `cluster {a.id} attacked {counts[a.id]} times`, r)
 				check(credited[`c{a.id}`] == nil, `cluster {a.id} attacked AND was credited`, r)
-				damage += Config.clusterTypes[a.kind].attackLoss
 			end
-			local rewards = 0
+			-- Replay in event order: each credit adds its reward, each attack takes its share of the
+			-- total before that attack (ADR 0006). No gates or obstacles in this layout.
+			local rewardOf = {}
 			for _, cl in clusters do
-				if credited[`c{cl.id}`] then
-					rewards += Config.clusterTypes[cl.type].reward
+				rewardOf[`c{cl.id}`] = Config.clusterTypes[cl.type].reward
+			end
+			local expected = Config.startingTotal
+			for _, e in r.events do
+				if e.kind == "cluster_credit" then
+					expected += rewardOf[e.id :: string]
+				elseif e.kind == "cluster_attack" then
+					expected = math.max(
+						0,
+						expected
+							- CrowdMath.shareLoss(
+								expected,
+								Config.attackSharePercent,
+								Config.minShareLoss
+							)
+					)
 				end
 			end
 			eq(
 				r.total,
-				math.max(0, Config.startingTotal + rewards - damage),
-				"total = start + credits - the attackLoss of the missed clusters (ADR 0006)"
+				expected,
+				"total = start + credits - each missed cluster's share at its attack (ADR 0006)"
 			)
 		end,
 	},
