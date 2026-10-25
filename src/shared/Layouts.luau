@@ -65,9 +65,19 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 		local arrive = 1 + waveOffset(pair) + spec.waveDelay + 0.5
 		local base = Config.speed * arrive + 20
 		add(pair * 2 - 1, "small", smallX, arrive, base)
-		add(pair * 2, "large", bigX, arrive, base)
-		for soak = 1, spec.soaks[pair] do
-			add(pair * 2 - 1, "large", smallX, arrive, base - SOAK_STEP * soak)
+		if pair == PAIRS then
+			add(pair * 2, "large", bigX, arrive, base + 30)
+			for soak = 1, 7 do
+				add(pair * 2 - 1, "small", smallX, arrive, base - SOAK_STEP * soak)
+			end
+			for soak = 1, 3 do
+				add(pair * 2, "large", bigX, arrive, base + 30 - SOAK_STEP * soak)
+			end
+		else
+			add(pair * 2, "large", bigX, arrive, base)
+			for soak = 1, spec.soaks[pair] do
+				add(pair * 2 - 1, "large", smallX, arrive, base - SOAK_STEP * soak)
+			end
 		end
 	end
 	return clusters

@@ -44,9 +44,19 @@ for pair = 1, 4 do
 	local arrive = 1 + waveOffset(pair) + WAVE_DELAY
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
 	add(pair * 2 - 1, "small", -16, arrive, base)
-	add(pair * 2, "large", 16, arrive, base)
-	for soak = 1, SOAKS[pair] do
-		add(pair * 2 - 1, "large", -16, arrive, base - SOAK_STEP * soak)
+	if pair == 4 then
+		add(pair * 2, "large", 16, arrive, base + 30)
+		for soak = 1, 7 do
+			add(pair * 2 - 1, "small", -16, arrive, base - SOAK_STEP * soak)
+		end
+		for soak = 1, 3 do
+			add(pair * 2, "large", 16, arrive, base + 30 - SOAK_STEP * soak)
+		end
+	else
+		add(pair * 2, "large", 16, arrive, base)
+		for soak = 1, SOAKS[pair] do
+			add(pair * 2 - 1, "large", -16, arrive, base - SOAK_STEP * soak)
+		end
 	end
 end
 
