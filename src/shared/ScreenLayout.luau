@@ -7,6 +7,8 @@
 -- CoreUISafeInsets gives (its 0..1 space is the safe area). The inset VALUES are estimates
 -- (UNVERIFIED on devices): see the Studio checklist in the PR.
 
+local Strings = require("./Strings")
+
 local ScreenLayout = {}
 
 export type Aspect = { name: string, ratio: number, notched: boolean }
@@ -107,7 +109,6 @@ local function el(
 end
 
 local RUN = { run = true }
-local BOTH = { run = true, results = true }
 local RESULTS = { results = true }
 local TITLE = { title = true }
 
@@ -142,7 +143,7 @@ local ELEMENTS = {
 		0,
 		0.30,
 		0.07,
-		BOTH,
+		RUN,
 		{ minSize = 14, maxSize = 24, sample = "Seguidores" }
 	),
 	el(
@@ -153,7 +154,7 @@ local ELEMENTS = {
 		0.07,
 		0.40,
 		0.17,
-		BOTH,
+		RUN,
 		{ minSize = 14, maxSize = 72, sample = "99999" }
 	),
 	el(
@@ -164,7 +165,7 @@ local ELEMENTS = {
 		0.24,
 		0.50,
 		0.07,
-		BOTH,
+		RUN,
 		{ minSize = 14, maxSize = 24, sample = "Sueltos 20 · Secciones 12" }
 	),
 	el(
@@ -220,7 +221,7 @@ local ELEMENTS = {
 		0.70,
 		0.12,
 		RESULTS,
-		{ minSize = 14, maxSize = 72, sample = "¡Calenda completada!" }
+		{ minSize = 14, maxSize = 72, sample = Strings.completed }
 	),
 	el(
 		"Score",
@@ -231,7 +232,7 @@ local ELEMENTS = {
 		0.50,
 		0.09,
 		RESULTS,
-		{ minSize = 14, maxSize = 48, sample = "Puntos: 99999" }
+		{ minSize = 14, maxSize = 72, sample = "99999" }
 	),
 	el(
 		"Best",
@@ -242,7 +243,7 @@ local ELEMENTS = {
 		0.40,
 		0.07,
 		RESULTS,
-		{ minSize = 14, maxSize = 32, sample = "Mejor: 99999" }
+		{ minSize = 14, maxSize = 32, sample = Strings.newBest }
 	),
 	replay,
 	play,

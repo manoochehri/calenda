@@ -45,13 +45,14 @@ return {
 				RunView.hud(state({ over = true, outcome = "completed", score = 95, best = 95 }))
 			eq(done.showEnd, true, "completed shows the end")
 			eq(done.endTitle, Strings.completed, "completed title")
-			eq(done.score, "Puntos: 95", "score")
-			eq(done.best, "Mejor: 95", "best")
+			eq(done.endTitle, "¡Listo!", "results use the short completion headline")
+			eq(done.score, "95", "score is shown without a redundant label")
+			eq(done.best, "", "best is not duplicated on the base HUD view")
 			local lost = RunView.hud(state({ over = true, outcome = "defeated", score = 30 }))
 			eq(lost.endTitle, Strings.defeated, "defeated title")
 			local odd = RunView.hud(state({ over = true, outcome = "mystery", total = 7 }))
 			eq(odd.showEnd, true, "unknown outcome still ends")
-			eq(odd.score, "Puntos: 7", "falls back to the total when there is no score")
+			eq(odd.score, "7", "falls back to the total when there is no score")
 		end,
 	},
 	{

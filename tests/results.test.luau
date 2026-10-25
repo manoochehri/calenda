@@ -37,7 +37,8 @@ return {
 			eq(r.scoreValue, 187, "score value")
 			eq(r.outcome, "completed", "outcome")
 			eq(r.tier, 2, "tier")
-			eq(r.score, `{Strings.score}: 187`, "score text")
+			eq(r.score, "187", "score is shown once without a redundant label")
+			eq(r.best, Strings.newBest, "new record has a cue but no second score")
 		end,
 	},
 	{
@@ -92,12 +93,12 @@ return {
 			local r = Results.build(final, finished(final, 150))
 			eq(r.newBest, true, "new best")
 			eq(r.bestValue, 200, "best")
-			eq(r.best, `{Strings.best}: 200 {Strings.newBest}`, "best text")
+			eq(r.best, Strings.newBest, "new record is a short cue without a repeated score")
 			local plain =
 				state({ over = true, outcome = "completed", total = 100, score = 100, best = 150 })
 			local p = Results.build(plain, finished(plain, 150))
 			eq(p.newBest, false, "not a best")
-			eq(p.best, `{Strings.best}: 150`, "best text without the badge")
+			eq(p.best, "", "do not show a second best-score number")
 		end,
 	},
 	{

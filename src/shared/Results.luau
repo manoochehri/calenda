@@ -33,10 +33,7 @@ function Results.build(state: any, flow: RunFlow.Flow): Results
 	local best, isNew = Results.sessionBest(flow.bestBefore, outcome, scoreValue)
 	local bestValue = math.max(serverBest, if outcome == "completed" then best else 0)
 	local newBest = isNew and flow.bestKnown
-	local bestText = `{Strings.best}: {string.format("%d", bestValue)}`
-	if newBest then
-		bestText ..= ` {Strings.newBest}`
-	end
+	local bestText = if newBest then Strings.newBest else ""
 	return {
 		outcome = outcome,
 		title = RunView.hud(state).endTitle,
@@ -44,7 +41,7 @@ function Results.build(state: any, flow: RunFlow.Flow): Results
 		bestValue = bestValue,
 		newBest = newBest,
 		tier = if outcome == "completed" then flow.tier else 0,
-		score = `{Strings.score}: {string.format("%d", scoreValue)}`,
+		score = string.format("%d", scoreValue),
 		best = bestText,
 	}
 end

@@ -89,7 +89,8 @@ return {
 							table.insert(shown, e)
 						end
 					end
-					assert(#shown >= 5, `{phase} has elements`)
+					local minimum = if phase == "results" then 4 else 5
+					assert(#shown >= minimum, `{phase} has elements`)
 					for i = 1, #shown do
 						for j = i + 1, #shown do
 							local ri = ScreenLayout.elementRect(shown[i], safe)
@@ -300,6 +301,24 @@ return {
 				assert(f * full.h >= 21, `{a.name}: {f * full.h} px`)
 			end)
 			assert(Strings.replay ~= "", "strings available")
+		end,
+	},
+	{
+		name = "issue 112: results hide gameplay counts and use one score without a music control",
+		run = function()
+			for _, name in { "Caption", "Counter", "Detail" } do
+				local e = ScreenLayout.element(name)
+				assert(e ~= nil, `{name} exists during play`)
+				assert(e.phases.results ~= true, `{name} is hidden on results`)
+			end
+			local score = ScreenLayout.element("Score") :: ScreenLayout.Element
+			local best = ScreenLayout.element("Best") :: ScreenLayout.Element
+			assert(score.text.sample == "99999", "score is the number alone")
+			assert(best.text.sample == Strings.newBest, "record cue does not repeat a number")
+			assert(
+				ScreenLayout.element("MusicToggle") == nil,
+				"no in-game music control per ADR 0008"
+			)
 		end,
 	},
 }

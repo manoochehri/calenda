@@ -2,7 +2,8 @@
 
 The prototype uses one full-mix Creator Store loop selected in ADR 0005: “Mexican Nostalgia” by
 APMOfficial (asset 1838904620). It starts when the player presses **Jugar** and loops through the
-run. The in-game **♫ Música: Sí/No** control mutes only music; gameplay remains fully usable muted.
+run. There is no in-game music control (ADR 0008); device volume and the phone's silent switch mute
+the sound, and gameplay remains fully usable muted.
 The track’s fit for this game and access from this specific experience remain UNVERIFIED until the
 Studio check below.
 
@@ -63,8 +64,8 @@ Source: github.com/Roblox/creator-docs, `content/en-us/reference/engine/classes/
   opening/count-in and continues through street play and the completed-run finale. It fades in and
   loops. Grow the crowd with
   gates: the track gets fuller (more reverb, brighter) without clicks or clipping.
-- Use **♫ Música: Sí/No** to mute and unmute. Confirm gameplay, results and replay remain usable
-  while muted.
+- Confirm device volume and the phone's silent switch can mute the sound, and gameplay remains
+  usable while muted.
 - Confirm this experience is permitted to load asset `1838904620`, listen for musical fit, and verify
   there is never more than one music Sound. Fit remains UNVERIFIED; do not describe this as an
   Oaxacan calenda recording.
