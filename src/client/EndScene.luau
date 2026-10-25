@@ -16,6 +16,7 @@ local DefeatPlan = require(Shared:WaitForChild("DefeatPlan"))
 local FinalePlan = require(Shared:WaitForChild("FinalePlan"))
 local Strings = require(Shared:WaitForChild("Strings"))
 local Bits = require(script.Parent:WaitForChild("Bits"))
+local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 
 local CONFETTI = {
 	Color3.fromRGB(255, 221, 0),
@@ -139,7 +140,7 @@ function EndScene.new(): EndScene
 		text.BackgroundTransparency = 1
 		text.Text = Strings.laugh
 		text.TextScaled = true
-		text.Font = Enum.Font.GothamBlack
+		text.Font = TypeStyle.font("alert")
 		text.TextColor3 = Color3.fromRGB(255, 255, 255)
 		text.TextStrokeTransparency = 0
 		text.TextStrokeColor3 = Color3.fromRGB(28, 22, 34)

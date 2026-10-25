@@ -9,10 +9,10 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
+local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local HudMeters = require(Shared:WaitForChild("HudMeters"))
 
 local WHITE = Color3.fromRGB(255, 255, 255)
-local OUTLINE = Color3.fromRGB(28, 22, 34)
 
 export type RunHud = {
 	setMeter: (self: RunHud, meter: HudMeters.SectionMeter) -> (),
@@ -38,12 +38,14 @@ function RunHud.new(): RunHud
 	back.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
 	back.BackgroundTransparency = 0.35
 	back.BorderSizePixel = 0
+	TypeStyle.backing(back) -- issue #104: the section caption sits on a rounded backing panel
 	back.Parent = gui
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
 	fill.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
 	fill.BorderSizePixel = 0
+	TypeStyle.pill(fill)
 	fill.Parent = back
 	local caption = Instance.new("TextLabel")
 	caption.Name = "Caption"
@@ -51,10 +53,9 @@ function RunHud.new(): RunHud
 	caption.BackgroundTransparency = 1
 	caption.TextScaled = true
 	GuiLayout.limitText(caption, "SectionMeter")
-	caption.Font = Enum.Font.GothamBold
+	caption.Font = TypeStyle.font("body")
 	caption.TextColor3 = WHITE
-	caption.TextStrokeColor3 = OUTLINE
-	caption.TextStrokeTransparency = 0
+	TypeStyle.outline(caption)
 	caption.Parent = back
 
 	back.Visible = false -- hidden until the first State
@@ -65,10 +66,10 @@ function RunHud.new(): RunHud
 	GuiLayout.limitText(banner, "Banner")
 	banner.BackgroundTransparency = 1
 	banner.TextScaled = true
-	banner.Font = Enum.Font.GothamBlack
+	banner.Font = TypeStyle.font("alert")
+	TypeStyle.outline(banner)
 	banner.TextColor3 = Color3.fromRGB(255, 221, 0)
-	banner.TextStrokeColor3 = OUTLINE
-	banner.TextStrokeTransparency = 0
+	banner.TextStrokeTransparency = 1 -- use the glyph-shaped UIStroke only
 	banner.Visible = false
 	banner.Parent = gui
 	local bannerScale = Instance.new("UIScale")
