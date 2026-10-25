@@ -140,10 +140,41 @@ return {
 								bounds.cy,
 								bounds.cz
 							)
+							local cornersClear = true
+							for _, x in
+								{
+									rey.x - ReyFormation.HALF_WIDTH,
+									rey.x + ReyFormation.HALF_WIDTH,
+								}
+							do
+								for _, y in
+									{
+										bounds.cy - bounds.sy / 2,
+										bounds.cy + bounds.sy / 2,
+									}
+								do
+									for _, z in
+										{
+											bounds.cz - ReyFormation.HALF_DEPTH,
+											bounds.cz + ReyFormation.HALF_DEPTH,
+										}
+									do
+										local corner =
+											ScreenProject.project(camera, 16 / 9, x, y, z)
+										if
+											not ScreenProject.onScreen(corner, 0.02)
+											or corner.y <= -0.62
+										then
+											cornersClear = false
+										end
+									end
+								end
+							end
 							assert(
 								ScreenProject.onScreen(center, 0.05)
 									and ScreenProject.onScreen(left, 0.02)
 									and ScreenProject.onScreen(right, 0.02)
+									and cornersClear
 									and math.abs(top.y - bottom.y) >= 0.07
 									and center.y > -0.55
 									and bottom.y > -0.62,
