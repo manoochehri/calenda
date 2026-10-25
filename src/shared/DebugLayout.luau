@@ -45,12 +45,13 @@ for pair = 1, 4 do
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
 	add(pair * 2 - 1, "small", -16, arrive, base)
 	if pair == 4 then
-		add(pair * 2, "large", 16, arrive, base + 30)
+		add(pair * 2, "large", 16, arrive, base + 20)
 		for soak = 1, 7 do
-			add(pair * 2 - 1, "small", -16, arrive, base - SOAK_STEP * soak)
+			local kind = if soak == 7 then "large" else "small"
+			add(pair * 2 - 1, kind, -16, arrive, base - SOAK_STEP * soak)
 		end
 		for soak = 1, 3 do
-			add(pair * 2, "large", 16, arrive, base + 30 - SOAK_STEP * soak)
+			add(pair * 2, "large", 16, arrive, base + 20 - SOAK_STEP * soak)
 		end
 	else
 		add(pair * 2, "large", 16, arrive, base)
