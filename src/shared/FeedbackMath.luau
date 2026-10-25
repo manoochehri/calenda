@@ -31,13 +31,16 @@ function FeedbackMath.flightSeconds(distance: number): number
 	)
 end
 
--- Spec s4: notes are the base shot; gifts show as hearts and snacks. Visual variants only; every
--- shot is exactly one hit on the server.
+-- Spec s4 and s10: ordinary shots show as notes and hearts (alternating, odd = heart); gifts show
+-- as hearts and snacks (alternating, odd = heart). Visual variants only; every shot is exactly one
+-- hit on the server. `hits` is the count the shot's parity is taken from (a cluster's hit count, or
+-- the shot number for a miss).
 function FeedbackMath.variant(shot: string, hits: number): "note" | "heart" | "snack"
+	local odd = hits % 2 == 1
 	if shot ~= "gift" then
-		return "note"
+		return if odd then "heart" else "note"
 	end
-	return if hits % 2 == 1 then "heart" else "snack"
+	return if odd then "heart" else "snack"
 end
 
 -- Fill fraction of the excitement meter. needed <= 0 reads as full (never divides by zero).
