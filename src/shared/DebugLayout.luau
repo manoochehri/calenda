@@ -133,6 +133,14 @@ local layout: Level.Layout = {
 		{ id = 3, z = paceDistance(1408), side = "left" }, -- 88s
 	},
 	clusters = clusters,
+	-- Issue #96: the first Oaxacan level's hazards. Tomatoes from the buildings and a tlayuda cart.
+	hazardSet = {
+		kinds = { "tomato", "cart" },
+		firstAt = 20,
+		lastAt = 80,
+		minGap = 14,
+		maxGap = 22,
+	},
 }
 
 return deepFreeze(layout)

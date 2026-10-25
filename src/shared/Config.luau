@@ -21,6 +21,7 @@ export type ConfigType = {
 	clusterTypes: { small: ClusterType, large: ClusterType },
 	gateOps: { GateOp },
 	obstacleLoss: number,
+	hazards: { tomatoDamage: number },
 	speed: number,
 	firing: { base: number, cap: number, perSection: number, range: number },
 	spectators: { approachSpeed: number, centerTolerance: number },
@@ -128,6 +129,9 @@ local function validate(c: any): (boolean, string?)
 		then
 			return false, `clusterTypes.{name} needs positive integer hits, reward and attackDamage`
 		end
+	end
+	if type(c.hazards) ~= "table" or not isPositiveInt(c.hazards.tomatoDamage) then
+		return false, "hazards.tomatoDamage must be a positive integer"
 	end
 	if type(c.hp) ~= "table" or not isPositiveInt(c.hp.max) then
 		return false, "hp.max must be a positive integer"
@@ -271,6 +275,8 @@ local config: ConfigType = {
 		{ kind = "multiply", value = 2 },
 	},
 	obstacleLoss = 10, -- [spec s9]
+	-- Issue #96: HP lost once when an unblocked tomato hits the lead. Blocking is by a landed gift.
+	hazards = { tomatoDamage = 5 }, -- [default]
 	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
