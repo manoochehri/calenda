@@ -15,24 +15,9 @@ local function paceDistance(baseZ: number): number
 	return baseZ * Config.speed / BASE_SPEED
 end
 
--- Issue #65 (tension from the top). DATA CHANGE for the skeptic; provisional like the
--- continuous-fire retune until the #17 ladder is re-run. Why the numbers moved:
---  * Waves must EMERGE from beyond the camera's view (Emergence.requiredSpawnOffset, about 208
---    studs ahead) instead of popping in 15-40 studs ahead. A cluster is therefore in firing range
---    (60 studs) for the whole approach, 60 / (speed + approachSpeed) seconds, instead of the 1 s the
---    old spawn offsets gave, so the same wave is far easier to convert. To keep the Amendment 1
---    checks true (no-input run defeated, competent run completed with HP left) the data changes:
---    1. spectators.approachSpeed 6 -> 20 (Config): the mob CHARGES; closing speed 34.4 studs/s keeps
---       the visible approach at 3.7 s (a rule, tested) and the range window at 1.7 s.
---    2. WAVE_DELAY: every pair arrives 9 s later than before (a calm opening: the first wave is
---       first in view after 5 s).
---    3. SOAKS: each pair grows a line of extra small groups on the left, a little nearer the lead
---       than the big group on the right ("waves of rising size"). Unsteered fire spends its hits on
---       the nearest groups, so the big group is not converted; a player who steers right converts
---       it and still has hits left over for the soaks. Rising size matches the rising fire rate.
---  * Each cluster's path is extended BACKWARD along its straight line (spawn earlier and farther
---    away, rounded up to quarter seconds) until it spawns beyond the visible depth + margin. From
---    the old geometry on, positions are unchanged.
+-- Issue #65: the authored wave layout keeps its delayed opening, increasing wave sizes, and
+-- backward path extension so mobs emerge beyond the visible depth + margin. `add` derives the
+-- required spawn offset from camera emergence and the current lead + mob closing speed.
 local WAVE_DELAY = 9 -- seconds [default]
 local SOAKS = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 } -- [default] extra small groups per pair
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before

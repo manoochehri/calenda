@@ -281,7 +281,7 @@ local config: ConfigType = {
 		range = 60, -- [default] studs along the street from the lead; spec (Amendment 1) names the key only
 	},
 	spectators = {
-		approachSpeed = 20, -- [default] studs/second a mob CHARGES toward the parade (was 6; issue #65, see DebugLayout); spec names the key only
+		approachSpeed = 6, -- [default] studs/second a mob charges toward the parade; spec names the key only
 		centerTolerance = 3, -- [default] studs; |x| at or below this counts as "center" (Amendment 1)
 	},
 	visualBudget = {
