@@ -110,6 +110,8 @@ Issue #96 adds level hazards, drawn from the run seed on the server and listed p
 
 Later levels select their own hazard kinds in configuration; no level name is checked in code.
 
+HUD copy (issue #112, owner-reviewed for a child audience): the section meter caption reads "Faltan N para un grupo" (N followers still needed for the next section). It is the only persistent HUD sentence changed; the start hint "Arrastra para moverte" and the defeat line stay as they are.
+
 Reaching the plaza always completes the run. Score equals the final crowd total, with no extra conversion bonus. Show the session best and '¡Otra calenda!' replay button. A lightweight three-tier celebration can use provisional thresholds of 50, 150, and 300 followers; tune these after observing normal runs.
 
 Replay resets all run state. Start with one fixed layout for debugging; after it works, provide three authored gate/cluster arrangements under recorded seeds. Each must be completable without spending or purchases.

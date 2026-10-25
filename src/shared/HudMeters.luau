@@ -10,7 +10,7 @@ export type SectionMeter = {
 	loose: number, -- loose followers (exact)
 	fraction: number, -- 0..1 toward the next section
 	toNext: number, -- followers still needed for the next section
-	label: string, -- "Próxima sección en 30"
+	label: string, -- "Faltan 30 para un grupo"
 }
 
 local HudMeters = {}

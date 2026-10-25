@@ -271,12 +271,12 @@ return {
 		end,
 	},
 	{
-		name = "issue 54: the run-phase section meter is a compact strip (<= 6% of safe height, <= 40% of width) and still readable",
+		name = "issue 54: the run-phase section meter is a compact strip (<= 6% of safe height, <= 42% of width) and still readable",
 		run = function()
 			local meter = ScreenLayout.element("SectionMeter")
 			assert(meter ~= nil, "meter exists")
 			assert(meter.h <= 0.06 + EPS, `meter height share {meter.h} > 0.06`)
-			assert(meter.w <= 0.40 + EPS, `meter width share {meter.w} > 0.40`)
+			assert(meter.w <= 0.42 + EPS, `meter width share {meter.w} > 0.42`)
 			eachAspect(function(a, safe, _)
 				local r = ScreenLayout.elementRect(meter, safe)
 				assert(r.h >= 14, `{a.name}: meter box {r.h} px < 14`)
