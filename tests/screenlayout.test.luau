@@ -302,4 +302,22 @@ return {
 			assert(Strings.replay ~= "", "strings available")
 		end,
 	},
+	{
+		name = "issue 112: results hide gameplay counts and use one score plus a compact music toggle",
+		run = function()
+			for _, name in { "Caption", "Counter", "Detail" } do
+				local e = ScreenLayout.element(name)
+				assert(e ~= nil, `{name} exists during play`)
+				assert(e.phases.results ~= true, `{name} is hidden on results`)
+			end
+			local score = ScreenLayout.element("Score") :: ScreenLayout.Element
+			local best = ScreenLayout.element("Best") :: ScreenLayout.Element
+			assert(score.text.sample == "99999", "score is the number alone")
+			assert(best.text.sample == Strings.newBest, "record cue does not repeat a number")
+			local music = ScreenLayout.element("MusicToggle") :: ScreenLayout.Element
+			assert(music.w <= 0.16, `music toggle width {music.w} exceeds the compact cap`)
+			assert(Strings.musicOn == "♫ Sí" and Strings.musicOff == "♫ No", "compact Spanish music state")
+			assert(music.text.sample == Strings.musicOn, "music state stays clear in Spanish")
+		end,
+	},
 }
