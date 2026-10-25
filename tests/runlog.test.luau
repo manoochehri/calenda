@@ -1,9 +1,20 @@
 --!strict
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local Level = require("../src/shared/Level")
 local RunDriver = require("../src/shared/RunDriver")
 local RunLog = require("../src/shared/RunLog")
 local RunState = require("../src/shared/RunState")
+
+-- Whole hits a parade of `total` survives to reach zero under the share rule (ADR 0006).
+local function hitsToEmpty(total: number): number
+	local n, t = 0, total
+	while t > 0 do
+		t = math.max(0, t - CrowdMath.shareLoss(t, Config.attackSharePercent, Config.minShareLoss))
+		n += 1
+	end
+	return n
+end
 
 local DT = 1 / 30
 
@@ -393,7 +404,7 @@ return {
 	{
 		name = "defeated run: fromEvents and format show the defeated outcome and score",
 		run = function()
-			local attackCount = math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local attackCount = hitsToEmpty(12)
 			local clusters: { RunState.ClusterDef } = {}
 			local ids = {}
 			for i = 1, attackCount do
@@ -410,18 +421,13 @@ return {
 			local log = RunLog.fromEvents(state:events())
 			assert(log.completion ~= nil, "a defeated run has a completion entry")
 			eq((log.completion :: RunLog.Completion).outcome, "defeated", "outcome")
-			eq((log.completion :: RunLog.Completion).score, 12, "score")
-			eq((log.completion :: RunLog.Completion).finalTotal, 12, "final total")
+			eq((log.completion :: RunLog.Completion).score, 0, "score is the total at defeat")
+			eq((log.completion :: RunLog.Completion).finalTotal, 0, "final total")
 			local last = log.entries[#log.entries]
 			eq(last.kind, "complete", "terminal entry")
 			eq(last.outcome, "defeated", "terminal entry outcome")
 			assert(
-				string.find(
-					RunLog.format(log),
-					"complete: defeated finalTotal=12 score=12",
-					1,
-					true
-				),
+				string.find(RunLog.format(log), "complete: defeated finalTotal=0 score=0", 1, true),
 				"format shows the defeat"
 			)
 		end,

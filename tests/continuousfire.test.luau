@@ -99,7 +99,7 @@ return {
 				eq(s.number, i, "numbered")
 			end
 			eq(rs:total(), Config.startingTotal, "total unchanged")
-			eq(rs:hp(), Config.hp.max, "hp unchanged")
+			eq((rs :: any).hp, nil, "no HP field (ADR 0006)")
 			eq(#rs:events(), 1, "only the run-start event; a miss logs nothing")
 		end,
 	},
@@ -112,7 +112,7 @@ return {
 				eq(s.miss, true, "out of range")
 			end
 			eq(rs:total(), Config.startingTotal, "total")
-			eq(rs:hp(), Config.hp.max, "hp")
+			eq((rs :: any).hp, nil, "no HP field (ADR 0006)")
 			eq(rs:clusterConsumption("1"), nil, "cluster not consumed")
 		end,
 	},
@@ -348,7 +348,7 @@ return {
 			end
 			assert(seen >= 10, "misses were emitted")
 			eq(driver:total(), Config.startingTotal, "total unchanged")
-			eq(driver:snapshot().hp, Config.hp.max, "hp unchanged")
+			eq((driver:snapshot() :: any).hp, nil, "no HP field (ADR 0006)")
 		end,
 	},
 }

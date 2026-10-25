@@ -12,7 +12,7 @@
 -- Firing is CONTINUOUS (ADR 0004, spec Amendment 2): a shot every 1 / fireRate seconds whether or
 -- not anything is in range. A shot with an eligible target is a hit (one meter hit, credit-once).
 -- A shot with none is a MISS: `miss = true`, no targetId, and it touches no meter, no RunState and
--- no HP. Misses still advance the shot counter, so the gift cadence (every Nth shot) is unchanged.
+-- no life. Misses still advance the shot counter, so the gift cadence (every Nth shot) is unchanged.
 --
 -- Per advance() the order matches the same-tick ordering of Amendment 1: shots land, meters fill
 -- and conversions are credited (RunState.creditCluster, exactly once), then unconverted clusters

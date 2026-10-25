@@ -1,5 +1,4 @@
 --!strict
-local HpExtension = require("../src/shared/HpExtension")
 local HudMeters = require("../src/shared/HudMeters")
 local Results = require("../src/shared/Results")
 local RunFlow = require("../src/shared/RunFlow")
@@ -130,20 +129,6 @@ return {
 			eq(HudMeters.sectionMeter(50).fraction, 0, "boundary fraction")
 			eq(HudMeters.sectionMeter(-3).sections, 0, "garbage")
 			eq(HudMeters.sectionMeter(10000).sections, 200, "large")
-		end,
-	},
-	{
-		name = "HpExtension reads hp only when the server sends it (HP bar is a follow-up)",
-		run = function()
-			eq(HpExtension.read(state()), nil, "no hp fields today")
-			local hp = HpExtension.read(state({ hp = 30, maxHp = 120 }))
-			assert(hp ~= nil, "present")
-			eq((hp :: any).hp, 30, "hp")
-			eq((hp :: any).fraction, 0.25, "fraction")
-			eq(HpExtension.read(state({ hp = 5 })), nil, "needs maxHp")
-			eq(HpExtension.read(state({ hp = -4, maxHp = 100 })).hp, 0, "clamped at 0")
-			eq(HpExtension.read(state({ hp = 500, maxHp = 100 })).fraction, 1, "clamped at 1")
-			eq(HpExtension.read(state({ hp = 1, maxHp = 0 })), nil, "maxHp must be positive")
 		end,
 	},
 }

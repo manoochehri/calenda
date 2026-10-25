@@ -67,6 +67,12 @@ local function applyOp(total: number, op: Op): number
 	error(`unknown op kind {op.kind}`, 2)
 end
 
+-- ADR 0006 (Amendment 4): the share of the parade a single hit removes, computed from the total
+-- before the hit. Whole followers, rounded down, never fewer than `minimum`. Pure.
+local function shareLoss(total: number, percent: number, minimum: number): number
+	return math.max(minimum, math.floor(total * percent / 100))
+end
+
 local function startingTotal(): number
 	return Config.startingTotal
 end
@@ -106,5 +112,6 @@ return {
 	sectionType = sectionType,
 	applyOp = applyOp,
 	obstacleOp = obstacleOp,
+	shareLoss = shareLoss,
 	crossings = crossings,
 }

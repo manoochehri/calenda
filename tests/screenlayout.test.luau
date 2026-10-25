@@ -105,7 +105,7 @@ return {
 		end,
 	},
 	{
-		name = "the named HUD elements exist: counter, meter + caption, HP bar, PlusSections, hint, replay, results",
+		name = "the named HUD elements exist: counter, meter + caption, PlusSections, hint, replay, results",
 		run = function()
 			for _, n in
 				{
@@ -113,7 +113,6 @@ return {
 					"Counter",
 					"Detail",
 					"SectionMeter",
-					"HpBar",
 					"PlusSections",
 					"Hint",
 					"Banner",
@@ -267,8 +266,8 @@ return {
 					end
 				end
 			end)
-			-- Non-vacuous: all seven persistent run elements were checked at all four ratios.
-			assert(checked == 7 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
+			-- Non-vacuous: all six persistent run elements were checked at all four ratios (no HP bar, ADR 0006).
+			assert(checked == 6 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
 		end,
 	},
 	{

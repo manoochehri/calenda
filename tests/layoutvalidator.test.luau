@@ -61,13 +61,13 @@ local function cluster(l: any, id: number): any
 	error(`no cluster {id}`)
 end
 
-local function runHpScenario(competent: boolean): LayoutValidator.HPScenario
+local function runLifeScenario(competent: boolean): LayoutValidator.LifeScenario
 	local driver = RunDriver.new({
 		layout = DebugLayout,
 		automated = true,
 		hooks = RunHooks.new(DebugLayout),
 	})
-	local trajectory = { { time = 0, hp = driver:snapshot().hp } }
+	local trajectory = { { time = 0, total = driver:snapshot().total } }
 	local attacks = {}
 	local nextInput = 0
 	for _ = 1, math.ceil(100 / DT) do
@@ -93,7 +93,7 @@ local function runHpScenario(competent: boolean): LayoutValidator.HPScenario
 					end
 				end
 			end
-			-- Competent policy: steer toward the nearest large threat to prevent its larger HP loss;
+			-- Competent policy: steer toward the nearest large threat to prevent its larger follower loss;
 			-- otherwise follow the nearest active cluster. The no-input control never steers.
 			local clusterTarget = closestLarge or closestCluster
 			if clusterTarget then
@@ -114,7 +114,7 @@ local function runHpScenario(competent: boolean): LayoutValidator.HPScenario
 			nextInput = snapshot.time + 0.05
 		end
 
-		local beforeHp = snapshot.hp
+		local beforeTotal = snapshot.total
 		local events = driver:tick(DT)
 		for _, event in events do
 			if event.kind == "attack" then
@@ -129,19 +129,25 @@ local function runHpScenario(competent: boolean): LayoutValidator.HPScenario
 			end
 		end
 		local after = driver:snapshot()
-		if after.hp ~= beforeHp then
-			table.insert(trajectory, { time = after.time, hp = after.hp })
+		-- The life trajectory records only losses (ADR 0006): each point is a follower loss.
+		if after.total < beforeTotal then
+			table.insert(trajectory, { time = after.time, total = after.total })
 		end
 		if after.outcome ~= nil then
 			return {
 				outcome = after.outcome,
-				hp = after.hp,
+				total = after.total,
 				trajectory = trajectory,
 				attacks = attacks,
 			}
 		end
 	end
-	return { outcome = nil, hp = driver:snapshot().hp, trajectory = trajectory, attacks = attacks }
+	return {
+		outcome = nil,
+		total = driver:snapshot().total,
+		trajectory = trajectory,
+		attacks = attacks,
+	}
 end
 
 return {
@@ -234,7 +240,7 @@ return {
 		end,
 	},
 	{
-		name = "report: per-cluster arrival data is exposed for the HP extension (#36/#17)",
+		name = "report: per-cluster arrival data is exposed for the life extension (#36/#17)",
 		run = function()
 			local r = LayoutValidator.check(DebugLayout)
 			for _, c in DebugLayout.clusters do
@@ -260,64 +266,54 @@ return {
 			assert(ok.ok and seen, "extra check ran with the base report")
 			local bad = LayoutValidator.check(DebugLayout, nil, {
 				function(_ctx)
-					return false, "hp trajectory: no-input run not defeated"
+					return false, "life trajectory: no-input run not defeated"
 				end,
 			})
 			assert(not bad.ok, "extra failing check rejects")
-			assert(string.find(table.concat(bad.errors, " "), "hp trajectory", 1, true))
+			assert(string.find(table.concat(bad.errors, " "), "life trajectory", 1, true))
 		end,
 	},
 	{
-		name = "HP extra check runs no-input and competent DebugLayout scenarios through RunHooks",
+		-- OPEN (issue #121, spec Amendment 4 Balance): the no-input defeat is reported, not asserted.
+		-- With fixed per-hit losses the no-input run is not defeated on this layout; the owner decides
+		-- the loss rule. The competent run must still complete with followers left.
+		name = "life check reports no-input and competent DebugLayout scenarios through RunHooks",
 		run = function()
 			local scenarios: { [string]: any } = {}
 			local report = LayoutValidator.check(DebugLayout, nil, {
 				function(ctx)
-					assert(ctx.report.ok, "base layout checks pass before HP check")
-					scenarios.noInput = runHpScenario(false)
-					scenarios.competent = runHpScenario(true)
-					ctx.report.hpScenarios = scenarios
-					local function path(points: { LayoutValidator.HPTrajectoryPoint }): string
+					assert(ctx.report.ok, "base layout checks pass before the life check")
+					scenarios.noInput = runLifeScenario(false)
+					scenarios.competent = runLifeScenario(true)
+					ctx.report.lifeScenarios = scenarios
+					local function path(points: { LayoutValidator.LifeTrajectoryPoint }): string
 						local out = {}
 						for _, point in points do
-							table.insert(out, `{string.format("%.3f", point.time)}:{point.hp}`)
+							table.insert(out, `{string.format("%.3f", point.time)}:{point.total}`)
 						end
 						return table.concat(out, ",")
 					end
-					local noInputPath = path(scenarios.noInput.trajectory)
-					local competentPath = path(scenarios.competent.trajectory)
 					print(
-						`HP scenarios (DebugLayout, samples=1 each): no-input outcome={scenarios.noInput.outcome} hp={scenarios.noInput.hp} trajectory={noInputPath}; attacks={table.concat(
-							scenarios.noInput.attacks,
-							","
-						)}; competent outcome={scenarios.competent.outcome} hp={scenarios.competent.hp} trajectory={competentPath}; attacks={table.concat(
-							scenarios.competent.attacks,
-							","
-						)}`
+						`life scenarios (DebugLayout, samples=1 each): no-input outcome={scenarios.noInput.outcome} total={scenarios.noInput.total} losses={path(
+							scenarios.noInput.trajectory
+						)}; attacks={table.concat(scenarios.noInput.attacks, ",")}; competent outcome={scenarios.competent.outcome} total={scenarios.competent.total} losses={path(
+							scenarios.competent.trajectory
+						)}; attacks={table.concat(scenarios.competent.attacks, ",")}`
 					)
-					local ok = scenarios.noInput.outcome == "defeated"
-						and scenarios.competent.outcome == "completed"
-						and scenarios.competent.hp > 0
+					local ok = scenarios.competent.outcome == "completed"
+						and scenarios.competent.total > 0
 					return ok,
-						`HP trajectory: no-input outcome={scenarios.noInput.outcome}, hp={scenarios.noInput.hp}; competent outcome={scenarios.competent.outcome}, hp={scenarios.competent.hp}`
+						`life check: competent outcome={scenarios.competent.outcome}, total={scenarios.competent.total}`
 				end,
 			})
-			assert(report.ok, `HP check rejected layout: {table.concat(report.errors, " | ")}`)
+			assert(report.ok, `life check rejected layout: {table.concat(report.errors, " | ")}`)
 			assert(
 				scenarios.noInput ~= nil and scenarios.competent ~= nil,
 				"both runs were reported"
 			)
 			assert(
-				scenarios.competent.trajectory[2].hp == 95,
-				"competent policy accepts a small attack"
-			)
-			assert(
-				scenarios.noInput.trajectory[#scenarios.noInput.trajectory].hp == 0,
-				"no-input HP reaches zero"
-			)
-			assert(
-				scenarios.competent.trajectory[#scenarios.competent.trajectory].hp > 0,
-				"competent run preserves the configured remainder"
+				scenarios.competent.outcome == "completed" and scenarios.competent.total > 0,
+				"competent run completes with followers left"
 			)
 		end,
 	},

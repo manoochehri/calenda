@@ -1,5 +1,5 @@
 --!strict
--- Production gameplay hooks connecting target selection to RunState and parade HP.
+-- Production gameplay hooks connecting target selection to RunState and the parade size (ADR 0006).
 -- Pure: the server supplies the RunState and replicates the emitted events.
 local Config = require("./Config")
 local ClusterFeed = require("./ClusterFeed")
@@ -64,8 +64,8 @@ function RunHooks.new(layout: Level.Layout, config: any?): any
 				ctx.emit({
 					kind = "attack",
 					id = ctx.passedClusters[i],
-					hpBefore = result.hpBefore,
-					hpAfter = result.hpAfter,
+					before = result.before,
+					after = result.after,
 				})
 			end
 		end

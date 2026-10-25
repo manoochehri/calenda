@@ -141,7 +141,7 @@ return {
 					"input",
 					"music",
 					"audio",
-					"hp",
+					"hit",
 				}
 			do
 				assert(table.find(ResetPlan.items, need) ~= nil, `checklist has {need}`)
@@ -212,8 +212,8 @@ return {
 			end
 			-- Issue #50: a hit still playing when the run ends must not leak into the next one.
 			local hit = HitFeedback.new()
-			handlers.hp = function()
-				resets.hp = (resets.hp or 0) + 1
+			handlers.hit = function()
+				resets.hit = (resets.hit or 0) + 1
 				hit:reset()
 			end
 			hit:hit(1)

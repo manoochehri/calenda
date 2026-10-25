@@ -19,7 +19,6 @@ return table.freeze({
 	completed = "¡Calenda completada!",
 	defeated = "¡Uy, la calenda se dispersó!", -- Amendment 1 (the server does not send this outcome until #36)
 	ended = "Fin de la calenda", -- any outcome this client does not know yet
-	hpIcon = "♥", -- issue #50: the HP bar icon, so the bar reads with the sound off
 	musicOn = "♫ Música: Sí",
 	musicOff = "♫ Música: No",
 	replay = "¡Otra calenda!", -- spec s9

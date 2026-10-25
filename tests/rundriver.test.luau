@@ -1,10 +1,21 @@
 --!strict
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
 local Level = require("../src/shared/Level")
 local RunDriver = require("../src/shared/RunDriver")
 local RunHooks = require("../src/shared/RunHooks")
 local Steering = require("../src/shared/Steering")
+
+-- Whole hits a parade of `total` survives to reach zero under the share rule (ADR 0006).
+local function hitsToEmpty(total: number): number
+	local n, t = 0, total
+	while t > 0 do
+		t = math.max(0, t - CrowdMath.shareLoss(t, Config.attackSharePercent, Config.minShareLoss))
+		n += 1
+	end
+	return n
+end
 
 local DT = RunDriver.TICK_DT
 
@@ -392,8 +403,7 @@ return {
 		name = "server driver attacks passed clusters in ID order before ending defeated",
 		run = function()
 			local clusters: { Level.Cluster } = {}
-			local lethalAttackCount =
-				math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage)
+			local lethalAttackCount = hitsToEmpty(Config.startingTotal)
 			local attackCount = lethalAttackCount + 2
 			for i = attackCount, 1, -1 do
 				table.insert(clusters, {
@@ -445,15 +455,15 @@ return {
 				table.concat(table.create(attackCount, "attack"), ",") .. ",defeated",
 				"event order"
 			)
-			eq(events[1].hpBefore, Config.hp.max, "first attack HP before")
-			eq(events[lethalAttackCount].hpAfter, 0, "lethal attack clamps HP")
-			eq(events[attackCount].hpBefore, 0, "same-tick attacks continue at zero HP")
-			eq(events[attackCount].hpAfter, 0, "HP stays clamped for later same-tick attacks")
+			eq(events[1].before, Config.startingTotal, "first attack: total before")
+			eq(events[lethalAttackCount].after, 0, "lethal attack clamps the total at zero")
+			eq(events[attackCount].before, 0, "same-tick attacks continue at zero followers")
+			eq(events[attackCount].after, 0, "the total stays clamped for later same-tick attacks")
 			eq(d:outcome(), "defeated", "outcome")
-			eq(d:total(), Config.startingTotal, "crowd unchanged")
-			eq(d:snapshot().hp, 0, "HP exposed in snapshot")
+			eq(d:total(), 0, "the parade is empty")
+			eq(d:snapshot().total, 0, "total exposed in snapshot")
 			assert(d:replay(1), "defeated run replays")
-			eq(d:snapshot().hp, Config.hp.max, "replay restores HP")
+			eq(d:snapshot().total, Config.startingTotal, "replay restores the starting total")
 			eq(d:outcome(), nil, "replay clears outcome")
 			for _ = 1, 4 do
 				d:tick(DT)
@@ -491,7 +501,6 @@ return {
 				Config.startingTotal + Config.clusterTypes.small.reward,
 				"converted reward"
 			)
-			eq(d:snapshot().hp, Config.hp.max, "HP unchanged")
 		end,
 	},
 	{
@@ -551,7 +560,6 @@ return {
 				assert(event.kind ~= "attack", "conversion precedes same-tick attack")
 			end
 			eq(d:total(), Config.startingTotal + Config.clusterTypes.small.reward, "reward once")
-			eq(d:snapshot().hp, Config.hp.max, "no attack damage")
 		end,
 	},
 	{
@@ -608,7 +616,7 @@ return {
 				+ Config.spectators.approachSpeed * (t1 - spawnTime)
 				- 1e-6 -- place every unconverted cluster just behind the lead at the plaza tick
 			local clusters: { Level.Cluster } = {}
-			for id = 1, math.ceil(Config.hp.max / Config.clusterTypes.large.attackDamage) do
+			for id = 1, hitsToEmpty(Config.startingTotal) do
 				table.insert(clusters, {
 					id = id,
 					wave = 1,
@@ -647,7 +655,7 @@ return {
 				"same-tick attack and end-check events"
 			)
 			assert(not string.find(kinds(events), "complete", 1, true), "no plaza completion")
-			eq(d:snapshot().hp, 0, "HP reaches zero")
+			eq(d:total(), 0, "the total reaches zero")
 		end,
 	},
 	{

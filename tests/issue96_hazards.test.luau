@@ -2,6 +2,7 @@
 -- Issue #96: level-specific hazards (tomato throws from the buildings, a tlayuda cart).
 -- Fail-first: these were written before src/shared/Hazards.luau and the RunDriver wiring existed.
 local Config = require("../src/shared/Config")
+local CrowdMath = require("../src/shared/CrowdMath")
 local Crossing = require("../src/shared/Crossing")
 local Hazards = require("../src/shared/Hazards")
 local RunDriver = require("../src/shared/RunDriver")
@@ -216,7 +217,7 @@ return {
 		end,
 	},
 	{
-		name = "a note shot does not block a tomato; the unblocked hit costs the configured HP once",
+		name = "a note shot does not block a tomato; the unblocked hit costs the configured followers once",
 		run = function()
 			local seed = 5
 			local h = firstOf(ONLY_TOMATO_ONCE, seed)
@@ -224,11 +225,20 @@ return {
 			eq(countKind(events, "hazard_warning"), 1, "one warning")
 			eq(countKind(events, "hazard_blocked"), 0, "notes never block")
 			eq(countKind(events, "hazard_hit"), 1, "one hit, applied once")
-			eq(driver:snapshot().hp, Config.hp.max - Config.hazards.tomatoDamage, "HP lost once")
+			eq(
+				driver:snapshot().total,
+				Config.startingTotal
+					- CrowdMath.shareLoss(
+						Config.startingTotal,
+						Config.hazards.tomatoSharePercent,
+						Config.minShareLoss
+					),
+				"followers lost once"
+			)
 		end,
 	},
 	{
-		name = "a landed gift shot inside the warning window blocks the tomato and costs no HP",
+		name = "a landed gift shot inside the warning window blocks the tomato and costs no followers",
 		run = function()
 			local seed = 5
 			local h = firstOf(ONLY_TOMATO_ONCE, seed)
@@ -236,7 +246,7 @@ return {
 				drive(ONLY_TOMATO_ONCE, seed, h.x, h.impactAt + 4, h.impactAt - 1)
 			eq(countKind(events, "hazard_blocked"), 1, "gift blocks")
 			eq(countKind(events, "hazard_hit"), 0, "a blocked tomato does not hit")
-			eq(driver:snapshot().hp, Config.hp.max, "no HP lost")
+			eq(driver:snapshot().total, Config.startingTotal, "no followers lost")
 		end,
 	},
 	{
@@ -245,7 +255,16 @@ return {
 			local seed = 5
 			local h = firstOf(ONLY_TOMATO_ONCE, seed)
 			local driver = drive(ONLY_TOMATO_ONCE, seed, h.x, h.impactAt + 4, h.warnAt - 1)
-			eq(driver:snapshot().hp, Config.hp.max - Config.hazards.tomatoDamage, "HP lost")
+			eq(
+				driver:snapshot().total,
+				Config.startingTotal
+					- CrowdMath.shareLoss(
+						Config.startingTotal,
+						Config.hazards.tomatoSharePercent,
+						Config.minShareLoss
+					),
+				"followers lost"
+			)
 		end,
 	},
 	{
