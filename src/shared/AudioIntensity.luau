@@ -106,6 +106,15 @@ function AudioIntensity.withPeak(base: number, peak: number?): number
 	return math.max(base, clamp01(peak))
 end
 
+-- Issue #65 (owner: "each level needs a little tension"): the music swells as the nearest
+-- unconverted wave closes in. `threat` is Emergence.threat (0 far away .. 1 at the parade); the
+-- swell is at most THREAT_PEAK, so the threat only lifts the mix and never drives it past it.
+AudioIntensity.THREAT_PEAK = 0.6 -- [default] the most an approaching wave can lift the music
+
+function AudioIntensity.threatPeak(threat: number): number
+	return clamp01(threat) * AudioIntensity.THREAT_PEAK
+end
+
 -- Music master gain (a multiplier on the music volume ceiling): a gentle swell, never above 1.
 function AudioIntensity.masterGain(intensity: number, cfg: Cfg?): number
 	local a = conf(cfg).audio

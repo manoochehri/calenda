@@ -86,6 +86,7 @@ export type ClusterView = {
 	update: (self: ClusterView, t: number, leadX: number, leadZ: number, dt: number) -> (),
 	setPullback: (self: ClusterView, pullback: number) -> (), -- the camera's pullback, for the fade
 	setQuality: (self: ClusterView, name: string) -> (), -- "high" | "medium" | "low" (QualityConfig)
+	threat: (self: ClusterView) -> number, -- 0..1 threat of the nearest unconverted wave (last update)
 }
 
 local ClusterView = {}
@@ -198,6 +199,7 @@ function ClusterView.new(layout: any): ClusterView
 	end
 	local pullback = 1
 	local pulsePhase: { [number]: number } = {} -- cluster id -> running alert pulse phase
+	local approachThreat = 0 -- Emergence.threat of the nearest unconverted mob, drawn share (music)
 	local chevronPool = Pool.new(function(): Chevron
 		return buildChevron(folder)
 	end, function(c: Chevron)
@@ -487,6 +489,10 @@ function ClusterView.new(layout: any): ClusterView
 		mobs:setQuality(quality)
 	end
 
+	function view.threat(_): number
+		return approachThreat
+	end
+
 	function view.reset(_)
 		tracker:reset()
 		mobs:clear()
@@ -523,6 +529,7 @@ function ClusterView.new(layout: any): ClusterView
 		local descs: { MobView.Desc } = {}
 		local alerts: { { ahead: number, x: number, alpha: number } } = {}
 		local worstThreat = 0
+		approachThreat = 0
 		for i, v in views do
 			-- Where the mob's body is (its front is v.z): shots and the +N aim at the middle.
 			local _, mobDepth = MobLod.footprint(MobLod.mobSize(v.reward, quality))
@@ -556,6 +563,7 @@ function ClusterView.new(layout: any): ClusterView
 				pulsePhase[v.id] = phase
 				pulse = Emergence.pulse(threat, phase) * fade
 				worstThreat = math.max(worstThreat, pulse)
+				approachThreat = math.max(approachThreat, threat * fade)
 				table.insert(
 					alerts,
 					{ ahead = v.ahead, x = v.x, alpha = Emergence.telegraph(v.ahead, depth) }

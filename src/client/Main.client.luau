@@ -19,6 +19,7 @@ if TIMING then
 	startupTrace:mark("Main.client script start")
 end
 
+local AudioIntensity = timedRequire("Shared", Shared, "AudioIntensity")
 local CameraRig = timedRequire("Shared", Shared, "CameraRig")
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
@@ -335,12 +336,18 @@ RunService:BindToRenderStep(
 
 		debug.profilebegin("Calenda/AudioAndEffects")
 		leadZNow = z
-		music:setPeak(fx.musicIntensity)
 		music:setDucked(fx.defeated)
-		music:update(total, now)
-		sfx:update(total, music:intensity(), dt, now)
 		clusters:setPullback(pullback) -- the camera reach decides where a mob fades in (issue #65)
 		clusters:update(t, drawnX, z, dt)
+		-- Issue #65 tension: the crowd's peak and the approaching wave's threat, whichever is higher
+		music:setPeak(
+			AudioIntensity.withPeak(
+				fx.musicIntensity or 0,
+				AudioIntensity.threatPeak(clusters:threat())
+			)
+		)
+		music:update(total, now)
+		sfx:update(total, music:intensity(), dt, now)
 		obstacleFeedback:update(dt)
 		debug.profileend()
 
