@@ -275,7 +275,7 @@ local config: ConfigType = {
 		{ kind = "multiply", value = 2 },
 	},
 	obstacleLoss = 10, -- [spec s9] fixed
-	-- ADR 0006 (provisional, Amendment 4): an unconverted horde and an unblocked tomato each remove
+	-- ADR 0007 (provisional, Amendment 4; supersedes ADR 0006's loss rule): an unconverted horde and an unblocked tomato each remove
 	-- floor(percent * parade / 100) followers, the parade as it stood before the hit, and never fewer
 	-- than minShareLoss. Tune with the #17 ladder.
 	attackSharePercent = 10, -- [default, provisional]

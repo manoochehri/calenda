@@ -102,10 +102,10 @@ The parade's size is the life bar (Amendment 4): the exact crowd counter is the 
 | 65–90 seconds | Largest growth opportunity, a final route decision, plaza approach |
 | Finale | Party spreads into the plaza; music peaks; gifts, confetti, score, replay |
 
-Use closed streetwork lanes marked with cones and a −10 sign. One collision removes 10 followers, clamped at zero; then that obstacle cannot hit again. Use the lead’s fixed hitbox. Avoid visual injury: some followers peel off to cheer from the sidewalk. Zero followers is recoverable because the lead still recruits.
+Use closed streetwork lanes marked with cones and a −10 sign. One collision removes 10 followers, clamped at zero; then that obstacle cannot hit again. Use the lead’s fixed hitbox. Avoid visual injury: some followers peel off to cheer from the sidewalk. Zero followers ends the run as defeated (Amendment 4), so the obstacle cannot empty the parade silently.
 
 Issue #96 adds level hazards, drawn from the run seed on the server and listed per level in its hazard set (`Level.Layout.hazardSet`). The first Oaxacan level uses two kinds, at occasional times between 20 and 80 seconds, never before the run starts:
-- **Tomato throws** from the buildings. A warning shows 2.5 seconds before the impact. Only a landed gift shot inside that warning window blocks the tomato; note shots do not. An unblocked tomato in the lead’s lane costs 5 parade HP, once (`Config.hazards.tomatoDamage`).
+- **Tomato throws** from the buildings. A warning shows 2.5 seconds before the impact. Only a landed gift shot inside that warning window blocks the tomato; note shots do not. An unblocked tomato in the lead’s lane removes a share of the parade, once (Amendment 4: `Config.hazards.tomatoSharePercent`, 10% of the total, minimum 1).
 - **Tlayuda cart** across the street, leaving one clear gap 4.5 studs wide, with a warning 2 seconds ahead. Steering into the gap clears it. A collision costs the existing −10 obstacle loss, once.
 
 Later levels select their own hazard kinds in configuration; no level name is checked in code.
@@ -224,30 +224,32 @@ Supersedes, where they conflict: the Amendment 1 / §4 picture of small groups o
 
 ## Amendment 4 — The parade size is the life bar (owner decision, 2026-10-24)
 
-Owner decision on issue #121, recorded in [ADR 0006](../.trazo/project/adr/0006-parade-size-is-the-life-bar.md): "the life bar should be the calenda's candela, the parade's life." A horde that is not shot costs followers; the run ends when the parade has none.
+Owner decision on issue #121, recorded in [ADR 0006](../.trazo/project/adr/0006-parade-size-is-the-life-bar.md) (life bar) and [ADR 0007](../.trazo/project/adr/0007-share-rule-for-parade-losses.md) (loss rule): "the life bar should be the calenda's candela, the parade's life." A horde that is not shot costs followers; the run ends when the parade has none.
 
 Supersedes, where they conflict: all of Amendment 1's parade HP (its "Crowd size and HP are separate" section, the `hp` integer, `spectators` HP damage, the HP-based ordering in phases 3 and 4, the HUD HP bar and the HP balance paragraph); §9's "Zero followers is recoverable" and the tomato line "costs 5 parade HP"; §11's `parade HP (hp.max)` and `attackDamage` keys; §12's HP checks and "no penalty" wording; Amendment 1's "Amendment 1 checks" HP items; and Amendment 2's balance note where it names HP. Everything else is unchanged: crowd math (§5), gates (§6), sections (§7), visual budgets (§8), the −10 obstacle, cluster conversion, credit-once, targeting, continuous fire and server authority.
 
 **One life number.**
 - `crowdTotal` is the only life. There is no `hp`, no `maxHp`, no HP bar and no HP in any replicated payload, Config key or run log field. The HUD shows the crowd counter, and a hit reacts through the existing shake, flash and sound.
-- Config owns every loss amount: `clusterTypes.small.attackLoss` and `clusterTypes.large.attackLoss` (followers lost when that type's unconverted cluster reaches the parade) and `hazards.tomatoLoss` (followers lost to an unblocked tomato). Each is one whole-number Config line.
+- Config owns every loss amount: `attackSharePercent` (10) and `minShareLoss` (1) for hordes, `hazards.tomatoSharePercent` (10) for tomatoes, and `obstacleLoss` (10) for the obstacle. Each is one whole-number Config line.
 
-**Losses.**
-- A horde that reaches the parade unconverted (Amendment 1, "Attack") removes its type's `attackLoss` from `crowdTotal`, exactly once, and is removed. A horde is not a fraction of the parade: the amount is fixed per type.
-- An unblocked tomato (§9, issue #96) removes `hazards.tomatoLoss` followers, once. A landed gift still blocks it.
-- The −10 obstacle (§9) is unchanged.
+**Losses (share rule, ADR 0007).**
+- A horde that reaches the parade unconverted (Amendment 1, "Attack") removes `max(minShareLoss, floor(attackSharePercent × total / 100))` followers from `crowdTotal`, exactly once, and is removed. The same share applies to every horde type. The total is the parade as it stood immediately before that hit. Hordes in the same batch chain: each share is taken from the total after the previous hit.
+- An unblocked tomato (§9, issue #96) removes `max(minShareLoss, floor(hazards.tomatoSharePercent × total / 100))` followers, once. A landed gift still blocks it.
+- The −10 obstacle (§9) is a fixed `obstacleLoss` and is unchanged.
 - Every loss clamps at zero: a total never goes below 0. The loss goes through the same total as every other change, so sections disperse by the normal rule (§5, newest first) and the counter and visuals stay exact.
 - Losses never change gates, the recruit credit, the firing rate or any section's contents beyond the normal total rule.
+- Rounding is floor, then the minimum of 1. This rounding is an explicit design call, not verified by a playtest or bot run (ADR 0007, UNVERIFIED).
 
 **Defeat.** The run ends defeated the moment `crowdTotal` reaches 0 (`outcome` "defeated", once, logged). The score is the crowd total at that moment, so a defeated run scores 0. The session best counts completed runs only. Replay resets the total to the starting total.
 
-**Same-tick order (Amendment 1, revised).** Phase 1 (shots and conversions) and phase 2 (lead, gates, obstacle and hazards) run as before. A total that reaches zero in phase 2 ends the run there, and any later event in that tick is ignored. In phase 3, each unconverted cluster that reached the parade attacks once in id order; a total reaching zero during phase 3 ends the run after the remaining attacks of that batch are recorded at zero. Defeat still wins over reaching the plaza on the same tick.
+**Same-tick order (Amendment 1, revised).** Phase 1 (shots and conversions) and phase 2 (lead, gates, obstacle and hazards) run as before. A total that reaches zero in phase 2 ends the run there, and any later event in that tick is ignored. In phase 3, each unconverted cluster that reached the parade attacks once in id order, each share taken from the total left by the previous hit; a total reaching zero during phase 3 ends the run after the remaining attacks of that batch are recorded at zero. Defeat still wins over reaching the plaza on the same tick.
 
-**Balance (provisional, OPEN).** The `attackLoss` (small 5, large 10) and `tomatoLoss` (5) defaults are first guesses on a starting total of 10 and are UNVERIFIED. Measured on the debug layout with the current economy (one probe run per policy and rate, 30 Hz and 10 Hz): the no-input run completes with a total of about 800 after 12 attacks (its recruits and gates outgrow fixed losses), and the scripted run completes with about 1,450 after 13 attacks. A fixed loss per hit therefore cannot both defeat the no-input run and keep a competent run alive: a loss large enough to empty the no-input parade ends a competent run at its first hit. The no-input defeat check of this amendment is NOT met and is not asserted in the tests; the competent check (completes with followers left) is met. The owner must choose the loss rule (fixed per type, or a share of the current parade) before the balance can be tuned; the #17 ladder must be re-run after that choice.
+**Balance (provisional, OPEN, not measured under the share rule).** `attackSharePercent` 10, `minShareLoss` 1 and `hazards.tomatoSharePercent` 10 are first guesses and are UNVERIFIED. The earlier fixed-loss measurements (debug layout, one probe run per policy and rate, 30 Hz and 10 Hz: the no-input run about 800 after 12 attacks; the scripted run about 1,450 after 13 attacks) were taken under the superseded fixed-loss rule and are not evidence for the share rule. The no-input defeat check and the competent-run check must be measured under the share rule. The #17 ladder re-run is a separate open gate and must pass before the balance is accepted.
 
 **Checks.**
-- A hit removes exactly its configured loss, once; a second event for the same cluster or tomato removes nothing.
+- A horde or tomato removes exactly its share of the total before the hit, at least `minShareLoss`, once; a second event for the same cluster or tomato removes nothing.
+- A same-batch pair of hordes takes the second share from the total after the first.
 - The total is clamped at zero and never goes negative.
 - Reaching zero defeats the run once; later events are ignored; reset restores the starting total.
-- No `hp` field exists in RunState, the run snapshot, the State payload or Config.
+- No `hp` field exists in RunState, the run snapshot, the State payload or Config; no `attackLoss` or `tomatoLoss` key exists.
 - Clients display the server's total only and never compute a loss.
