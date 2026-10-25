@@ -18,11 +18,11 @@ end
 -- Issue #65: the authored wave layout keeps its delayed opening, increasing wave sizes, and
 -- backward path extension so mobs emerge beyond the visible depth + margin. `add` derives the
 -- required spawn offset from camera emergence and the current lead + mob closing speed.
-local WAVE_DELAY = 9.5 -- seconds [default]
+local WAVE_DELAY = 9.25 -- seconds [default]
 local function waveOffset(pair: number): number
-	return (pair - 1) * 3.6 -- three-group packs overlap within the low-quality visible cap
+	return (pair - 1) * 3.5 -- three-group packs overlap within the low-quality visible cap
 end
-local SOAKS = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } -- one extra large group per pair
+local SOAKS = { 1, 1, 1, 1, 1, 1, 1, 1 } -- one extra large group per pair
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
 
 local needOffset = Emergence.requiredSpawnOffset()
@@ -40,7 +40,7 @@ local function add(wave: number, kind: string, x: number, spawnTime: number, spa
 		path = {},
 	})
 end
-for pair = 1, 10 do
+for pair = 1, 8 do
 	local arrive = 1 + waveOffset(pair) + WAVE_DELAY
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
 	add(pair * 2 - 1, "small", -16, arrive, base)

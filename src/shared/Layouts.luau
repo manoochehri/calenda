@@ -16,10 +16,10 @@ type Gate = Level.Gate
 type Obstacle = Level.Obstacle
 
 local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one before
-local PAIRS = 10
+local PAIRS = 8
 
 local function waveOffset(pair: number): number
-	return (pair - 1) * 3.6 -- three-group packs overlap within the low-quality visible cap
+	return (pair - 1) * 3.5 -- three-group packs overlap within the low-quality visible cap
 end
 
 local function at(seconds: number): number
@@ -120,7 +120,7 @@ local calleMercado = make("calle-del-mercado", 0, {
 	obstacle(3, 88, "left"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 },
+	soaks = { 1, 1, 1, 1, 1, 1, 1, 1 },
 	bigOnLeft = false,
 })
 
@@ -139,7 +139,7 @@ local portalDelSur = make("portal-del-sur", 1, {
 	obstacle(3, 86, "right"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3 },
+	soaks = { 1, 1, 1, 1, 1, 1, 1, 1 },
 	bigOnLeft = true,
 })
 
@@ -158,7 +158,7 @@ local esquinaDeLaBanda = make("esquina-de-la-banda", 2, {
 	obstacle(3, 80, "left"),
 }, {
 	waveDelay = 8,
-	soaks = { 1, 1, 2, 2, 2, 3, 3, 3, 4, 4 },
+	soaks = { 1, 1, 1, 1, 1, 1, 1, 1 },
 	bigOnLeft = false,
 })
 
