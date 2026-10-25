@@ -2,18 +2,27 @@
 -- The ring under the lead, the pooled follower avatars (issue #13), and a primitive block that
 -- stands in for the lead ONLY when the player's own avatar (src/client/LeadAvatar, issue #55) has
 -- not been available for LeadPose.FALLBACK_GRACE seconds.
--- Where each avatar stands comes from the pure Formation module; how many are drawn comes from
--- the visual budget through VisualBudget. The exact count is shown by the HUD, not by this view.
+-- The crowd FLOWS (issue #68): the pure FollowerFlow decides who is drawn where (staggered joins from a
+-- source, individual peel-offs, stable organic slots, spring follow); FollowerLook decides how each
+-- follower looks and moves (costume colour, size, hat or flower, bounce, squash, lean, breathing, dust).
+-- This file only turns those numbers into Parts. The exact count is shown by the HUD, not by this view;
+-- how many are drawn is capped by the visual budget (24 members, plus bounded transient runners).
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CameraRig = require(Shared:WaitForChild("CameraRig"))
-local Formation = require(Shared:WaitForChild("Formation"))
+local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
+local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local Effects = require(Shared:WaitForChild("Effects"))
+local Dance = require(Shared:WaitForChild("Dance"))
+local DanceConfig = require(Shared:WaitForChild("DanceConfig"))
+local Config = require(Shared:WaitForChild("Config"))
+local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
+local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
+local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
 local Pool = require(Shared:WaitForChild("Pool"))
-local SectionEvents = require(Shared:WaitForChild("SectionEvents"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 -- Flat, saturated colors: the lead is the brightest thing on screen, followers share one color.
@@ -22,17 +31,33 @@ local LEAD_HEAD_COLOR = Color3.fromRGB(255, 240, 150)
 local LEAD_HAT_COLOR = Color3.fromRGB(255, 110, 20)
 local HORN_COLOR = Color3.fromRGB(235, 175, 40)
 local RING_COLOR = Color3.fromRGB(80, 235, 255)
-local FOLLOWER_COLOR = Color3.fromRGB(45, 120, 235)
-
-local FOLLOW_RATE = 9 -- [default] how fast an avatar eases toward its slot
-local BOB_HEIGHT = 0.25 -- [default] studs (followers)
-local BOB_RATE = 9 -- [default] radians/second (followers)
+local DUST_COLOR = Color3.fromRGB(225, 212, 190)
 local BLOCK_STANDING = 1.5 -- studs: centre height of the stand-in block
+local REPLAY_JUMP = 5 -- studs the lead's z must go BACK to count as a new run
 
-type Avatar = { model: Model, x: number, z: number, fresh: boolean }
+-- One follower body: parts positioned from a shared frame so squash, stretch and lean are cheap.
+type Piece = { part: Part, size: Vector3, y: number, x: number }
+type Avatar = {
+	id: number,
+	pieces: { Piece },
+	body: Piece,
+	head: Piece,
+	skirt: Piece,
+	hat: Piece,
+	flower: Piece,
+	armL: Piece,
+	armR: Piece,
+	variant: string,
+	look: FollowerLook.Look,
+	lastClock: number,
+	steps: number,
+	seen: boolean,
+}
 
 export type CrowdView = {
 	-- swirl 0..1 (issue #14): pulls the loose followers inward during a section celebration.
+	-- A server Event (gate, filled cluster, obstacle): where new followers should come from.
+	onEvent: (self: CrowdView, payload: any, t: number) -> (),
 	update: (
 		self: CrowdView,
 		leadX: number,
@@ -106,28 +131,65 @@ local function buildLead(parent: Instance): Model
 	return model
 end
 
-local function buildFollower(parent: Instance): Model
+local function piece(
+	parent: Instance,
+	name: string,
+	shape: Enum.PartType,
+	size: Vector3,
+	x: number,
+	y: number
+): Piece
+	local p = part(parent, name, shape, size, Vector3.zero, Color3.new(1, 1, 1))
+	return { part = p, size = size, x = x, y = y }
+end
+
+local function buildFollower(parent: Instance): Avatar
 	local model = Instance.new("Model")
 	model.Name = "Follower"
-	local body = part(
-		model,
-		"Body",
-		Enum.PartType.Block,
-		Vector3.new(1.4, 2, 1.4),
-		Vector3.zero,
-		FOLLOWER_COLOR
-	)
-	part(
-		model,
-		"Head",
-		Enum.PartType.Ball,
-		Vector3.new(1.3, 1.3, 1.3),
-		Vector3.new(0, 1.6, 0),
-		FOLLOWER_COLOR
-	)
-	model.PrimaryPart = body
 	model.Parent = parent
-	return model
+	local body = piece(model, "Body", Enum.PartType.Block, Vector3.new(1.4, 2, 1.4), 0, 1.2)
+	local head = piece(model, "Head", Enum.PartType.Ball, Vector3.new(1.3, 1.3, 1.3), 0, 2.8)
+	local skirt = piece(model, "Skirt", Enum.PartType.Block, Vector3.new(2, 0.7, 2), 0, 0.45)
+	local hat = piece(model, "Hat", Enum.PartType.Block, Vector3.new(1, 0.9, 1), 0, 3.75)
+	local flower = piece(model, "Flower", Enum.PartType.Ball, Vector3.new(0.7, 0.7, 0.7), 0.55, 3.4)
+	local armL = piece(model, "ArmL", Enum.PartType.Block, Vector3.new(0.45, 1.5, 0.45), -0.85, 1.8)
+	local armR = piece(model, "ArmR", Enum.PartType.Block, Vector3.new(0.45, 1.5, 0.45), 0.85, 1.8)
+	model.PrimaryPart = body.part
+	return {
+		id = -1,
+		pieces = { body, head, skirt, hat, flower, armL, armR },
+		body = body,
+		head = head,
+		skirt = skirt,
+		hat = hat,
+		flower = flower,
+		armL = armL,
+		armR = armR,
+		variant = "march",
+		look = FollowerLook.of(0),
+		lastClock = 0,
+		steps = 0,
+		seen = false,
+	}
+end
+
+local function rgb(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+
+-- Dresses an avatar for a follower id (its colour, hat or flower); called when the id changes.
+local function restyle(avatar: Avatar, id: number, clock: number)
+	local look = FollowerLook.of(id)
+	avatar.id, avatar.look, avatar.lastClock, avatar.steps = id, look, clock, 0
+	avatar.variant = Dance.variant(id)
+	local color, accent = rgb(look.color), rgb(look.accent)
+	avatar.body.part.Color = color
+	avatar.skirt.part.Color = color:Lerp(Color3.new(1, 1, 1), 0.35)
+	avatar.head.part.Color = color:Lerp(Color3.new(1, 1, 1), 0.6)
+	avatar.hat.part.Color = accent
+	avatar.flower.part.Color = accent
+	avatar.hat.part.Transparency = if look.topper == "hat" then 0 else 1
+	avatar.flower.part.Transparency = if look.topper == "flower" then 0 else 1
 end
 
 -- A neon ring on the ground under the lead: the steering anchor that never gets lost.
@@ -157,20 +219,107 @@ function CrowdView.new(): CrowdView
 	local absent = 0
 	local ring = buildRing(folder)
 
-	local pool = Pool.new(function(): Avatar
-		return { model = buildFollower(folder), x = 0, z = 0, fresh = true }
-	end, function(avatar: Avatar)
-		avatar.fresh = true -- snap to its slot the first frame it is shown
-		avatar.model.Parent = folder
-	end, function(avatar: Avatar)
-		avatar.model.Parent = nil
+	local live: { [number]: Avatar } = {} -- drawn avatars by follower id
+	local free: { Avatar } = {} -- hidden, ready for reuse
+
+	local dust: Effects.Effects<{ x: number, z: number }> = Effects.new(FollowerLook.DUST_CAP)
+	local dustPool = Pool.new(function(): Part
+		local p =
+			part(folder, "Dust", Enum.PartType.Ball, Vector3.new(1, 1, 1), Vector3.zero, DUST_COLOR)
+		p.Material = Enum.Material.SmoothPlastic
+		return p
+	end, function(p: Part)
+		p.Parent = folder
+	end, function(p: Part)
+		p.Parent = nil
 	end)
 
 	local cachedTotal = -1
-	local layout: Formation.Layout = Formation.forTotal(0)
-	local clock = 0
+	local flow = FollowerFlow.new(DebugLayout.halfWidth)
+	local clock = os.clock()
+	local lastLeadZ: number? = nil
+	local danceAmplitude, danceTempo = 1, 1
+	local reactionKind = ""
+	local reactionAt = -math.huge
 
 	local view = {} :: CrowdView
+
+	local breathNow = 1 -- crowd breathing scale of the frame being drawn
+
+	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
+		local avatar = live[id]
+		if avatar == nil then
+			avatar = table.remove(free) or buildFollower(folder)
+			restyle(avatar, id, clock)
+			for _, p in avatar.pieces do
+				p.part.Parent = folder
+			end
+			live[id] = avatar
+		end
+		avatar.seen = true
+		local look = avatar.look
+		local isFar = lastLeadZ ~= nil and math.abs(z - lastLeadZ) > DanceConfig.farDistance
+		local beat = clock * Config.music.bpm / 60 * danceTempo + look.phase / (2 * math.pi)
+		local danceHop: number, danceSway: number, arm: number, spin: number
+		if isFar then
+			danceHop, danceSway, arm, spin = Dance.lowDetailPose(beat)
+		else
+			danceHop, danceSway, arm, spin = Dance.pose(avatar.variant, beat, danceAmplitude)
+		end
+		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
+		local marchY, marchSquashY, marchSquashXZ =
+			FollowerLook.marchValues(look, clock * danceTempo)
+		local hop, sy, sxz = y + danceHop * DanceConfig.followerDanceHopScale + eventHop, 1, 1
+		if marching then
+			hop += marchY
+			sy, sxz = marchSquashY, marchSquashXZ
+			if FollowerLook.footfall(look, avatar.lastClock, clock) then
+				avatar.steps += 1
+				if FollowerLook.raisesDust(id, avatar.steps) then
+					dust:start(clock, FollowerLook.DUST_SECONDS, { x = x, z = z })
+				end
+			end
+		else
+			hop += DanceConfig.runnerMarchHopScale * marchY -- runners and leavers keep their own hop
+		end
+		avatar.lastClock = clock
+		local k = look.scale * breathNow
+		local base = CFrame.new(ViewMap.x(x), hop, z)
+			* CFrame.Angles(
+				eventRoll,
+				spin + eventTurn,
+				FollowerLook.lean(ViewMap.x(vx)) + danceSway
+			)
+		for _, p in avatar.pieces do
+			p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
+			local localFrame = CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
+			if p == avatar.armL then
+				localFrame *= CFrame.Angles(0, 0, -arm)
+			elseif p == avatar.armR then
+				localFrame *= CFrame.Angles(0, 0, arm)
+			end
+			p.part.CFrame = base * localFrame
+		end
+	end
+
+	function view.onEvent(_, payload: any, t: number)
+		if
+			type(payload) == "table"
+			and (
+				payload.kind == "gate"
+				or payload.kind == "conversion"
+				or payload.kind == "attack"
+				or payload.kind == "complete"
+				or payload.kind == "defeated"
+			)
+		then
+			reactionKind, reactionAt = payload.kind, clock
+		end
+		local hint = FollowerSource.fromEvent(DebugLayout, payload, t)
+		if hint then
+			flow:hint(hint)
+		end
+	end
 
 	function view.update(
 		_,
@@ -184,11 +333,19 @@ function CrowdView.new(): CrowdView
 		hasAvatar: boolean?,
 		fallbackGrace: number?
 	)
-		clock += dt
+		clock = os.clock() -- shared local monotonic beat clock with SectionsView and LeadAvatar
 		absent = LeadPose.absence(absent, hasAvatar == true, dt)
+		if lastLeadZ ~= nil and leadZ < lastLeadZ - REPLAY_JUMP then
+			cachedTotal = -1 -- a new run: the field starts settled again
+		end
+		lastLeadZ = leadZ
 		if total ~= cachedTotal then
+			if cachedTotal < 0 then
+				flow:reset(total)
+			else
+				flow:setTotal(total)
+			end
 			cachedTotal = total
-			layout = Formation.forTotal(total)
 		end
 
 		if LeadPose.showFallback(hasAvatar == true, absent, fallbackGrace) then
@@ -198,21 +355,42 @@ function CrowdView.new(): CrowdView
 		else
 			lead.Parent = nil
 		end
-		ring.CFrame = CFrame.new(ViewMap.x(leadX), 0.12, leadZ) * CFrame.Angles(0, 0, math.pi / 2)
+		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
+			* CFrame.Angles(0, 0, math.pi / 2)
 
-		local avatars = pool:setCount(#layout.slots)
-		for i, avatar in avatars do
-			local slot = layout.slots[i]
-			local sx, sz = SectionEvents.swirlSlot(slot.dx, slot.dz, swirl or 0)
-			local tx, tz = ViewMap.x(leadX + sx), leadZ + sz
-			if avatar.fresh then
-				avatar.x, avatar.z, avatar.fresh = tx, tz, false
-			else
-				avatar.x = CameraRig.smooth(avatar.x, tx, dt, FOLLOW_RATE)
-				avatar.z = CameraRig.smooth(avatar.z, tz, dt, FOLLOW_RATE)
+		local frame = flow:step(dt, leadX, leadZ, swirl)
+		danceAmplitude, danceTempo = Dance.intensity(total, total // Config.sectionSize)
+		breathNow = FollowerLook.breath(clock)
+		-- Avatars are keyed by follower id: one follower leaving never restyles the others.
+		for _, avatar in live do
+			avatar.seen = false
+		end
+		for _, m in frame.members do
+			draw(m.id, m.x, m.z, m.vx, m.y, true)
+		end
+		for _, r in frame.runners do
+			draw(r.id, r.x, r.z, r.vx, r.y, false)
+		end
+		for _, l in frame.leavers do
+			draw(l.id, l.x, l.z, l.vx, l.y, false)
+		end
+		for id, avatar in live do
+			if not avatar.seen then
+				live[id] = nil
+				for _, p in avatar.pieces do
+					p.part.Parent = nil
+				end
+				table.insert(free, avatar)
 			end
-			local bob = BOB_HEIGHT * math.abs(math.sin(clock * BOB_RATE + i))
-			avatar.model:PivotTo(CFrame.new(avatar.x, 1 + bob, avatar.z))
+		end
+
+		local puffs = dust:active(clock)
+		local ds = dustPool:setCount(#puffs)
+		for i, p in ds do
+			local d = puffs[i]
+			p.Size = Vector3.one * (0.4 + FollowerLook.DUST_SIZE * d.f)
+			p.Transparency = 0.35 + 0.65 * d.f
+			p.Position = Vector3.new(ViewMap.x(d.data.x), 0.4 + 0.9 * d.f, d.data.z - 0.9)
 		end
 	end
 

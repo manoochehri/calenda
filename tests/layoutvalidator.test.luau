@@ -146,6 +146,39 @@ end
 
 return {
 	{
+		name = "march pace is modestly slower while the fixed route still fits the spec timeline",
+		run = function()
+			assert(Config.speed < 16, `forward pace still {Config.speed} studs/s`)
+			assert(Config.speed >= 13.6, `forward pace is more than 15% slower: {Config.speed}`)
+			local r = LayoutValidator.check(DebugLayout)
+			assert(r.ok, `slower-pace layout rejected: {table.concat(r.errors, " | ")}`)
+			assert(math.abs(r.plazaTime - 90) <= 2, `plaza at {r.plazaTime} s`)
+			assert(r.firstConversionTime <= 10, `first conversion at {r.firstConversionTime} s`)
+			assert(r.firstSectionTimeWorst <= 25, `first section at {r.firstSectionTimeWorst} s`)
+			assert(
+				r.finalGateTime >= 65 and r.finalGateTime <= 90,
+				`final gate at {r.finalGateTime} s`
+			)
+			for _, c in DebugLayout.clusters do
+				local pair = math.ceil(c.id / 2)
+				local baselineGap = if c.type == "small"
+					then 20
+					elseif pair <= 3 then 40
+					elseif pair <= 6 then 30
+					elseif pair <= 8 then 25
+					elseif pair == 9 then 20
+					else 15
+				local gap = c.spawn.z - Config.speed * c.spawnTime
+				local currentClosing = Config.speed + Config.spectators.approachSpeed
+				local baselineClosing = 16 + Config.spectators.approachSpeed
+				assert(
+					math.abs(gap / currentClosing - baselineGap / baselineClosing) < 1e-9,
+					`wave {c.id} reaches too early or late after the pace change`
+				)
+			end
+		end,
+	},
+	{
 		name = "debug layout passes the validator",
 		run = function()
 			local report = LayoutValidator.check(DebugLayout)

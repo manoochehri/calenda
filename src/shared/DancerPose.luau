@@ -3,17 +3,18 @@
 -- toss. Angles are radians, lengths studs; the beat comes from Config.music. Steps depend only on
 -- time, so every dancer in a group steps together; only the skirt swirl takes a per-dancer phase.
 local Config = require("./Config")
+local DanceConfig = require("./DanceConfig")
 
 local DancerPose = {}
 
-DancerPose.HOP_STUDS = 0.35 -- [default]
-DancerPose.FOOT_LIFT = 0.7 -- [default] studs a stepping foot rises
-DancerPose.MAX_SWIRL = 1.6 -- [default] radians the skirt turns each way (about 92 degrees)
-DancerPose.FLARE_MIN = 0.75 -- [default] skirt width at its narrowest, 1 = fully open
-DancerPose.TOSS_SECONDS = 0.4 -- [default] one throw of the basket arm
-DancerPose.SIDE_SPACING = 3.2 -- [default] studs between dancers in a rank
-DancerPose.RANK_DEPTH = 1.5 -- [default] studs each rank stands behind the one before
-DancerPose.FOLLOWER_SCALE = 0.8 -- [default] the dancers behind the lead are a little smaller
+DancerPose.HOP_STUDS = DanceConfig.dancerHopStuds
+DancerPose.FOOT_LIFT = DanceConfig.dancerFootLiftStuds
+DancerPose.MAX_SWIRL = DanceConfig.dancerMaxSwirlRadians
+DancerPose.FLARE_MIN = DanceConfig.dancerFlareMin
+DancerPose.TOSS_SECONDS = DanceConfig.dancerTossSeconds
+DancerPose.SIDE_SPACING = DanceConfig.dancerSideSpacing
+DancerPose.RANK_DEPTH = DanceConfig.dancerRankDepth
+DancerPose.FOLLOWER_SCALE = DanceConfig.dancerFollowerScale
 
 local TAU = 2 * math.pi
 
@@ -29,19 +30,32 @@ export type Pose = {
 export type Toss = { raise: number, lift: number } -- both 0..1
 export type Slot = { dx: number, dz: number, scale: number }
 
-function DancerPose.pose(time: number, swirlPhase: number): Pose
+function DancerPose.into(out: Pose, time: number, swirlPhase: number): Pose
 	local beats = time * Config.music.bpm / 60
 	local step = math.sin(math.pi * beats)
-	return {
-		hop = DancerPose.HOP_STUDS * math.abs(step),
-		footL = DancerPose.FOOT_LIFT * math.max(0, step),
-		footR = DancerPose.FOOT_LIFT * math.max(0, -step),
-		swirl = DancerPose.MAX_SWIRL * math.sin(TAU * (beats / 4 + swirlPhase)),
-		flare = DancerPose.FLARE_MIN
-			+ (1 - DancerPose.FLARE_MIN) * (0.5 + 0.5 * math.cos(TAU * beats)),
-		sway = 0.08 * math.sin(math.pi * beats / 2),
-		armSwing = 0.5 * math.sin(math.pi * beats),
-	}
+	local phraseBeat = beats % DanceConfig.cycleBeats
+	local chorus = if phraseBeat >= 8 then 1 else 0
+	out.hop = DancerPose.HOP_STUDS * math.abs(step)
+	out.footL = DancerPose.FOOT_LIFT * math.max(0, step)
+	out.footR = DancerPose.FOOT_LIFT * math.max(0, -step)
+	out.swirl = DancerPose.MAX_SWIRL * math.sin(TAU * (beats / 4 + swirlPhase))
+	out.flare = DancerPose.FLARE_MIN
+		+ (1 - DancerPose.FLARE_MIN) * (0.5 + 0.5 * math.cos(TAU * beats))
+	out.sway = DanceConfig.dancerSwayRadians * (1 + chorus * 0.5) * math.sin(math.pi * beats / 2)
+	out.armSwing = DanceConfig.dancerArmRadians * (1 + chorus * 0.4) * math.sin(math.pi * beats)
+	return out
+end
+
+function DancerPose.pose(time: number, swirlPhase: number): Pose
+	return DancerPose.into({
+		hop = 0,
+		footL = 0,
+		footR = 0,
+		swirl = 0,
+		flare = 0,
+		sway = 0,
+		armSwing = 0,
+	}, time, swirlPhase)
 end
 
 -- The basket arm's throw, `age` seconds after a gift shot: quick wind-up, peak mid-throw, settle.

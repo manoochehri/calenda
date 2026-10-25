@@ -21,6 +21,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LeadPose = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LeadPose"))
+local Dance = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Dance"))
+local DanceConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DanceConfig"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local WAIT = 10 -- [default] seconds to wait for a character's parts before giving up on it
 
@@ -32,10 +35,12 @@ export type LeadAvatar = {
 		leadZ: number,
 		dt: number,
 		tumble: number?,
-		lift: number?
+		lift: number?,
+		total: number?
 	) -> boolean,
 	-- Seconds without an avatar before the stand-in block may show (LeadPose.graceFor).
 	fallbackGrace: (self: LeadAvatar) -> number,
+	onEvent: (self: LeadAvatar, payload: any) -> (),
 }
 
 local LeadAvatar = {}
@@ -73,6 +78,8 @@ function LeadAvatar.new(): LeadAvatar
 	local connections: { RBXScriptConnection } = {}
 
 	local current: Model? = nil
+	local reactionKind = ""
+	local reactionAt = -math.huge
 
 	-- The old body stays where it stood (anchored) until the server removes it; hide it locally.
 	local function hide(character: Model?)
@@ -178,22 +185,50 @@ function LeadAvatar.new(): LeadAvatar
 		return LeadPose.graceFor(hadAvatar, Players.RespawnTime)
 	end
 
+	function view.onEvent(_, payload: any)
+		if
+			type(payload) == "table"
+			and (
+				payload.kind == "gate"
+				or payload.kind == "conversion"
+				or payload.kind == "attack"
+				or payload.kind == "complete"
+				or payload.kind == "defeated"
+			)
+		then
+			reactionKind, reactionAt = payload.kind, clock
+		end
+	end
+
 	function view.update(
 		_,
 		leadX: number,
 		leadZ: number,
-		dt: number,
+		_dt: number,
 		tumble: number?,
-		lift: number?
+		lift: number?,
+		total: number?
 	)
-		clock += dt
+		clock = os.clock() -- shared local monotonic beat clock
 		local part = root
 		if part == nil or part.Parent == nil then
 			return false
 		end
-		local pose = LeadPose.at(leadX, leadZ, clock, lift or 0, standing)
+		local currentTotal = total or Config.startingTotal
+		local amplitude, tempo = Dance.intensity(currentTotal, currentTotal // Config.sectionSize)
+		local hop, sway, _, spin =
+			Dance.pose("march", clock * Config.music.bpm / 60 * tempo, amplitude)
+		local reactionHop, reactionRoll, reactionTurn =
+			Dance.reaction(reactionKind, clock - reactionAt)
+		local pose = LeadPose.at(
+			leadX,
+			leadZ,
+			clock,
+			(lift or 0) + hop * DanceConfig.leadDanceHopScale + reactionHop,
+			standing
+		)
 		part.CFrame = CFrame.new(pose.x, pose.y, pose.z)
-			* CFrame.Angles(tumble or 0, 0, 0)
+			* CFrame.Angles((tumble or 0) + reactionRoll, spin + reactionTurn, sway)
 			* CFrame.Angles(0, LeadPose.FACING_YAW, 0)
 		part.AssemblyLinearVelocity = Vector3.zero
 		part.AssemblyAngularVelocity = Vector3.zero

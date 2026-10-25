@@ -7,6 +7,7 @@ local ViewMap = require("../src/shared/ViewMap")
 
 local ADD = { kind = "add", value = 20 }
 local MUL = { kind = "multiply", value = 2 }
+local firstGateZ = DebugLayout.gates[1].z
 
 return {
 	{
@@ -75,7 +76,7 @@ return {
 			assert(#all == 2 * #DebugLayout.gates, "two portals per pair")
 			local first = all[1]
 			assert(
-				first.gateId == 1 and first.side == "left" and first.z == 192,
+				first.gateId == 1 and first.side == "left" and first.z == firstGateZ,
 				"first is gate 1 left"
 			)
 			assert(first.op.kind == "add" and first.op.value == 15, "gate 1 left is +15")

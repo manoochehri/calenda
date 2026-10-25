@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 export type Figure = {
 	model: Model,
@@ -176,35 +177,61 @@ function PuppetFigure.new(parent: Instance, palette: Palette): Figure
 		intensity: number
 	)
 		local s = math.max(scale, 0.001)
-		local lean = CFrame.Angles(0, 0, pose.sway) -- whole body sways at the feet
+		local lean = CFrame.Angles(
+			math.clamp(pose.bow * intensity, -PuppetPose.BOW_RADIANS, PuppetPose.BOW_RADIANS),
+			0,
+			math.clamp(
+				pose.sway * intensity,
+				-PuppetPose.MAX_SWAY_RADIANS,
+				PuppetPose.MAX_SWAY_RADIANS
+			)
+		) -- bow and sway from the feet
 		local base = root * lean
 		if s ~= lastScale then
 			lastScale = s
+			local h = SectionScale.PUPPET_HORIZONTAL_SCALE
 			for _, ps in body do
-				ps.part.Size = ps.size * s
+				ps.part.Size = Vector3.new(ps.size.X * s * h, ps.size.Y * s, ps.size.Z * s * h)
 			end
-			armL.part.Size = armSize * s
-			armR.part.Size = armSize * s
+			armL.part.Size = Vector3.new(armSize.X * s * h, armSize.Y * s, armSize.Z * s * h)
+			armR.part.Size = Vector3.new(armSize.X * s * h, armSize.Y * s, armSize.Z * s * h)
 		end
+		local h = SectionScale.PUPPET_HORIZONTAL_SCALE
 		for _, ps in body do
 			local bob = Vector3.zero
 			local rot = CFrame.identity
 			if ps == head or ps == hat then
 				bob = Vector3.new(0, pose.headBob * intensity * s, 0)
-				rot = CFrame.Angles(0, 0, pose.headTilt)
+				rot = CFrame.Angles(0, 0, pose.headTilt * intensity)
 			end
-			ps.part.CFrame = base * CFrame.new(ps.offset * s + bob) * rot
+			local offset =
+				Vector3.new(ps.offset.X * s * h, ps.offset.Y * s + bob.Y, ps.offset.Z * s * h)
+			ps.part.CFrame = base * CFrame.new(offset) * rot
 		end
 		-- Loose arms: swing sideways; on the beat they come forward and together to clap.
 		local clap = pose.clap
-		for _, side in { { armL, -1, pose.armLeft }, { armR, 1, pose.armRight } } do
-			local a = side[1] :: PartSpec
-			local sign = side[2] :: number
-			local swing = side[3] :: number
-			local shoulder = Vector3.new(sign * SHOULDER_X, SHOULDER_Y, 0) * s
-			local rotation = CFrame.Angles(-clap * 1.5, 0, sign * (swing * (1 - clap) - clap * 0.6))
-			a.part.CFrame = base * CFrame.new(shoulder) * rotation * CFrame.new(0, -1.8 * s, 0)
-		end
+		local leftSwing = math.clamp(
+			pose.armLeft * intensity,
+			-PuppetPose.MAX_ARM_RADIANS,
+			PuppetPose.MAX_ARM_RADIANS
+		)
+		local leftShoulder = Vector3.new(-SHOULDER_X * h, SHOULDER_Y, 0) * s
+		local leftRotation = CFrame.Angles(-clap * 1.5, 0, -(leftSwing * (1 - clap) - clap * 0.6))
+		armL.part.CFrame = base
+			* CFrame.new(leftShoulder)
+			* leftRotation
+			* CFrame.new(0, -1.8 * s, 0)
+		local rightSwing = math.clamp(
+			pose.armRight * intensity,
+			-PuppetPose.MAX_ARM_RADIANS,
+			PuppetPose.MAX_ARM_RADIANS
+		)
+		local rightShoulder = Vector3.new(SHOULDER_X * h, SHOULDER_Y, 0) * s
+		local rightRotation = CFrame.Angles(-clap * 1.5, 0, rightSwing * (1 - clap) - clap * 0.6)
+		armR.part.CFrame = base
+			* CFrame.new(rightShoulder)
+			* rightRotation
+			* CFrame.new(0, -1.8 * s, 0)
 	end
 
 	function figure.destroy(_)

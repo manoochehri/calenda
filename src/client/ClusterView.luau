@@ -64,7 +64,7 @@ type Group = {
 }
 
 export type ClusterView = {
-	onCluster: (self: ClusterView, payload: any) -> (),
+	onCluster: (self: ClusterView, payload: any) -> boolean,
 	onMiss: (self: ClusterView, payload: any) -> (), -- a continuous-fire shot with no target
 	onAttack: (self: ClusterView, payload: any) -> boolean, -- false for a duplicate event
 	reset: (self: ClusterView) -> (),
@@ -289,9 +289,10 @@ function ClusterView.new(layout: any): ClusterView
 	function view.onCluster(_, payload: any)
 		local shot = ClusterFeed.decode(payload)
 		if shot == nil then
-			return
+			return false
 		end
 		local result = tracker:shot(shot, lastT)
+		local converted = result.filled
 		local at = currentPositions[shot.id]
 		-- The tracker above is always fed, so a flood never loses a fill. Only the visuals are
 		-- budgeted (issue #60); the +N plays on the first fill whatever else is suppressed.
@@ -311,7 +312,7 @@ function ClusterView.new(layout: any): ClusterView
 			})
 		end
 		if not plan.projectile or at == nil then
-			return -- over budget, a duplicate, or a cluster that is gone: no projectile
+			return converted -- over budget, a duplicate, or a cluster that is gone: no projectile
 		end
 		local variant = FeedbackMath.variant(shot.shot, shot.hits)
 		local dist = math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2)
@@ -335,6 +336,7 @@ function ClusterView.new(layout: any): ClusterView
 		if variant ~= "note" then
 			catches[shot.id] = clock + seconds
 		end
+		return converted
 	end
 
 	-- A continuous-fire shot with no target (issue #67): flies straight ahead and fades. Display

@@ -2,7 +2,8 @@
 -- Client entry point (issues #10, #13): wires the server's State/Event remotes to the camera, the
 -- input controller, the crowd view and the HUD. Everything it decides comes from pure, Lune-tested
 -- modules in ReplicatedStorage.Shared; this file only connects Roblox services.
--- The client sends a steering intent and a replay request, nothing else (Remotes trust model).
+-- The client sends a steering intent, a replay request and one payload-free Start request
+-- after the loading screen is ready (Remotes trust model).
 --
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (not run in Studio by the author): see the PR checklist.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +29,9 @@ local InputIntent = timedRequire("Shared", Shared, "InputIntent")
 local Remotes = timedRequire("Shared", Shared, "Remotes")
 local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
 local RunView = timedRequire("Shared", Shared, "RunView")
+local ServerClock = timedRequire("Shared", Shared, "ServerClock")
+local StartFlow = timedRequire("Shared", Shared, "StartFlow")
+local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
@@ -44,17 +48,70 @@ local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
 local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
 local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
+local StartupScreen = timedRequire("Client", script.Parent, "StartupScreen")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 
 local remotes = ReplicatedStorage:WaitForChild(Remotes.folderName)
 local steerRemote = remotes:WaitForChild(Remotes.names.steer) :: RemoteEvent
 local replayRemote = remotes:WaitForChild(Remotes.names.replay) :: RemoteEvent
+local startRemote = remotes:WaitForChild(Remotes.names.start) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(Remotes.names.state) :: RemoteEvent
 local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
+local startupFlow = StartFlow.new()
+local startupProgress = StartupProgress.new({ "client", "street", "world", "server" })
+local startupScreen: StartupScreen.Screen
+local music: any
+local function updateProgress()
+	local fraction = StartupProgress.fraction(startupProgress)
+	StartFlow.progress(startupFlow, fraction)
+	startupScreen:setProgress(fraction)
+	if startupFlow.phase == "title" then
+		startupScreen:showTitle()
+	end
+end
+local function onPlay()
+	if StartFlow.play(startupFlow) then
+		startupScreen:hide()
+		music:start(os.clock()) -- start the selected loop on Jugar, before the server's first running State
+		startRemote:FireServer()
+	end
+end
+startupScreen = StartupScreen.new(onPlay)
+startupScreen:setMessage("Cargando el desfile...")
+
+-- Register both server listeners before the first ready State can unlock the title. The only
+-- client message that starts the run is the user's single, payload-free Play request.
+local listenersReady = false
+local function markClientReady()
+	if listenersReady then
+		return
+	end
+	listenersReady = true
+	StartupProgress.report(startupProgress, "client", 1)
+	updateProgress()
+end
+local function markWorldReady()
+	if StartupProgress.report(startupProgress, "world", 1) then
+		updateProgress()
+	end
+end
+
+-- The world builder is a sibling LocalScript. Observe its concrete model rather than advancing
+-- the progress bar by elapsed time or pretending a frame has loaded.
+task.spawn(function()
+	while Workspace:FindFirstChild("CalendaWorld") == nil do
+		RunService.Heartbeat:Wait()
+	end
+	markWorldReady()
+end)
+
 local stepAt = startupTrace:begin()
-Backdrop.build()
+Backdrop.build(function(fraction: number)
+	StartupProgress.report(startupProgress, "street", fraction)
+	updateProgress()
+end)
 stepAt = startupTrace:lap("Backdrop.build", stepAt)
 TouchControls.disable()
 
@@ -62,13 +119,15 @@ local input = InputController.new(Steering.bound(DebugLayout.halfWidth), functio
 	steerRemote:FireServer({ x = x })
 end)
 stepAt = startupTrace:lap("InputController.new", stepAt)
-local music = MusicPlayer.new() -- silent while no music ids are set (issues #21, #62)
+music = MusicPlayer.new() -- one selected full-mix loop (issue #21)
 stepAt = startupTrace:lap("MusicPlayer.new", stepAt)
 local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
 stepAt = startupTrace:lap("SfxPlayer.new", stepAt)
 local hud = Hud.new(function()
 	replayRemote:FireServer()
 	sfx:play("replayClick", music:intensity(), os.clock())
+end, function(muted: boolean)
+	music:setMuted(muted)
 end)
 stepAt = startupTrace:lap("Hud.new", stepAt)
 local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here
@@ -97,6 +156,11 @@ local latest: Remotes.StatePayload? = nil
 local receivedAt = 0
 local drawnX = 0
 local pullback = 1
+local serverClock = ServerClock.new() -- smoothed lead timeline (issue #85)
+local frozenCamera: CFrame? = nil -- Config.debug.freezeCamera A/B only
+if Config.debug.noShadows then
+	game:GetService("Lighting").GlobalShadows = false
+end
 
 local function looksLikeState(p: any): boolean
 	return type(p) == "table"
@@ -118,6 +182,13 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		StartupTrace.finishIfReady()
 	end
 	local state = payload :: Remotes.StatePayload
+	if Remotes.isPhase(state.phase) then
+		StartFlow.serverPhase(startupFlow, state.phase)
+		if state.phase == "ready" then
+			StartupProgress.report(startupProgress, "server", 1)
+		end
+		updateProgress()
+	end
 	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
 		-- Replay checklist (issue #16): ResetPlan warns (never throws) if an item is missing here.
 		local handlers = endFlow:resetHandlers()
@@ -130,6 +201,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		handlers.camera = function()
 			drawnX = state.x
 			pullback = 1
+			serverClock:reset()
 		end
 		handlers.sections = function()
 			sections:reset(RunView.wholeTotal(state.total))
@@ -155,6 +227,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 	end
 	latest = state
 	receivedAt = os.clock()
+	serverClock:observe(state, receivedAt)
 end)
 
 -- Gates and the obstacle change the total: pop the counter. (The new total itself arrives in State.)
@@ -163,6 +236,9 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 		return
 	end
 	sfx:onEvent(payload, music:intensity(), os.clock())
+	crowd:onEvent(payload, if latest then latest.t else 0) -- where new followers come from (issue #68)
+	sections:onEvent(payload)
+	leadAvatar:onEvent(payload)
 	if payload.kind == "gate" then
 		hud:pop()
 	elseif payload.kind == "obstacle" then
@@ -171,7 +247,12 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 			hud:pop()
 		end
 	elseif payload.kind == "cluster" then
-		clusters:onCluster(payload)
+		if clusters:onCluster(payload) then
+			local conversion = { kind = "conversion" }
+			crowd:onEvent(conversion, if latest then latest.t else 0)
+			sections:onEvent(conversion)
+			leadAvatar:onEvent(conversion)
+		end
 		sections:onShot(payload) -- dancer sections toss on gift shots (issue #20)
 	elseif payload.kind == "miss" then
 		clusters:onMiss(payload) -- continuous fire with no target: flies on and fades (issue #67)
@@ -198,16 +279,31 @@ RunService:BindToRenderStep(
 		if state == nil then
 			return
 		end
+		if state.phase == "ready" then
+			if StartFlow.shouldUpdateMusic(startupFlow) then
+				music:update(RunView.wholeTotal(state.total), os.clock())
+			end
+			return -- server clock, input and presentation stay paused behind the title screen
+		end
 		local now = os.clock()
-		local x, z, t =
-			RunView.leadPosition(state, now - receivedAt, Config.speed, DebugLayout.plazaStart)
+		debug.profilebegin("Calenda/ClockAndInput")
+		local x, z, t
+		if Config.debug.rawExtrapolation then
+			x, z, t =
+				RunView.leadPosition(state, now - receivedAt, Config.speed, DebugLayout.plazaStart)
+		else
+			x, z, t = serverClock:sample(now, Config.speed, DebugLayout.plazaStart)
+		end
 
 		input:step(dt, now)
 		drawnX = CameraRig.smooth(drawnX, x, dt, CAMERA_X_RATE)
+		debug.profileend()
+
+		debug.profilebegin("Calenda/CrowdAndSections")
 		local total = RunView.wholeTotal(state.total)
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
-		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift)
+		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift, total)
 		crowd:update(
 			drawnX,
 			z,
@@ -219,6 +315,9 @@ RunService:BindToRenderStep(
 			hasAvatar,
 			leadAvatar:fallbackGrace()
 		)
+		debug.profileend()
+
+		debug.profilebegin("Calenda/AudioAndEffects")
 		leadZNow = z
 		music:setPeak(fx.musicIntensity)
 		music:setDucked(fx.defeated)
@@ -226,7 +325,9 @@ RunService:BindToRenderStep(
 		sfx:update(total, music:intensity(), dt, now)
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
+		debug.profileend()
 
+		debug.profilebegin("Calenda/CameraAndHud")
 		local plan = VisualBudget.allocate(total)
 		pullback = CameraRig.smooth(
 			pullback,
@@ -240,12 +341,21 @@ RunService:BindToRenderStep(
 		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
 		local camera = Workspace.CurrentCamera
 		if camera then
-			camera.CameraType = Enum.CameraType.Scriptable
-			camera.FieldOfView = CameraRig.FIELD_OF_VIEW
-			camera.CFrame = CFrame.lookAt(
+			if camera.CameraType ~= Enum.CameraType.Scriptable then
+				camera.CameraType = Enum.CameraType.Scriptable
+			end
+			if camera.FieldOfView ~= CameraRig.FIELD_OF_VIEW then
+				camera.FieldOfView = CameraRig.FIELD_OF_VIEW
+			end
+			local cf = CFrame.lookAt(
 				Vector3.new(pose.px, pose.py, pose.pz),
 				Vector3.new(pose.lx, pose.ly, pose.lz)
 			) * CFrame.new(hit.shakeX, hit.shakeY, 0) -- decaying screen punch, camera space
+			if Config.debug.freezeCamera then
+				frozenCamera = frozenCamera or cf
+				cf = frozenCamera :: CFrame
+			end
+			camera.CFrame = cf
 		end
 
 		hud:setHp(HpBar.view(HpExtension.read(state)), hudClock)
@@ -254,5 +364,10 @@ RunService:BindToRenderStep(
 			fx.view(RunView.hud(state)),
 			InputIntent.hintVisible(t, input:hasSteered(), state.over)
 		)
+		debug.profileend()
 	end
 )
+
+-- State/Event listeners and the render loop are now attached. Start stays withheld until both
+-- actual world builders and the server's paused State are ready.
+markClientReady()

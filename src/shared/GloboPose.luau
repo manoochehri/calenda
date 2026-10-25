@@ -4,14 +4,15 @@
 -- radians, lengths studs; time is seconds and the beat comes from Config.music. Rings are timing and
 -- look only: nothing here reads or changes the crowd total, and rings never recruit (spec s7).
 local Config = require("./Config")
+local DanceConfig = require("./DanceConfig")
 
 local GloboPose = {}
 
-GloboPose.MAX_TILT = 0.28 -- [default] radians the pole leans at most (about 16 degrees)
-GloboPose.SPIN_BEATS = 8 -- [default] one whole turn of the sphere every two bars
-GloboPose.WOBBLE_BEATS = 4 -- [default] the lean circles the pole once per bar
-GloboPose.LIFT_STUDS = 0.5 -- [default] the sphere pops up this far on each beat
-GloboPose.CARRIER_RADIUS = 2.6 -- [default] studs from the pole to each carrier
+GloboPose.MAX_TILT = DanceConfig.globoTiltRadians
+GloboPose.SPIN_BEATS = DanceConfig.globoSpinBeats -- [default] one turn across the four-bar dance phrase
+GloboPose.WOBBLE_BEATS = DanceConfig.globoWobbleBeats
+GloboPose.LIFT_STUDS = DanceConfig.globoLiftStuds
+GloboPose.CARRIER_RADIUS = DanceConfig.globoCarrierRadius
 GloboPose.RING_SECONDS = 0.8 -- [default] life of one ring
 GloboPose.RING_START_RADIUS = 4.2 -- [default] just outside the sphere (radius 3.75)
 GloboPose.RING_END_RADIUS = 9 -- [default]
@@ -36,18 +37,25 @@ local function beatsAt(time: number, phase: number): number
 end
 
 -- `phase` (in beats) offsets one globo from another.
-function GloboPose.pose(time: number, phase: number): Pose
+function GloboPose.into(out: Pose, time: number, phase: number): Pose
 	local beats = beatsAt(time, phase)
 	local w = TAU * beats / GloboPose.WOBBLE_BEATS
 	local pop = 0.5 + 0.5 * math.cos(TAU * beats) -- 1 on every beat
-	return {
-		spin = TAU * beats / GloboPose.SPIN_BEATS,
-		-- An ellipse, never zero: the pole always visibly leans, and the lean travels around.
-		tiltX = GloboPose.MAX_TILT * math.sin(w),
-		tiltZ = GloboPose.MAX_TILT * 0.6 * math.cos(w),
-		lift = GloboPose.LIFT_STUDS * pop ^ 4,
-		carrierStep = math.abs(math.sin(math.pi * beats)),
-	}
+	out.spin = TAU * beats / GloboPose.SPIN_BEATS
+	-- An ellipse, never zero: the pole always visibly leans, and the lean travels around.
+	out.tiltX = GloboPose.MAX_TILT * math.sin(w)
+	out.tiltZ = GloboPose.MAX_TILT * DanceConfig.globoSecondaryTiltScale * math.cos(w)
+	out.lift = GloboPose.LIFT_STUDS * pop ^ DanceConfig.globoPopPower
+	out.carrierStep = math.abs(math.sin(math.pi * beats))
+	return out
+end
+
+function GloboPose.pose(time: number, phase: number): Pose
+	return GloboPose.into(
+		{ spin = 0, tiltX = 0, tiltZ = 0, lift = 0, carrierStep = 0 },
+		time,
+		phase
+	)
 end
 
 local function beatIndex(time: number): number

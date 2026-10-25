@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PuppetPose = require(Shared:WaitForChild("PuppetPose"))
+local SectionScale = require(Shared:WaitForChild("SectionScale"))
 
 local PuppetFigure = require(script.Parent:WaitForChild("PuppetFigure"))
 
@@ -30,9 +31,6 @@ export type Visual = {
 -- Creates a representative's visual. `entourage` comes from the type's SectionTypes descriptor.
 export type Builder = (parent: Instance, index: number, entourage: number) -> Visual
 
-local ENTOURAGE_SCALE = 0.35 -- [default]
-local ENTOURAGE_RADIUS = 4.2 -- [default] studs around the puppet
-
 local SectionFigure = {}
 
 function SectionFigure.puppet(parent: Instance, index: number, entourage: number): Visual
@@ -41,10 +39,19 @@ function SectionFigure.puppet(parent: Instance, index: number, entourage: number
 	local scales = { 1 }
 	for i = 1, entourage do
 		table.insert(figures, PuppetFigure.new(parent, palettes[(index + i - 1) % #palettes + 1]))
-		table.insert(scales, ENTOURAGE_SCALE)
+		table.insert(scales, SectionScale.PUPPET_ENTOURAGE_SCALE)
 	end
 	local visual = {} :: Visual
 	visual.badgeAnchor = figures[1].badgeAnchor
+	local poseBuffer: PuppetPose.Pose = {
+		headBob = 0,
+		headTilt = 0,
+		armLeft = 0,
+		armRight = 0,
+		clap = 0,
+		sway = 0,
+		bow = 0,
+	}
 
 	function visual.setPose(
 		_,
@@ -58,10 +65,10 @@ function SectionFigure.puppet(parent: Instance, index: number, entourage: number
 			local offset = Vector3.zero
 			if i > 1 then
 				local a = (i - 2) / math.max(1, #figures - 1) * math.pi * 2 + math.pi / 2
-				offset = Vector3.new(math.cos(a), 0, math.sin(a)) * ENTOURAGE_RADIUS
+				offset = Vector3.new(math.cos(a), 0, math.sin(a)) * SectionScale.ENTOURAGE_RADIUS
 			end
-			local pose = PuppetPose.pose(time, phase + (i - 1) * 0.25)
-			figure:setPose(ground * CFrame.new(offset), pose, scale * scales[i], intensity)
+			PuppetPose.into(poseBuffer, time, phase + (i - 1) * 0.25)
+			figure:setPose(ground * CFrame.new(offset), poseBuffer, scale * scales[i], intensity)
 		end
 	end
 

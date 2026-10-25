@@ -168,9 +168,20 @@ return {
 		end,
 	},
 	{
-		name = "Config.sfx ids and music.trackSoundId are empty by default (silent)",
+		name = "Config selects one full-mix music loop and keeps music to one source",
 		run = function()
-			assert((Config.music :: any).trackSoundId == "", "track id empty")
+			assert((Config.music :: any).trackSoundId == "1838904620", "selected full-mix track")
+			local musicSources = 0
+			for _, id in Config.music.stemSoundIds do
+				assert(id == "", "single-track mode must not also enable stems")
+				if id ~= "" then
+					musicSources += 1
+				end
+			end
+			if Config.music.trackSoundId ~= "" then
+				musicSources += 1
+			end
+			assert(musicSources == 1, `expected one configured music source, got {musicSources}`)
 			local n = 0
 			for _, id in Config.sfx do
 				n += 1

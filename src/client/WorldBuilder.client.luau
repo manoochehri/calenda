@@ -17,6 +17,8 @@ local timedRequire = StartupTrace.timedRequire
 
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
+local LayerHeights = timedRequire("Shared", Shared, "LayerHeights")
+local LevelTheme = timedRequire("Shared", Shared, "LevelTheme")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local GateView = timedRequire("Client", script.Parent, "GateView")
 
@@ -102,13 +104,14 @@ local function addGround(
 	z0: number,
 	z1: number,
 	width: number,
-	color: Color3
+	color: Color3,
+	top: number? -- LayerHeights.GROUND unless given
 )
 	makePart(
 		parent,
 		name,
 		Vector3.new(width, 1, z1 - z0),
-		Vector3.new(ViewMap.x(x), -0.5, (z0 + z1) / 2),
+		Vector3.new(ViewMap.x(x), (top or LayerHeights.GROUND) - 0.5, (z0 + z1) / 2),
 		color,
 		Enum.Material.Concrete,
 		true
@@ -136,10 +139,12 @@ local function addCone(parent: Instance, name: string, x: number, z: number)
 	end
 
 	-- Three shrinking primitive cylinders read as a friendly striped traffic cone.
-	cylinder("Base", 0.12, 0.2, 0.9, Color3.fromRGB(245, 111, 38))
-	cylinder("Body", 0.4, 0.36, 0.56, Color3.fromRGB(255, 130, 45))
-	cylinder("Stripe", 0.43, 0.08, 0.6, Color3.fromRGB(255, 245, 225))
-	cylinder("Tip", 0.68, 0.2, 0.28, Color3.fromRGB(255, 130, 45))
+	-- Flat cone feet sit on the DECAL layer (issue #85 z-fight audit); the cone stacks above it.
+	local lift = LayerHeights.DECAL - 0.22
+	cylinder("Base", 0.12 + lift, 0.2, 0.9, Color3.fromRGB(245, 111, 38))
+	cylinder("Body", 0.4 + lift, 0.36, 0.56, Color3.fromRGB(255, 130, 45))
+	cylinder("Stripe", 0.43 + lift, 0.08, 0.6, Color3.fromRGB(255, 245, 225))
+	cylinder("Tip", 0.68 + lift, 0.2, 0.28, Color3.fromRGB(255, 130, 45))
 end
 
 local function addObstacle(parent: Instance, obstacleId: number, side: "left" | "right", z: number)
@@ -179,13 +184,29 @@ local function buildWorld()
 	world.Name = WORLD_NAME
 	world.Parent = Workspace
 
-	local roadColor = Color3.fromRGB(57, 61, 72)
-	local sidewalkColor = Color3.fromRGB(184, 164, 134)
-	local plazaColor = Color3.fromRGB(194, 133, 93)
+	-- Colors come from the level theme (issue #54); OaxacaStreet lays the flagstone courses and
+	-- the curb stripe over the road.
+	local palette = LevelTheme.level1.palette
+	local function toColor(c: LevelTheme.Rgb): Color3
+		return Color3.fromRGB(c.r, c.g, c.b)
+	end
+	local roadColor = toColor(palette.road)
+	local sidewalkColor = toColor(palette.sidewalk)
+	local plazaColor = toColor(palette.plazaPaving)
 	local streetEnd = DebugLayout.plazaStart
 	local sidewalkCenter = ROAD_HALF_WIDTH + SIDEWALK_WIDTH / 2
 
-	addGround(world, "Street", 0, 0, streetEnd, ROAD_HALF_WIDTH * 2, roadColor)
+	-- The road sits one kerb (0.2) below the sidewalks; OaxacaStreet lays flagstone courses on it.
+	addGround(
+		world,
+		"Street",
+		0,
+		0,
+		streetEnd,
+		ROAD_HALF_WIDTH * 2,
+		roadColor,
+		LayerHeights.ROAD_BASE
+	)
 	addGround(world, "LeftSidewalk", -sidewalkCenter, 0, streetEnd, SIDEWALK_WIDTH, sidewalkColor)
 	addGround(world, "RightSidewalk", sidewalkCenter, 0, streetEnd, SIDEWALK_WIDTH, sidewalkColor)
 	addGround(
@@ -203,8 +224,8 @@ local function buildWorld()
 		makePart(
 			world,
 			`RoadMark{z}`,
-			Vector3.new(0.45, 0.03, 24),
-			Vector3.new(0, 0.02, z),
+			Vector3.new(0.45, 0.2, 24),
+			Vector3.new(0, LayerHeights.MARKING - 0.1, z),
 			Color3.fromRGB(225, 215, 185),
 			Enum.Material.SmoothPlastic
 		)
