@@ -38,6 +38,7 @@ return {
 			eq(r.outcome, "completed", "outcome")
 			eq(r.tier, 2, "tier")
 			eq(r.score, "187", "score is shown once without a redundant label")
+			eq(r.best, Strings.newBest, "new record has a cue but no second score")
 		end,
 	},
 	{

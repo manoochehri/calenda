@@ -316,7 +316,10 @@ return {
 			assert(best.text.sample == Strings.newBest, "record cue does not repeat a number")
 			local music = ScreenLayout.element("MusicToggle") :: ScreenLayout.Element
 			assert(music.w <= 0.16, `music toggle width {music.w} exceeds the compact cap`)
-			assert(Strings.musicOn == "♫ Sí" and Strings.musicOff == "♫ No", "compact Spanish music state")
+			assert(
+				Strings.musicOn == "♫ Sí" and Strings.musicOff == "♫ No",
+				"compact Spanish music state"
+			)
 			assert(music.text.sample == Strings.musicOn, "music state stays clear in Spanish")
 		end,
 	},

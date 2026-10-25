@@ -41,8 +41,8 @@ function RunView.hud(state: Remotes.StatePayload): Hud
 		)}`,
 		showEnd = state.over == true,
 		endTitle = title,
-		score = `{Strings.score}: {string.format("%d", RunView.wholeTotal(state.score or total))}`,
-		best = `{Strings.best}: {string.format("%d", RunView.wholeTotal(state.best))}`,
+		score = string.format("%d", RunView.wholeTotal(state.score or total)),
+		best = "",
 	}
 end
 
