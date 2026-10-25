@@ -20,7 +20,7 @@ end
 -- required spawn offset from camera emergence and the current lead + mob closing speed.
 local WAVE_DELAY = 9.25 -- seconds [default]
 local function waveOffset(pair: number): number
-	return (pair - 1) * 3.5 -- three-group packs overlap within the low-quality visible cap
+	return (pair - 1) * 3.4 -- three-group packs overlap within the low-quality visible cap
 end
 local SOAKS = { 1, 1, 1, 1, 1, 1, 1, 1 } -- one extra large group per pair
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before

@@ -19,7 +19,7 @@ local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one befor
 local PAIRS = 8
 
 local function waveOffset(pair: number): number
-	return (pair - 1) * 3.5 -- three-group packs overlap within the low-quality visible cap
+	return (pair - 1) * 3.4 -- three-group packs overlap within the low-quality visible cap
 end
 
 local function at(seconds: number): number
