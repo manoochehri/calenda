@@ -22,7 +22,7 @@ local WAVE_DELAY = 9.5 -- seconds [default]
 local function waveOffset(pair: number): number
 	return (pair - 1) * 7.8 -- five-group packs overlap within the low-quality visible cap
 end
-local SOAKS = { 4, 5, 2, 1 } -- front-load groups for earlier attacks; keep later packs lighter
+local SOAKS = { 3, 4, 2, 1 } -- shift one group earlier while keeping the total group count steady
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
 
 local needOffset = Emergence.requiredSpawnOffset()
