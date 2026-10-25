@@ -19,7 +19,10 @@ end
 -- Dark outline on a text label or button.
 function TypeStyle.outline(gui: GuiObject)
 	local s = Instance.new("UIStroke")
-	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	-- Contextual follows the glyph shape on a text label; Border would draw a box around its rect.
+	s.ApplyStrokeMode = if gui:IsA("TextLabel") or gui:IsA("TextButton")
+		then Enum.ApplyStrokeMode.Contextual
+		else Enum.ApplyStrokeMode.Border
 	s.Thickness = UiType.STROKE_THICKNESS
 	s.Color = rgb(UiType.STROKE_RGB)
 	s.Parent = gui
