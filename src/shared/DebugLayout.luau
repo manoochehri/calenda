@@ -56,7 +56,8 @@ for pair = 1, 4 do
 	else
 		add(pair * 2, "large", 16, arrive, base)
 		for soak = 1, SOAKS[pair] do
-			add(pair * 2 - 1, "large", -16, arrive, base - SOAK_STEP * soak)
+			local x = if pair == 1 then 16 else -16
+			add(pair * 2 - 1, "large", x, arrive, base - SOAK_STEP * soak)
 		end
 	end
 end
