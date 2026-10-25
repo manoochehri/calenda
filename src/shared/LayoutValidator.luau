@@ -12,6 +12,7 @@
 -- Those checks use the same RunDriver.TICK_DT and phase order as the server.
 local CrowdMath = require("./CrowdMath")
 local Config = require("./Config")
+local Emergence = require("./Emergence")
 local Level = require("./Level")
 local RunDriver = require("./RunDriver")
 
@@ -485,6 +486,12 @@ local function check(layout: any, config: any?, extraChecks: { ExtraCheck }?): R
 			errs,
 			`largest growth gate at {report.largestGainGateTime} s, outside {FINAL_FROM}-{FINAL_TO} s`
 		)
+	end
+
+	-- tension from the top (issue #65): waves spawn beyond the camera's view, are in view for at
+	-- least MIN_APPROACH_SECONDS before they arrive, and nothing is in view during the calm opening
+	for _, e in Emergence.check(layout, cfg) do
+		table.insert(errs, e)
 	end
 
 	-- growth and completability (no spending exists in the model: only recruits, gates, obstacles)

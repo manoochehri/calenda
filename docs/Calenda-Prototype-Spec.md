@@ -194,3 +194,17 @@ Supersedes, where they conflict: §3 ("No target means no projectile spam"), §4
 **Presentation.** Shots are bigger and readable (a glowing core, a short trail, a muzzle pop at the lead, an impact burst and squash on the target group, distinct note / heart / snack looks); misses fly off into the distance and fade. All pooled with hard caps; every knob is a named `[default]` constant in `ShotLook`. In-engine feel is unverified until a Studio pass.
 
 **Checks.** Rate curve at 0, 1, 9 and 100 sections; misses never credit, damage or consume; hits still credit once; the gift cadence is unchanged; a fixed clock is deterministic; per-tick event caps hold at the top rate.
+
+
+---
+
+## Amendment 3 — Mobs, the charge and tension from the top (owner decisions, 2026-10-24)
+
+Owner feedback: "there shouldn't be spectator GROUPS, there should be MOBS of them", "like a zillion spectators", the unconverted wave must charge into the parade like the red mass in the reference (used for readability only, no artwork copied), and "each level needs a little tension; the crowd just suddenly appears, shouldn't they start from the top?". Issue #65.
+
+Supersedes, where they conflict: the Amendment 1 / §4 picture of small groups of 3-8 blocks that swing around the parade and disappear. Everything else is unchanged: a "mob" is still a cluster (id, type, reward, hits, path), hits, credit-once, damage and server authority are untouched, and no field is added to any replicated payload.
+
+- **Mobs by level of detail.** The visual size is decoration derived on the client: `MobLod.mobSize = reward x 60 x quality scale`, hard-capped per quality level (`QualityConfig`: high / medium / low, one pure config shared with the future JuiceConfig). Near the camera a few hundred pooled real figures (body, head, raised arms) are moved in bulk; the rest is a ParticleEmitter swarm; the two crossfade by the screen share of a figure. Ambient street crowds (#54 phase 2) reuse the same modules.
+- **The charge.** Unconverted mobs run straight down the lane as a wedge with stride, raised arms and a forward lean, stop at the front of the parade, and on the server's attack Event slam in (the bump, shake and HP hit of #50) and only then scatter to the sidewalks and dissolve into a puff. Converted mobs recolour to the party palette and stream into the parade. Spectators are attackers until converted: angry-mob colouring before, party fans after, always a friendly cartoon tone.
+- **Tension from the top.** A cluster spawns beyond the camera's visible depth plus a margin (`Emergence`, derived from `CameraRig`); a wave is in view for at least 3 seconds before it arrives; nothing is in view during the first 5 seconds; a mob fades and scales in at the far end; a warning chevron and dust mark the top of the lane; a colour pulse on the mob and a screen-edge pulse grow as it closes in. `LayoutValidator` enforces the spawn, approach and calm-opening rules for every layout.
+- **Balance consequence.** A wave that really approaches from far away is inside `firing.range` for `range / (speed + approachSpeed)` seconds instead of the old 1 second, so it is easier to convert. To keep the Amendment 1 checks true the debug layout was retimed (provisional, flagged for the skeptic): `spectators.approachSpeed` 6 to 20, every pair 9 seconds later, and rising lines of extra small groups. The #17 ladder must be re-run.

@@ -323,6 +323,7 @@ RunService:BindToRenderStep(
 		music:setDucked(fx.defeated)
 		music:update(total, now)
 		sfx:update(total, music:intensity(), dt, now)
+		clusters:setPullback(pullback) -- the camera reach decides where a mob fades in (issue #65)
 		clusters:update(t, drawnX, z, dt)
 		obstacleFeedback:update(dt)
 		debug.profileend()
