@@ -11,6 +11,10 @@ local function rgb(c: { number }): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
 end
 
+local function disableTextStroke(gui: TextLabel | TextButton)
+	gui.TextStrokeTransparency = 1 -- avoid drawing a second glyph outline
+end
+
 -- Enum.Font member for a role in UiType.FONT.
 function TypeStyle.font(role: string): Enum.Font
 	return Enum.Font[UiType.FONT[role]]
@@ -24,10 +28,8 @@ function TypeStyle.outline(gui: GuiObject)
 	s.ApplyStrokeMode = if isText
 		then Enum.ApplyStrokeMode.Contextual
 		else Enum.ApplyStrokeMode.Border
-	if gui:IsA("TextLabel") then
-		gui.TextStrokeTransparency = 1 -- avoid drawing a second glyph outline
-	elseif gui:IsA("TextButton") then
-		gui.TextStrokeTransparency = 1
+	if isText then
+		disableTextStroke(gui :: TextLabel | TextButton)
 	end
 	s.Thickness = UiType.STROKE_THICKNESS
 	s.Color = rgb(UiType.STROKE_RGB)
