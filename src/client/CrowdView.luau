@@ -121,7 +121,7 @@ local function buildRey(parent: Instance): Rey
 		"ReyBody",
 		Enum.PartType.Ball,
 		Vector3.new(1.5, 1.1, 1.65),
-		Vector3.zero,
+		Vector3.new(0, ReyFormation.BODY_CENTER_Y, 0),
 		Color3.fromRGB(250, 242, 226)
 	)
 	add(

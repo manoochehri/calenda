@@ -91,6 +91,11 @@ return {
 	{
 		name = "largest Rey silhouette stays visible from Jugar through the plaza",
 		run = function()
+			assert(
+				(ReyFormation.BODY_CENTER_Y - ReyFormation.BODY_HALF_HEIGHT) * ReyFormation.SCALE
+					> 0,
+				"Rey's body is raised fully above the road"
+			)
 			for seed = 1, 64 do
 				local checkedStart, checkedPlaza = false, false
 				for _, leadX in { -14, -7, 0, 7, 14 } do

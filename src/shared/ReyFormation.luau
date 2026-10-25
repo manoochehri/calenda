@@ -11,6 +11,8 @@ ReyFormation.HALF_DEPTH = 0.9775 * ReyFormation.SCALE
 ReyFormation.HEIGHT = 1.9 * ReyFormation.SCALE
 ReyFormation.CENTER_Y = 0.99 * ReyFormation.SCALE
 ReyFormation.CENTER_Z = -0.1525 * ReyFormation.SCALE
+ReyFormation.BODY_CENTER_Y = 0.68
+ReyFormation.BODY_HALF_HEIGHT = 0.55
 ReyFormation.OFFSET = 8.5
 ReyFormation.BEHIND = 6
 
