@@ -21,7 +21,9 @@ function TypeStyle.outline(gui: GuiObject)
 	local s = Instance.new("UIStroke")
 	-- Contextual follows the glyph shape on a text label; Border would draw a box around its rect.
 	local isText = gui:IsA("TextLabel") or gui:IsA("TextButton")
-	s.ApplyStrokeMode = if isText then Enum.ApplyStrokeMode.Contextual else Enum.ApplyStrokeMode.Border
+	s.ApplyStrokeMode = if isText
+		then Enum.ApplyStrokeMode.Contextual
+		else Enum.ApplyStrokeMode.Border
 	if gui:IsA("TextLabel") then
 		gui.TextStrokeTransparency = 1 -- avoid drawing a second glyph outline
 	elseif gui:IsA("TextButton") then
