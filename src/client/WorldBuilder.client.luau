@@ -20,6 +20,7 @@ local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
 local LayerHeights = timedRequire("Shared", Shared, "LayerHeights")
 local LevelTheme = timedRequire("Shared", Shared, "LevelTheme")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
+local StrayBaseplate = timedRequire("Shared", Shared, "StrayBaseplate")
 local GateView = timedRequire("Client", script.Parent, "GateView")
 
 local WORLD_NAME = "CalendaWorld"
@@ -178,6 +179,12 @@ local function buildWorld()
 	local oldWorld = Workspace:FindFirstChild(WORLD_NAME)
 	if oldWorld then
 		oldWorld:Destroy()
+	end
+	-- Issue #85: a template Baseplate at top 0 z-fights the street and ground (the checkerboard).
+	for _, child in Workspace:GetChildren() do
+		if StrayBaseplate.isStray(child.Name, child.ClassName) then
+			child:Destroy()
+		end
 	end
 
 	local world = Instance.new("Model")
