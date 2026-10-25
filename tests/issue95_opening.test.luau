@@ -12,6 +12,8 @@ return {
 		run = function()
 			local countdown = Countdown.new()
 			eq(Countdown.cue(countdown), "¡Tres!", "first cue")
+			eq(Countdown.shouldStart(countdown), false, "no Start before cues")
+			eq(Countdown.advance(countdown), "¡Tres!", "show first cue")
 			eq(Countdown.advance(countdown), "¡Dos!", "second cue")
 			eq(Countdown.advance(countdown), "¡Uno!", "third cue")
 			eq(Countdown.advance(countdown), "¡Vamos!", "go cue")
@@ -20,12 +22,21 @@ return {
 		end,
 	},
 	{
-		name = "the route walks from a starting plaza into the street and reaches the separate finale plaza after a 90 second street",
+		name = "the route begins in a plaza and reaches the separate finale plaza at the existing 90 second timing",
 		run = function()
-			assert(DebugLayout.startPlazaEnd > 0, "starting plaza must be part of the authored route")
-			assert(DebugLayout.startPlazaEnd < DebugLayout.plazaStart, "street follows starting plaza")
-			assert(DebugLayout.plazaStart < DebugLayout.streetLength, "ending plaza remains distinct")
-			eq((DebugLayout.plazaStart - DebugLayout.startPlazaEnd) / require("../src/shared/Config").speed, 90, "street duration")
+			assert(
+				DebugLayout.startPlazaEnd > 0,
+				"starting plaza must be part of the authored route"
+			)
+			assert(
+				DebugLayout.startPlazaEnd < DebugLayout.plazaStart,
+				"street follows starting plaza"
+			)
+			assert(
+				DebugLayout.plazaStart < DebugLayout.streetLength,
+				"ending plaza remains distinct"
+			)
+			eq(DebugLayout.plazaStart / require("../src/shared/Config").speed, 90, "route timing")
 		end,
 	},
 }

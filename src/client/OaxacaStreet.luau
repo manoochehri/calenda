@@ -366,6 +366,7 @@ function OaxacaStreet.build(
 	local result = StreetLayoutGen.generate({
 		streetLength = DebugLayout.streetLength,
 		plazaStart = DebugLayout.plazaStart,
+		startPlazaEnd = DebugLayout.startPlazaEnd,
 		halfWidth = DebugLayout.halfWidth,
 	}, useTheme, seed or SEED)
 	local order = StreetLayoutGen.buildOrder(result)

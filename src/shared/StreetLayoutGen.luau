@@ -113,7 +113,12 @@ export type Result = {
 	counts: Counts,
 }
 
-export type LayoutInfo = { streetLength: number, plazaStart: number, halfWidth: number }
+export type LayoutInfo = {
+	streetLength: number,
+	plazaStart: number,
+	startPlazaEnd: number?,
+	halfWidth: number,
+}
 
 StreetLayoutGen.FLAG_CELL_PX = 32 -- canvas pixels per flag cell
 StreetLayoutGen.FLAG_CANVAS_H = 76
@@ -361,7 +366,8 @@ local function makeGround(
 	local ground: { Prim } = {}
 	local roadHalf = info.halfWidth - 6
 	local streetEnd = info.plazaStart
-	local len = streetEnd - z0
+	local roadStart = info.startPlazaEnd or z0
+	local len = streetEnd - roadStart
 	local width = roadHalf * 2 / l.courses
 	for i = 1, l.courses do
 		table.insert(
@@ -372,7 +378,7 @@ local function makeGround(
 				"block",
 				-roadHalf + (i - 0.5) * width,
 				LayerHeights.GROUND - 0.1,
-				(z0 + streetEnd) / 2,
+				(roadStart + streetEnd) / 2,
 				width,
 				0.2,
 				len,
@@ -390,7 +396,7 @@ local function makeGround(
 				"block",
 				sign * l.curbX,
 				LayerHeights.MARKING - 0.1,
-				(z0 + streetEnd) / 2,
+				(roadStart + streetEnd) / 2,
 				0.8,
 				0.2,
 				len,

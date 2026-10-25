@@ -31,6 +31,7 @@ local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
 local RunView = timedRequire("Shared", Shared, "RunView")
 local ServerClock = timedRequire("Shared", Shared, "ServerClock")
 local StartFlow = timedRequire("Shared", Shared, "StartFlow")
+local StartCountdown = timedRequire("Shared", Shared, "StartCountdown")
 local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
@@ -73,9 +74,24 @@ local function updateProgress()
 end
 local function onPlay()
 	if StartFlow.play(startupFlow) then
-		startupScreen:hide()
 		music:start(os.clock()) -- start the selected loop on Jugar, before the server's first running State
-		startRemote:FireServer()
+		local countIn = StartCountdown.new()
+		local function showNextCue()
+			local cue = StartCountdown.advance(countIn)
+			if cue == nil then
+				return
+			end
+			startupScreen:showCountIn(cue)
+			task.delay(StartCountdown.DURATION, function()
+				if StartCountdown.shouldStart(countIn) then
+					startupScreen:finishCountIn()
+					startRemote:FireServer()
+				else
+					showNextCue()
+				end
+			end)
+		end
+		showNextCue()
 	end
 end
 startupScreen = StartupScreen.new(onPlay)
