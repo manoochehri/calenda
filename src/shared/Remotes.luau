@@ -33,6 +33,7 @@ export type StatePayload = {
 	phase: string, -- "ready" (paused, waiting for Start) | "running" | "over"; see isPhase
 	outcome: string?,
 	score: number?,
+	level: number, -- issue #128: 1-based index of the level being played (the server decides it)
 }
 
 -- Server -> client discrete events. ids are layout ids, for animation lookup only.
@@ -105,6 +106,7 @@ export type Snapshot = {
 	phase: string?, -- optional; derived from outcome when absent or invalid
 	outcome: string?,
 	score: number?,
+	level: number?, -- issue #128: 1-based index of the level being played; absent = 1
 }
 
 function Remotes.encodeState(s: Snapshot): StatePayload
@@ -123,6 +125,7 @@ function Remotes.encodeState(s: Snapshot): StatePayload
 		over = s.outcome ~= nil,
 		outcome = s.outcome,
 		score = s.score,
+		level = if type(s.level) == "number" and s.level >= 1 then math.floor(s.level) else 1,
 	}
 end
 
