@@ -58,6 +58,8 @@ local function startRun(player: Player)
 			automated = false,
 			hooks = RunHooks.new(DebugLayout),
 			startReady = true, -- paused until the client's Start (issue #72)
+			-- Issue #96: the server draws each run's hazard schedule from its own seed.
+			runSeed = math.random(1, 2147483646),
 		}),
 		sinceState = 0,
 		accumulator = 0,

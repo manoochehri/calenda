@@ -12,7 +12,7 @@ The prototype must answer: Is recruiting satisfying? Is the math understandable?
 
 ## 2. Scope
 
-Build one approximately 90-second playable street plus an 8–10-second plaza finale. Use an individual run with NPC spectators; multiplayer interaction is deferred. Support touch and keyboard. Include three simple section visuals, one layered music track, positive math gates, one obstacle type, results, and immediate replay.
+Build one approximately 90-second playable street plus an 8–10-second plaza finale. Use an individual run with NPC spectators; multiplayer interaction is deferred. Support touch and keyboard. Include three simple section visuals, one layered music track, positive math gates, streetwork obstacles and level hazards (issue #96), results, and immediate replay.
 
 Build in stages: first get the entire loop working with one puppet; then add the globo and dancer sections. These are stages of the same prototype, not separate games.
 
@@ -100,7 +100,13 @@ Use a modest camera pullback and denser formation as the party grows. Give the m
 | 65–90 seconds | Largest growth opportunity, a final route decision, plaza approach |
 | Finale | Party spreads into the plaza; music peaks; gifts, confetti, score, replay |
 
-Use one readable obstacle: a closed streetwork lane marked with cones and a −10 sign. One collision removes 10 followers, clamped at zero; then that obstacle cannot hit again. Use the lead’s fixed hitbox. Avoid visual injury: some followers peel off to cheer from the sidewalk. Zero followers is recoverable because the lead still recruits.
+Use closed streetwork lanes marked with cones and a −10 sign. One collision removes 10 followers, clamped at zero; then that obstacle cannot hit again. Use the lead’s fixed hitbox. Avoid visual injury: some followers peel off to cheer from the sidewalk. Zero followers is recoverable because the lead still recruits.
+
+Issue #96 adds level hazards, drawn from the run seed on the server and listed per level in its hazard set (`Level.Layout.hazardSet`). The first Oaxacan level uses two kinds, at occasional times between 20 and 80 seconds, never before the run starts:
+- **Tomato throws** from the buildings. A warning shows 2.5 seconds before the impact. Only a landed gift shot inside that warning window blocks the tomato; note shots do not. An unblocked tomato in the lead’s lane costs 5 parade HP, once (`Config.hazards.tomatoDamage`).
+- **Tlayuda cart** across the street, leaving one clear gap 4.5 studs wide, with a warning 2 seconds ahead. Steering into the gap clears it. A collision costs the existing −10 obstacle loss, once.
+
+Later levels select their own hazard kinds in configuration; no level name is checked in code.
 
 Reaching the plaza always completes the run. Score equals the final crowd total, with no extra conversion bonus. Show the session best and '¡Otra calenda!' replay button. A lightweight three-tier celebration can use provisional thresholds of 50, 150, and 300 followers; tune these after observing normal runs.
 

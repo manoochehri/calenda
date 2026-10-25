@@ -34,6 +34,14 @@ function RunHooks.new(layout: Level.Layout, config: any?): any
 			ctx.t0
 		)
 		ctx.passedClusters = step.passed
+		-- Landed gift shots can block a tomato (issue #96). Misses and notes never do.
+		if ctx.giftTimes ~= nil then
+			for _, shot in step.shots do
+				if not shot.miss and shot.kind == "gift" then
+					table.insert(ctx.giftTimes, shot.time)
+				end
+			end
+		end
 		-- One display-only event per landed shot; the server sends it to the owning player only.
 		for _, shot in step.shots do
 			local payload = ClusterFeed.encode(shot)

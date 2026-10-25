@@ -21,6 +21,14 @@ export type Cluster = {
 	spawn: Point,
 	path: { Point },
 }
+-- Level hazard set (issue #96): which hazard kinds this level uses and when they can land.
+export type HazardSet = {
+	kinds: { string },
+	firstAt: number,
+	lastAt: number,
+	minGap: number,
+	maxGap: number,
+}
 export type Layout = {
 	name: string,
 	seed: number, -- recorded seed; the fixed debug layout uses no randomness
@@ -33,6 +41,7 @@ export type Layout = {
 	gates: { Gate },
 	clusters: { Cluster },
 	obstacles: { Obstacle },
+	hazardSet: HazardSet?, -- nil: the level has no hazards (issue #96)
 }
 export type Side = "left" | "right" | "center"
 

@@ -19,8 +19,13 @@ export type GateSide = { x: number, op: CrowdMath.Op }
 export type GatePair = { id: string, left: GateSide, right: GateSide }
 export type ClusterDef = { id: string, type: ClusterKind }
 export type ObstacleDef = { id: string }
-export type Layout =
-	{ gatePairs: { GatePair }, clusters: { ClusterDef }, obstacles: { ObstacleDef } }
+-- `tomatoes` (issue #96) are HP hazards; a cart is an obstacle. Optional: absent means none.
+export type Layout = {
+	gatePairs: { GatePair },
+	clusters: { ClusterDef },
+	obstacles: { ObstacleDef },
+	tomatoes: { ObstacleDef }?,
+}
 
 export type Options = {
 	seed: number,
@@ -68,6 +73,7 @@ export type RunState = {
 	attackCluster: (self: RunState, id: any) -> Result,
 	attackClusters: (self: RunState, ids: { any }) -> { Result },
 	hitObstacle: (self: RunState, id: any) -> Result,
+	hitTomato: (self: RunState, id: any) -> Result,
 	complete: (self: RunState) -> Result,
 	defeat: (self: RunState) -> Result,
 	reset: (self: RunState, seed: number?) -> (),
@@ -162,6 +168,11 @@ local function new(opts: Options): RunState
 	local usedGates: { [string]: boolean } = {}
 	local usedClusters: { [string]: ClusterUse } = {}
 	local usedObstacles: { [string]: boolean } = {}
+	local tomatoes: { [string]: boolean } = {}
+	for _, t in opts.layout.tomatoes or {} do
+		tomatoes[t.id] = true
+	end
+	local usedTomatoes: { [string]: boolean } = {}
 	local log: { Event } = {}
 	local seenRecruit = false
 	local seenAssembly = false
@@ -203,6 +214,7 @@ local function new(opts: Options): RunState
 		usedGates = {}
 		usedClusters = {}
 		usedObstacles = {}
+		usedTomatoes = {}
 		log = {}
 		seenRecruit = false
 		seenAssembly = false
@@ -384,6 +396,43 @@ local function new(opts: Options): RunState
 			finishDefeat()
 		end
 		return results
+	end
+
+	-- An unblocked tomato (issue #96): parade HP loss of Config.hazards.tomatoDamage, once per
+	-- tomato. The amount is server config, never a client value. HP reaching 0 defeats the run.
+	function self.hitTomato(_, id: any): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		if not isId(id) then
+			return reject("invalid hazard id")
+		end
+		if not tomatoes[id] then
+			return reject("unknown hazard")
+		end
+		if usedTomatoes[id] then
+			return reject("hazard already consumed")
+		end
+		local before = paradeHp
+		paradeHp = math.max(0, paradeHp - Config.hazards.tomatoDamage)
+		usedTomatoes[id] = true
+		record("hazard_hit", crowdTotal, crowdTotal, {
+			id = id,
+			hazard = "tomato",
+			hpBefore = before,
+			hpAfter = paradeHp,
+		})
+		if paradeHp == 0 then
+			finishDefeat()
+		end
+		return {
+			ok = true,
+			before = before,
+			after = paradeHp,
+			hpBefore = before,
+			hpAfter = paradeHp,
+		}
 	end
 
 	-- The driver calls this when an end-check hook ends the run (HP already 0 ends it on its own).
