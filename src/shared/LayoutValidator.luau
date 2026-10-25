@@ -2,7 +2,7 @@
 -- Layout validator (issue #7). Pure: no Roblox APIs. Proves, from Config speed and the authored data,
 -- that a layout matches the spec s9 timeline, grows by a bounded amount, can be completed with no
 -- spending, has safe early gates, and that the intended recruit total is reachable at the BASE fire
--- rate (conservative: sections would only make firing faster).
+-- rate. The best-route total is simulated separately for each gate route with section-scaled fire.
 --
 -- Extension point (issues #36 / #17): `check(layout, config, extraChecks)` runs each extra check
 -- `(ctx) -> (boolean, string?)` after the base checks, with ctx = { layout, config, report }.
@@ -16,6 +16,7 @@ local Config = require("./Config")
 local Emergence = require("./Emergence")
 local Level = require("./Level")
 local RunDriver = require("./RunDriver")
+local Targeting = require("./Targeting")
 
 type Layout = Level.Layout
 
@@ -355,6 +356,76 @@ local function simulate(layout: any, cfg: any, report: Report, errs: { string })
 	return events
 end
 
+-- Maximum-route model. Run the nearest-target policy independently for each gate choice so the
+-- crowd total in that route controls the same section-scaled shot rate as Targeting. Obstacles and
+-- attacks are omitted here: they can only lower a route's total, so this pass remains optimistic.
+-- The separate base-rate pass above continues to report whether intendedRecruitTotal is reachable
+-- without section bonuses.
+local function bestRouteTotal(layout: any, cfg: any, route: number): number
+	local clusters: { any } = table.clone(layout.clusters)
+	table.sort(clusters, function(a, b)
+		return a.id < b.id
+	end)
+	local hits: { [number]: number } = {}
+	local required: { [number]: number } = {}
+	for _, c in clusters do
+		hits[c.id] = 0
+		required[c.id] = cfg.clusterTypes[c.type].hits
+	end
+
+	local total = cfg.startingTotal
+	local nextShot = 0
+	local nextGate = 1
+	local ticks = math.ceil(Level.timeAtZ(layout.plazaStart, cfg) / DT)
+	for k = 1, ticks do
+		local t0 = (k - 1) * DT
+		local t1 = k * DT
+		local z0 = Level.leadZ(t0, cfg)
+		local rate = Targeting.fireRate(CrowdMath.sectionCount(total), cfg)
+		local interval = 1 / rate
+		local fired = 0
+		while nextShot <= t1 do
+			local candidates = {}
+			for _, c in clusters do
+				if t0 >= c.spawnTime then
+					local p = Level.clusterPosition(layout, c.id, t0, cfg)
+					table.insert(candidates, {
+						id = c.id,
+						x = p.x,
+						z = p.z,
+						full = hits[c.id] >= required[c.id],
+					})
+				end
+			end
+			local targetId = Targeting.selectTarget(candidates, z0, "center", cfg)
+			if targetId ~= nil then
+				hits[targetId] += 1
+				if hits[targetId] >= required[targetId] then
+					total += cfg.clusterTypes[Level.findCluster(layout, targetId).type].reward
+				end
+			end
+			nextShot += interval
+			fired += 1
+			if fired >= Targeting.MAX_SHOTS_PER_ADVANCE then
+				nextShot = math.max(nextShot, t1 + interval)
+				break
+			end
+		end
+
+		while nextGate <= #layout.gates do
+			local gate = layout.gates[nextGate]
+			if gate.z <= z0 or gate.z > Level.leadZ(t1, cfg) then
+				break
+			end
+			local bit = (route // (2 ^ (nextGate - 1))) % 2
+			local op = if bit == 1 then gate.right else gate.left
+			total = CrowdMath.applyOp(total, op)
+			nextGate += 1
+		end
+	end
+	return total
+end
+
 local function routes(layout: any, cfg: any, events: { Event }, report: Report)
 	local gateById: { [number]: any } = {}
 	local gateIndex: { [number]: number } = {}
@@ -381,6 +452,7 @@ local function routes(layout: any, cfg: any, events: { Event }, report: Report)
 		local dodge = hit
 		local side: string? = nil
 		local sectionAt: number? = if hit >= cfg.sectionSize then 0 else nil
+		bestFinal = math.max(bestFinal, bestRouteTotal(layout, cfg, r))
 		for _, e in events do
 			local at = e.tick * DT
 			if e.kind == "convert" then
@@ -405,7 +477,6 @@ local function routes(layout: any, cfg: any, events: { Event }, report: Report)
 				sectionAt = at
 			end
 		end
-		bestFinal = math.max(bestFinal, dodge)
 		worstFinal = math.min(worstFinal, hit)
 		worstSection = math.max(worstSection, sectionAt or math.huge)
 	end

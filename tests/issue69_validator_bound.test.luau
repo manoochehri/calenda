@@ -50,7 +50,9 @@ return {
 					spawnTime = 0,
 					spawn = {
 						x = if i % 2 == 1 then 16 else -16,
-						z = Level.leadZ(20) + Config.firing.range + Config.spectators.approachSpeed * 20,
+						z = Level.leadZ(20)
+							+ Config.firing.range
+							+ Config.spectators.approachSpeed * 20,
 					},
 					path = {},
 				})
@@ -60,11 +62,20 @@ return {
 			local config = clone(Config)
 			config.finaleThresholds = { 50 }
 			local report = LayoutValidator.check(layout, config)
-			assert(not report.ok, "validator must reject the route whose section-scaled fire exceeds maxTotal")
+			assert(
+				not report.ok,
+				"validator must reject the route whose section-scaled fire exceeds maxTotal"
+			)
 			local errors = table.concat(report.errors, " | ")
 			assert(string.find(errors, "above maxTotal", 1, true), errors)
-			assert(report.bestFinal > layout.maxTotal, `best {report.bestFinal} <= maxTotal {layout.maxTotal}`)
-			assert(report.recruitTotalAvailable == 25, "available reward remains distinct from route-converted reward")
+			assert(
+				report.bestFinal > layout.maxTotal,
+				`best {report.bestFinal} <= maxTotal {layout.maxTotal}`
+			)
+			assert(
+				report.recruitTotalAvailable == 25,
+				"available reward remains distinct from route-converted reward"
+			)
 		end,
 	},
 }
