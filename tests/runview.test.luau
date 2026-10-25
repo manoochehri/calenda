@@ -45,6 +45,7 @@ return {
 				RunView.hud(state({ over = true, outcome = "completed", score = 95, best = 95 }))
 			eq(done.showEnd, true, "completed shows the end")
 			eq(done.endTitle, Strings.completed, "completed title")
+			eq(done.endTitle, "¡Listo!", "results use the short completion headline")
 			eq(done.score, "95", "score is shown without a redundant label")
 			eq(done.best, "", "best is not duplicated on the base HUD view")
 			local lost = RunView.hud(state({ over = true, outcome = "defeated", score = 30 }))

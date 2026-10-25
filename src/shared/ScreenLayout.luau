@@ -220,7 +220,7 @@ local ELEMENTS = {
 		0.70,
 		0.12,
 		RESULTS,
-		{ minSize = 14, maxSize = 72, sample = "¡Calenda completada!" }
+		{ minSize = 14, maxSize = 72, sample = Strings.completed }
 	),
 	el(
 		"Score",

@@ -3,7 +3,7 @@
 In Play Solo, complete a run that sets a new record, then replay and complete a lower-scoring run.
 Check the results screen in landscape at 16:9, 4:3, 19.5:9, and 21:9 if available.
 
-- The completion message and final score are clear; the score appears only once.
+- The short `¡Listo!` headline and final score are clear; the score appears only once.
 - The gameplay follower caption, total, and loose/section detail disappear on results.
 - A new record shows only the short `¡Récord!` cue, without another score; a lower run shows no numeric best line.
 - `♫ Sí` changes to `♫ No` when tapped, and the music remains muted through results and replay.
