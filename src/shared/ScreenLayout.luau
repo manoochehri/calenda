@@ -207,7 +207,7 @@ local ELEMENTS = {
 		0,
 		0.5,
 		0.32,
-		0.40,
+		0.42,
 		0.06,
 		RUN,
 		{ minSize = 14, maxSize = 28, sample = "Faltan 30 para un grupo" }
