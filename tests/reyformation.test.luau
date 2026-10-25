@@ -140,7 +140,8 @@ return {
 									and ScreenProject.onScreen(left, 0.02)
 									and ScreenProject.onScreen(right, 0.02)
 									and math.abs(top.y - bottom.y) >= 0.07
-									and center.y > -0.55,
+									and center.y > -0.55
+									and bottom.y > -0.62,
 								`seed {seed}: full Rey silhouette clears frame and HUD at x={leadX}, z={leadZ}, pullback={pullback}; ndc=({center.x},{center.y}), height={math.abs(
 									top.y - bottom.y
 								)}`
