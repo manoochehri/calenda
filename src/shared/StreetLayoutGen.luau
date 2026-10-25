@@ -409,7 +409,7 @@ local function makeGround(
 				"forecourt",
 				"block",
 				sign * (info.halfWidth + l.facadeInset) / 2,
-				-0.5,
+				LayerHeights.ROAD_BASE - 0.5, -- one kerb below the sidewalks, so it clears the start plaza (issue #85)
 				(z0 + z1) / 2,
 				l.facadeInset - info.halfWidth,
 				1,
