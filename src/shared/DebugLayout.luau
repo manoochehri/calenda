@@ -19,7 +19,14 @@ end
 -- backward path extension so mobs emerge beyond the visible depth + margin. `add` derives the
 -- required spawn offset from camera emergence and the current lead + mob closing speed.
 local WAVE_DELAY = 9.5 -- seconds [default]
-local WAVE_SPACING = 7 -- seconds between paired waves; spreads the slower mobs to respect visual caps
+local function waveOffset(pair: number): number
+	if pair == 1 then
+		return 0
+	elseif pair == 2 then
+		return 0.5 -- crowd the first two pairs so early fire can miss a group
+	end
+	return 0.5 + (pair - 2) * 7 -- spread later pairs to stay within the mob draw caps
+end
 local SOAKS = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 } -- [default] extra small groups per pair
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
 
@@ -39,7 +46,7 @@ local function add(wave: number, kind: string, x: number, spawnTime: number, spa
 	})
 end
 for pair = 1, 10 do
-	local arrive = 1 + (pair - 1) * WAVE_SPACING + WAVE_DELAY
+	local arrive = 1 + waveOffset(pair) + WAVE_DELAY
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
 	add(pair * 2 - 1, "small", -16, arrive, base)
 	add(pair * 2, "large", 16, arrive, base)

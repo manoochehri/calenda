@@ -18,6 +18,15 @@ type Obstacle = Level.Obstacle
 local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one before
 local PAIRS = 10
 
+local function waveOffset(pair: number): number
+	if pair == 1 then
+		return 0
+	elseif pair == 2 then
+		return 0.5 -- crowd the first two pairs so early fire can miss a group
+	end
+	return 0.5 + (pair - 2) * 7 -- spread later pairs to stay within the mob draw caps
+end
+
 local function at(seconds: number): number
 	return seconds * Config.speed
 end
@@ -58,7 +67,7 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 	local smallX = if spec.bigOnLeft then 16 else -16
 	local bigX = -smallX
 	for pair = 1, PAIRS do
-		local arrive = 1 + (pair - 1) * 2.5 + spec.waveDelay
+		local arrive = 1 + waveOffset(pair) + spec.waveDelay + 0.5
 		local base = Config.speed * arrive + 20
 		add(pair * 2 - 1, "small", smallX, arrive, base)
 		add(pair * 2, "large", bigX, arrive, base)
