@@ -25,7 +25,7 @@ In `src/shared/Config.luau`:
 - `music.stemSoundIds`: four stems in the order percussion, brass, ensemble, crowd accents. If any
   stem id is set, stem mode is used and `trackSoundId` is ignored. Stems grow with the parade too.
 - `sfx.<slot>`: `gatePop`, `convert`, `sparkle`, `shotLaunch`, `shotImpact`, `obstacleThud`,
-  `attackBonk`, `hpHit`, `sectionRise`, `finalePeak`, `defeatBreakup`, `replayClick`, and
+  `attackBonk`, `followerHit`, `sectionRise`, `finalePeak`, `defeatBreakup`, `replayClick`, and
   `crowdLoop` (a looping crowd ambience whose volume follows the follower count).
 
 The `music.stemSoundIds` slots remain empty so the music player creates exactly one music Sound.
