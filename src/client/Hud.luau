@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
+local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
 local HpBar = require(Shared:WaitForChild("HpBar"))
 local RunView = require(Shared:WaitForChild("RunView"))
@@ -50,11 +51,13 @@ local function label(
 	return l
 end
 
--- A text label placed by its ScreenLayout element, with that element's text size limits.
+-- A text label placed by its ScreenLayout element, with that element's text size limits. Issue
+-- #104: every main label gets the dark outline (TypeStyle.outline).
 local function placed(parent: Instance, name: string, font: Enum.Font): TextLabel
 	local l = label(parent, name, UDim2.new(), UDim2.new(), font)
 	GuiLayout.place(l, name)
 	GuiLayout.limitText(l, name)
+	TypeStyle.outline(l)
 	return l
 end
 
@@ -83,11 +86,11 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 
 	-- Crowd counter, top center. The big number is the exact total; the line under it is the
 	-- exact loose count and section count. Rects come from ScreenLayout (tested at every aspect).
-	placed(gui, "Caption", Enum.Font.GothamBold).Text = Strings.followers
-	local counter = placed(gui, "Counter", Enum.Font.GothamBlack)
+	placed(gui, "Caption", TypeStyle.font("body")).Text = Strings.followers
+	local counter = placed(gui, "Counter", TypeStyle.font("number"))
 	local scale = Instance.new("UIScale")
 	scale.Parent = counter
-	local detail = placed(gui, "Detail", Enum.Font.GothamBold)
+	local detail = placed(gui, "Detail", TypeStyle.font("body"))
 	local musicMuted = false
 	local musicToggle = Instance.new("TextButton")
 	musicToggle.Name = "MusicToggle"
@@ -98,7 +101,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	musicToggle.TextStrokeColor3 = OUTLINE
 	musicToggle.TextStrokeTransparency = 0
 	musicToggle.TextScaled = true
-	musicToggle.Font = Enum.Font.GothamBold
+	musicToggle.Font = TypeStyle.font("body")
 	musicToggle.Text = Strings.musicOn
 	musicToggle.Parent = gui
 	GuiLayout.limitText(musicToggle, "MusicToggle")
@@ -108,8 +111,9 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 		onMusicMute(musicMuted)
 	end)
 
-	local hint = placed(gui, "Hint", Enum.Font.GothamBlack)
+	local hint = placed(gui, "Hint", TypeStyle.font("body"))
 	hint.Text = Strings.hint
+	TypeStyle.backing(hint) -- issue #104: a panel behind the floating hint
 
 	-- Parade HP bar (issue #50), top left next to the counter: icon, meter and number, so it
 	-- reads with the sound off. Hidden until HP is replicated.
@@ -208,9 +212,10 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	panel.BackgroundTransparency = 1
 	panel.Visible = false
 	panel.Parent = gui
-	local title = placed(panel, "Title", Enum.Font.GothamBlack)
-	local score = placed(panel, "Score", Enum.Font.GothamBlack)
-	local best = placed(panel, "Best", Enum.Font.GothamBold)
+	local title = placed(panel, "Title", TypeStyle.font("title"))
+	TypeStyle.gradient(title)
+	local score = placed(panel, "Score", TypeStyle.font("number"))
+	local best = placed(panel, "Best", TypeStyle.font("body"))
 	-- Primary button: the lower right corner, under the right thumb (ScreenLayout.PRIMARY_BUTTON).
 	local replay = Instance.new("TextButton")
 	replay.Name = "Replay"
@@ -220,9 +225,11 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	replay.TextStrokeColor3 = OUTLINE
 	replay.TextStrokeTransparency = 0
 	replay.TextScaled = true
-	replay.Font = Enum.Font.GothamBlack
+	replay.Font = TypeStyle.font("button")
 	replay.Text = Strings.replay
 	replay.Parent = panel
+	TypeStyle.pill(replay)
+	TypeStyle.outline(replay)
 	GuiLayout.limitText(replay, "Replay")
 	replay.Activated:Connect(onReplay)
 

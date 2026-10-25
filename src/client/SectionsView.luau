@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
+local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local Dance = require(Shared:WaitForChild("Dance"))
 local Formation = require(Shared:WaitForChild("Formation"))
 local FollowerSlots = require(Shared:WaitForChild("FollowerSlots"))
@@ -178,7 +179,8 @@ function SectionsView.new(initialTotal: number): SectionsView
 	indicator.TextStrokeColor3 = OUTLINE
 	indicator.TextStrokeTransparency = 0
 	indicator.TextScaled = true
-	indicator.Font = Enum.Font.GothamBlack
+	indicator.Font = TypeStyle.font("alert")
+	TypeStyle.outline(indicator)
 	indicator.Visible = false
 	GuiLayout.limitText(indicator, "PlusSections")
 	indicator.Parent = gui

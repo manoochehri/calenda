@@ -8,6 +8,7 @@ local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
+local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local ScreenLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ScreenLayout"))
 
 export type Screen = {
@@ -235,7 +236,8 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 
 	addFlagString(card)
 
-	local logo = label(card, "Logo", "CALENDA", Enum.Font.FredokaOne)
+	local logo = label(card, "Logo", "CALENDA", TypeStyle.font("title"))
+	TypeStyle.gradient(logo)
 	logo.AnchorPoint = Vector2.new(0.5, 0)
 	logo.Position = UDim2.fromScale(0.5, 0.17)
 	logo.Size = UDim2.fromScale(0.9, 0.19)
@@ -314,14 +316,15 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	play.Text = "Jugar"
 	play.TextColor3 = Color3.fromRGB(255, 250, 232)
 	play.TextScaled = true
-	play.Font = Enum.Font.FredokaOne
+	play.Font = TypeStyle.font("button")
 	play.Visible = false
 	play.Parent = controls
 	local playLimit = Instance.new("UITextSizeConstraint")
 	playLimit.MinTextSize = ScreenLayout.MIN_TEXT
 	playLimit.MaxTextSize = 36
 	playLimit.Parent = play
-	round(play, 24)
+	TypeStyle.pill(play)
+	TypeStyle.outline(play)
 	stroke(play, Color3.fromRGB(255, 226, 165), 3)
 	local playScale = Instance.new("UIScale")
 	playScale.Parent = play

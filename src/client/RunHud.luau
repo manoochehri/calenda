@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
+local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local HudMeters = require(Shared:WaitForChild("HudMeters"))
 
 local WHITE = Color3.fromRGB(255, 255, 255)
@@ -51,7 +52,7 @@ function RunHud.new(): RunHud
 	caption.BackgroundTransparency = 1
 	caption.TextScaled = true
 	GuiLayout.limitText(caption, "SectionMeter")
-	caption.Font = Enum.Font.GothamBold
+	caption.Font = TypeStyle.font("body")
 	caption.TextColor3 = WHITE
 	caption.TextStrokeColor3 = OUTLINE
 	caption.TextStrokeTransparency = 0
@@ -65,7 +66,8 @@ function RunHud.new(): RunHud
 	GuiLayout.limitText(banner, "Banner")
 	banner.BackgroundTransparency = 1
 	banner.TextScaled = true
-	banner.Font = Enum.Font.GothamBlack
+	banner.Font = TypeStyle.font("alert")
+	TypeStyle.outline(banner)
 	banner.TextColor3 = Color3.fromRGB(255, 221, 0)
 	banner.TextStrokeColor3 = OUTLINE
 	banner.TextStrokeTransparency = 0
