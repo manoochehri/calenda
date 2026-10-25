@@ -36,6 +36,15 @@ function TypeStyle.outline(gui: GuiObject)
 	s.Parent = gui
 end
 
+-- Separate frame outline for primary button surfaces; text remains outlined by `outline`.
+function TypeStyle.border(gui: GuiObject)
+	local s = Instance.new("UIStroke")
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	s.Thickness = UiType.STROKE_THICKNESS
+	s.Color = rgb(UiType.STROKE_RGB)
+	s.Parent = gui
+end
+
 -- Vertical yellow-to-orange gradient for a title.
 function TypeStyle.gradient(gui: GuiObject)
 	local g = Instance.new("UIGradient")

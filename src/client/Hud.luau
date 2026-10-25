@@ -230,6 +230,7 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	replay.Parent = panel
 	TypeStyle.pill(replay)
 	TypeStyle.outline(replay)
+	TypeStyle.border(replay) -- issue #104: keep a separate pill-frame outline around the text outline
 	GuiLayout.limitText(replay, "Replay")
 	replay.Activated:Connect(onReplay)
 

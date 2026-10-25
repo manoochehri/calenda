@@ -325,7 +325,11 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	playLimit.Parent = play
 	TypeStyle.pill(play)
 	TypeStyle.outline(play)
-	stroke(play, Color3.fromRGB(255, 226, 165), 3)
+	local playBorder = Instance.new("UIStroke")
+	playBorder.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	playBorder.Color = Color3.fromRGB(255, 226, 165)
+	playBorder.Thickness = 3
+	playBorder.Parent = play
 	local playScale = Instance.new("UIScale")
 	playScale.Parent = play
 	local function press(scale: number)
