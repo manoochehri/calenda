@@ -15,6 +15,8 @@ local FeedbackMath = require("./FeedbackMath")
 local Emergence = require("./Emergence")
 local Level = require("./Level")
 local MobCharge = require("./MobCharge")
+local QualityConfig = require("./QualityConfig")
+local SpectatorMotion = require("./SpectatorMotion")
 
 export type Runner = { x: number, z: number, y: number }
 export type View = {
@@ -27,6 +29,10 @@ export type View = {
 	age: number, -- seconds since the phase began (cheering: since the fill; walking: 0)
 	phaseT: number, -- 0..1 progress through slamming / dispersing / cheering
 	spawnAge: number, -- seconds since the cluster spawned (telegraph)
+	layoutSeed: number,
+	spawnX: number,
+	spawnZ: number,
+	spawnLeadZ: number,
 	hits: number,
 	needed: number,
 	remaining: number, -- big numeral above the group
@@ -73,6 +79,7 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 	local attackedAt: { [number]: number } = {} -- id -> run time of the server's attack Event
 	local slamAt: { [number]: number } = {} -- id -> latched slam start (Event or fallback)
 	local reachedAt: { [number]: number } = {} -- id -> run time the mob was first seen at the parade
+	local latestArrivalById: { [number]: number } = {}
 	-- Beyond this (visible depth + spawn margin) a mob is not drawn at all.
 	local _, deepest = Emergence.depthRange(cfg)
 	local cullAhead = deepest + Emergence.SPAWN_MARGIN + 1
@@ -80,6 +87,31 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 
 	local function needed(c: Level.Cluster): number
 		return cfg.clusterTypes[c.type].hits
+	end
+
+	local function latestArrivalAge(c: Level.Cluster): number
+		local cached = latestArrivalById[c.id]
+		if cached ~= nil then
+			return cached
+		end
+		local reward = cfg.clusterTypes[c.type].reward
+		local count = math.min(
+			math.floor(reward * cfg.spectators.scatter.perReward),
+			QualityConfig.get("high").maxFiguresPerMob
+		)
+		local age = SpectatorMotion.latestArrivalAge(
+			layout.seed,
+			c.id,
+			count,
+			c.spawn.x,
+			c.spawn.z,
+			Level.leadZ(c.spawnTime, cfg),
+			cfg.speed,
+			cfg.spectators.approachSpeed,
+			cfg.spectators.scatter
+		)
+		latestArrivalById[c.id] = age
+		return age
 	end
 
 	function self.shot(_, s, t): ShotResult
@@ -142,6 +174,10 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 					age = 0,
 					phaseT = 0,
 					spawnAge = t - c.spawnTime,
+					layoutSeed = layout.seed,
+					spawnX = c.spawn.x,
+					spawnZ = c.spawn.z,
+					spawnLeadZ = Level.leadZ(c.spawnTime, cfg),
 					hits = h,
 					needed = need,
 					remaining = math.max(0, need - h),
@@ -208,7 +244,11 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 								view.z = Level.leadZ(hitAt + MobCharge.SLAM_SECONDS, cfg)
 									+ MobCharge.SLAM_GAP
 							else
-								visible = false
+								local lastArrival = c.spawnTime + latestArrivalAge(c)
+								local lastRemoval = math.max(hitAt, lastArrival)
+									+ MobCharge.SLAM_SECONDS
+									+ MobCharge.DISPERSE_SECONDS
+								visible = t < lastRemoval
 							end
 						end
 					end

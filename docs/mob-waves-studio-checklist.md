@@ -16,7 +16,7 @@ the lane with at least 2.1 studs between any two and never more than 2 in one bu
 | low | 30 | 12 | 100 | 3 | 9 | 72 |
 
 Emitters = dust emitters + 6 warning chevrons. Puff bursts are transient `Emit` calls. Each figure
-is 3 Parts (body, head, arms). A figure far up the lane is enlarged up to `maxScale` (2x) so it
+is 3 Parts (body, head, arms). A figure far up the lane is enlarged up to `maxScale` (3x) so it
 still reads. The on-screen cap is the figure budget: spectators past it are not drawn.
 
 ## Checks in Studio
@@ -26,9 +26,11 @@ still reads. The on-screen cap is the figure budget: spectators past it are not 
 2. Start a run and confirm no wave is in view for the first 5 s.
 3. Confirm each wave appears at the top of the screen as a faded, scaled-in mob (no pop), with a
    warning chevron ahead of it, and that it takes at least 3 s to reach the parade.
-4. Confirm the spectators read as individuals spread across the lane (no bunch of more than two),
-   coming at the player from the top of the screen, and that each figure is readable from the high
-   camera, including the ones at the top of the lane. Then they slam the parade and scatter.
+4. Confirm spectators read as human silhouettes with distinct bodies and heads from the gameplay
+   camera, including at the top of the lane and on a phone-sized viewport. They stay loosely spread
+   across the lane (no bunch of more than two). Watch each person: start delay, lateral and
+   longitudinal offset, turn, approach speed, and arrival differ; nobody advances, turns, or arrives
+   with the cluster center. Then they slam the parade and scatter.
 5. Confirm a converted mob recolours to the party palette and streams into the parade.
 6. Confirm the music swells as an unconverted wave closes in, and eases off once it is converted or gone.
 7. Frame time: 30 FPS or better on the phone emulator with the biggest wave on screen, at the

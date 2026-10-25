@@ -27,15 +27,24 @@ local MobLod = require(Shared:WaitForChild("MobLod"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local QualityConfig = require(Shared:WaitForChild("QualityConfig"))
 local SpectatorScatter = require(Shared:WaitForChild("SpectatorScatter"))
+local SpectatorMotion = require(Shared:WaitForChild("SpectatorMotion"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
-local FIGURE_HEIGHT = 2.2 -- studs, what the legibility share is measured on
+local FIGURE_HEIGHT = Config.spectators.scatter.bodyHeight + Config.spectators.scatter.headDiameter
 local DUST_RATE = 14 -- [default] stride dust per second on a charging mob (before fade)
 local DUST_COLOR = Color3.fromRGB(214, 190, 150)
 local SCALE_STEP = 0.25 -- figures are resized only when their scale moves by this much
-local BODY_SIZE = Vector3.new(1.1, 1.5, 0.8)
-local HEAD_SIZE = 0.95
-local ARMS_SIZE = Vector3.new(1.9, 0.3, 0.3)
+local BODY_SIZE = Vector3.new(
+	Config.spectators.scatter.bodyWidth,
+	Config.spectators.scatter.bodyHeight,
+	Config.spectators.scatter.bodyDepth
+)
+local HEAD_SIZE = Config.spectators.scatter.headDiameter
+local ARMS_SIZE = Vector3.new(
+	Config.spectators.scatter.armsWidth,
+	Config.spectators.scatter.armsHeight,
+	Config.spectators.scatter.armsDepth
+)
 
 export type Desc = {
 	id: number,
@@ -51,6 +60,11 @@ export type Desc = {
 	dip: number, -- 0..1 impact squash of the whole mob
 	hop: number, -- extra hop (gift catch), studs
 	glow: number, -- 0..1 brighten (gift catch)
+	spawnAge: number,
+	layoutSeed: number,
+	spawnX: number,
+	spawnZ: number,
+	spawnLeadZ: number,
 }
 
 export type MobView = {
@@ -78,7 +92,7 @@ type Figure = {
 	scaleKey: number,
 }
 type Dust = { part: Part, emitter: ParticleEmitter }
-type Spots = { n: number, offsets: { SpectatorScatter.Offset } }
+type Spots = { n: number, offsets: { SpectatorScatter.Offset }, paths: { SpectatorMotion.Path } }
 
 local MobView = {}
 
@@ -156,7 +170,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 	local puffed: { [number]: boolean } = {}
 	local admission = MobLod.admission(level.maxMobs)
 	local rankFades: { [number]: number } = {}
-	local spots: { [number]: Spots } = {} -- each mob's individual spots, kept by id
+	local spots: { [number]: Spots } = {} -- each mob's seeded spots and independent paths, kept by id
 	local usedFigures, usedMobs, usedEmitters = 0, 0, 0
 
 	-- Reused per-frame arrays for BulkMoveTo.
@@ -184,13 +198,30 @@ function MobView.new(parent: Instance, quality: string): MobView
 	end
 
 	-- The individual spots of a mob with `n` spectators, computed once per (id, n).
-	local function spotsFor(id: number, n: number): { SpectatorScatter.Offset }
+	local function spotsFor(m: Desc, n: number): Spots
+		local id = m.id
 		local s = spots[id]
 		if s == nil or s.n ~= n then
-			s = { n = n, offsets = SpectatorScatter.place(n, id, scatter) }
+			local offsets = SpectatorScatter.place(n, m.layoutSeed + id * 1009, scatter)
+			local paths: { SpectatorMotion.Path } = {}
+			for k = 1, n do
+				paths[k] = SpectatorMotion.plan(
+					m.layoutSeed,
+					id,
+					k,
+					m.spawnX,
+					m.spawnZ,
+					m.spawnLeadZ,
+					Config.speed,
+					Config.spectators.approachSpeed,
+					offsets[k],
+					scatter
+				)
+			end
+			s = { n = n, offsets = offsets, paths = paths }
 			spots[id] = s
 		end
-		return s.offsets
+		return s
 	end
 
 	function self.update(
@@ -226,15 +257,12 @@ function MobView.new(parent: Instance, quality: string): MobView
 		local want: { { count: number, fade: number } } = {}
 		local counts: { number } = {}
 		local fades: { number } = {}
-		local legible: { number } = {}
 		for i, m in sorted do
 			local n = SpectatorScatter.individuals(m.reward, levelName, scatter)
 			local keep = if m.phase == "cheering" then MobCharge.streamKeep(m.age) else 1
 			local fade = math.clamp(m.fade * keep * (rankFades[m.id] :: number), 0, 1)
 			counts[i], fades[i] = n, fade
 			want[i] = { count = n, fade = fade }
-			local frac = CameraRig.screenFraction(pose, FIGURE_HEIGHT / 2, m.z, FIGURE_HEIGHT)
-			legible[i] = SpectatorScatter.legibleScale(frac, scatter)
 		end
 		local shown = SpectatorScatter.allocate(want, levelName)
 
@@ -254,7 +282,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 			drawn += 1
 			seen[m.id] = true
 			local n, fade = counts[i], fades[i]
-			local offsets = spotsFor(m.id, n)
+			local personPlans = spotsFor(m, n)
 			local party = if m.phase == "cheering" then MobCharge.partyMix(m.age) else 0
 			local depthScale = 1
 			if m.phase == "slamming" then
@@ -265,31 +293,40 @@ function MobView.new(parent: Instance, quality: string): MobView
 			local centerX = MobLod.lateralFit(m.x, 2 * scatter.spreadHalfWidth) -- keeps figures inside the street
 			local slam = if m.phase == "slamming" then MobCharge.slam(m.age) else 0
 			-- the figure scale: a far figure is enlarged a step at a time so it keeps reading
-			local scaleKey = math.floor(legible[i] / SCALE_STEP + 0.5)
-			local scale = scaleKey * SCALE_STEP
-
 			for k = 1, count do
 				figureCursor += 1
 				local f = figureSlots[figureCursor]
+				local path = personPlans.paths[k]
+				local person = SpectatorMotion.position(path, m.spawnAge, leadZ)
+				local movingAlone = m.phase ~= "cheering"
+				local off = personPlans.offsets[k]
+				local dx, dz = off.dx, off.dz
+				local x, z =
+					if movingAlone then person.x else centerX + dx,
+					if movingAlone then person.z else m.z + dz * depthScale
+				local frac = CameraRig.screenFraction(pose, FIGURE_HEIGHT / 2, z, FIGURE_HEIGHT)
+				local personScale = SpectatorScatter.legibleScale(frac, scatter)
+				local scaleKey = math.floor(personScale / SCALE_STEP + 0.5)
+				local scale = scaleKey * SCALE_STEP
 				if f.scaleKey ~= scaleKey then
 					f.scaleKey = scaleKey
 					f.body.Size = BODY_SIZE * scale
 					f.head.Size = Vector3.new(HEAD_SIZE, HEAD_SIZE, HEAD_SIZE) * scale
 					f.arms.Size = ARMS_SIZE * scale
 				end
-				local off = offsets[k]
-				local dx, dz = off.dx, off.dz
 				-- each individual rises out of the road as the mob's fade passes it (no pop)
-				local sink = (1 - SpectatorScatter.risen(k, n, fade)) * MobCharge.SINK
-				local x, z = centerX + dx, m.z + dz * depthScale
-				local hop, lean, arm = MobCharge.stride(k + m.id, clock)
+				local personFade = if movingAlone
+					then (if person.started then fade else 0)
+					else fade
+				local sink = (1 - SpectatorScatter.risen(k, n, personFade)) * MobCharge.SINK
+				local hop, lean, arm = MobCharge.stride(k + m.id, clock + path.phase)
 				local down = sink
 				if m.phase == "slamming" then
 					local rowShare = 1 - math.min(1, dz / math.max(depth, 1))
 					hop += MobCharge.SLAM_HOP * slam * rowShare
 					lean = MobCharge.LEAN + 0.25 * slam
 				elseif m.phase == "dispersing" then
-					local sx, shop, ssink = MobCharge.disperse(x, centerX, m.phaseT)
+					local sx, shop, ssink = MobCharge.disperse(x, path.targetX, m.phaseT)
 					x, hop, down = sx, shop + hop * 0.3, math.max(down, ssink)
 					z += dz * 0.6 * m.phaseT
 					lean, arm = 0.1, MobCharge.ARM_UP
@@ -298,9 +335,9 @@ function MobView.new(parent: Instance, quality: string): MobView
 				end
 				local y = hop + m.hop - m.dip * 0.4 - down
 				local root = CFrame.new(ViewMap.x(x), y, z) * CFrame.Angles(-lean, 0, 0)
-				push(f.body, root * CFrame.new(0, 0.75 * scale, 0))
-				push(f.head, root * CFrame.new(0, 1.95 * scale, 0))
-				push(f.arms, root * CFrame.new(0, arm * scale, 0))
+				push(f.body, root * CFrame.new(0, BODY_SIZE.Y * scale / 2, 0))
+				push(f.head, root * CFrame.new(0, (BODY_SIZE.Y + HEAD_SIZE / 2) * scale, 0))
+				push(f.arms, root * CFrame.new(0, (arm + BODY_SIZE.Y * 0.72) * scale, 0))
 				-- colours only when they change (quantised)
 				local qk = math.floor(party * 4 + 0.5) * 8 + math.floor(pulse * 4 + 0.5)
 				local key = qk * 4 + (k + m.id) % 4

@@ -18,6 +18,20 @@ export type ScatterConfig = {
 	maxBunch: number, -- most individuals allowed in one bunch
 	minScreenFraction: number, -- a figure reads at this share of screen height (phone, high camera)
 	maxScale: number, -- at most this much a far figure is enlarged to keep reading (>= 1)
+	bodyWidth: number, -- torso width in studs
+	bodyHeight: number, -- torso height in studs
+	bodyDepth: number, -- torso depth in studs
+	headDiameter: number, -- spherical head diameter in studs
+	armsWidth: number, -- raised arms width in studs
+	armsHeight: number, -- raised arms height in studs
+	armsDepth: number, -- raised arms depth in studs
+	startDelayMax: number, -- maximum independently seeded delay before a figure starts moving
+	approachSpeedSpread: number, -- per-person speed variation as a share of approachSpeed
+	longitudinalJitter: number, -- independently seeded front/back spawn offset in studs
+	lateralWander: number, -- independently seeded lateral turn distance in studs
+	turnDelayMax: number, -- maximum independently seeded delay before a lateral turn
+	turnSeconds: number, -- duration of each figure's lateral turn
+	arrivalSpread: number, -- per-person variation around the mob's contact distance
 }
 export type MusicConfig = {
 	bpm: number,
@@ -210,6 +224,19 @@ local function validate(c: any): (boolean, string?)
 			"minSeparation",
 			"bunchRadius",
 			"minScreenFraction",
+			"bodyWidth",
+			"bodyHeight",
+			"bodyDepth",
+			"headDiameter",
+			"armsWidth",
+			"armsHeight",
+			"armsDepth",
+			"startDelayMax",
+			"longitudinalJitter",
+			"lateralWander",
+			"turnDelayMax",
+			"turnSeconds",
+			"arrivalSpread",
 		}
 	do
 		if not isPositive((sc :: any)[key]) then
@@ -224,6 +251,19 @@ local function validate(c: any): (boolean, string?)
 	end
 	if type(sc.maxScale) ~= "number" or sc.maxScale < 1 or sc.maxScale == math.huge then
 		return false, "spectators.scatter.maxScale must be a number >= 1"
+	end
+	if
+		type(sc.approachSpeedSpread) ~= "number"
+		or sc.approachSpeedSpread < 0
+		or sc.approachSpeedSpread >= 0.5
+	then
+		return false, "spectators.scatter.approachSpeedSpread must be in [0, 0.5)"
+	end
+	if sc.minScreenFraction < 0.02 then
+		return false, "spectators.scatter.minScreenFraction must be >= 0.02 for readable figures"
+	end
+	if sc.headDiameter < sc.bodyHeight * 0.5 then
+		return false, "spectators.scatter.headDiameter must be at least half the body height"
 	end
 
 	local v = c.visualBudget
@@ -346,8 +386,22 @@ local config: ConfigType = {
 			minSeparation = 2.1, -- [default] studs; (1 - 2 x jitter) x spacing, so no two touch
 			bunchRadius = 2.0, -- [default] studs; closer than this counts as one bunch
 			maxBunch = 2, -- [default] most spectators in one bunch
-			minScreenFraction = 0.01, -- [default] share of screen height a figure reads at (about 8 px on an 800 px phone)
-			maxScale = 2.0, -- [default] far figures (top of the lane) grow up to 2x to keep reading
+			minScreenFraction = 0.022, -- [default] 2.2% of screen height (about 18 px on an 800 px phone)
+			maxScale = 3.0, -- [default] far figures grow up to 3x so the head and body remain distinct
+			bodyWidth = 1.4,
+			bodyHeight = 2.0,
+			bodyDepth = 0.9,
+			headDiameter = 1.2,
+			armsWidth = 1.7,
+			armsHeight = 0.4,
+			armsDepth = 0.3,
+			startDelayMax = 0.8,
+			approachSpeedSpread = 0.18,
+			longitudinalJitter = 5,
+			lateralWander = 4,
+			turnDelayMax = 0.7,
+			turnSeconds = 0.8,
+			arrivalSpread = 1.5,
 		},
 	},
 	visualBudget = {

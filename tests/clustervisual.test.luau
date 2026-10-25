@@ -168,14 +168,14 @@ return {
 			eq(
 				find(
 					tr:views(
-						6.05 + MobCharge.SLAM_SECONDS + MobCharge.DISPERSE_SECONDS + 0.1,
+						6.05 + MobCharge.SLAM_SECONDS + MobCharge.DISPERSE_SECONDS + 30,
 						0,
 						leadZ
 					),
 					2
 				),
 				nil,
-				"gone"
+				"gone after last independent arrival"
 			)
 			-- the same Event twice does not restart the slam
 			tr:attack(2, 7.5)
@@ -269,9 +269,17 @@ return {
 			)
 			-- an Event long after the mob dispersed and left must not bring it back
 			local gone = fresh()
-			assert(find(gone:views(goneAt + 0.5, 0, leadZ), 2) == nil, "gone")
-			gone:attack(2, goneAt + 0.5)
-			eq(find(gone:views(goneAt + 0.6, 0, leadZ), 2), nil, "an Event never resurrects a mob")
+			local afterAllIndividuals = goneAt + 30
+			assert(
+				find(gone:views(afterAllIndividuals, 0, leadZ), 2) == nil,
+				"gone after last independent arrival"
+			)
+			gone:attack(2, afterAllIndividuals)
+			eq(
+				find(gone:views(afterAllIndividuals + 0.1, 0, leadZ), 2),
+				nil,
+				"an Event never resurrects a mob"
+			)
 			-- an Event that arrives before the views notice the fallback is also ignored
 			local between = fresh()
 			between:attack(2, 6 + MobCharge.SLAM_FALLBACK + 0.2)
@@ -293,8 +301,11 @@ return {
 			local lost = fresh()
 			eq(find(lost:views(6.2, 0, leadZ), 2).phase, "walking", "still waiting")
 			eq(find(lost:views(6.6, 0, leadZ), 2).phase, "slamming", "fallback")
-			assert(find(lost:views(goneAt + 0.1, 0, leadZ), 2) == nil, "and then it is gone")
-			assert(find(lost:views(goneAt + 5, 0, leadZ), 2) == nil, "and stays gone")
+			assert(
+				find(lost:views(goneAt + 0.1, 0, leadZ), 2) ~= nil,
+				"late individuals still arrive independently"
+			)
+			assert(find(lost:views(goneAt + 30, 0, leadZ), 2) == nil, "and stays gone")
 		end,
 	},
 }

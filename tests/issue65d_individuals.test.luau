@@ -244,11 +244,13 @@ return {
 		name = "every figure individually visible: at the visible depth a figure reads at minScreenFraction, scaled up to maxScale at most, and never scaled when it already reads",
 		run = function()
 			local p = params()
+			local figureHeight = p.bodyHeight + p.headDiameter
 			for _, pullback in { 1, 1.4 } do
 				local depth = Emergence.visibleDepthAhead(pullback)
 				local pose = CameraRig.pose(0, 0, pullback)
 				-- the farthest visible individual is the one that must still read on a phone
-				local frac = CameraRig.screenFraction(pose, 1.1, depth - 2, 2.2)
+				local frac =
+					CameraRig.screenFraction(pose, figureHeight / 2, depth - 2, figureHeight)
 				local s = scatter().legibleScale(frac, p)
 				assert(
 					s <= p.maxScale + 1e-9,
@@ -258,10 +260,10 @@ return {
 					frac * s >= p.minScreenFraction,
 					`pullback {pullback}: a figure at the visible depth reads at {frac * s} of the screen height (scale {s}), minScreenFraction {p.minScreenFraction}`
 				)
-				local near = CameraRig.screenFraction(pose, 1.1, 10, 2.2)
+				local near = CameraRig.screenFraction(pose, figureHeight / 2, -20, figureHeight)
 				assert(
 					scatter().legibleScale(near, p) == 1,
-					"a figure that already reads is not scaled"
+					`a figure that already reads is not scaled (fraction {near}, floor {p.minScreenFraction})`
 				)
 			end
 		end,
