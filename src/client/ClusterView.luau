@@ -418,7 +418,7 @@ function ClusterView.new(layout: any): ClusterView
 				table.insert(pending, { at = clock + seconds, id = shot.id, variant = variant })
 			end
 		end
-		if variant ~= "note" then
+		if shot.shot == "gift" then -- spectators catch gifts; hearts on ordinary shots are not caught
 			catches[shot.id] = clock + seconds
 		end
 		return converted
@@ -431,8 +431,9 @@ function ClusterView.new(layout: any): ClusterView
 		if miss == nil or not shotBudget:take() then
 			return
 		end
-		-- heart / snack alternate per gift, as for hits (a gift is every Nth shot number)
-		local variant = FeedbackMath.variant(miss.shot, miss.n // Config.giftEveryNthShot)
+		-- Notes and hearts alternate per shot; gifts and snacks alternate per gift (every Nth shot).
+		local parity = if miss.shot == "gift" then miss.n // Config.giftEveryNthShot else miss.n
+		local variant = FeedbackMath.variant(miss.shot, parity)
 		if
 			flights:start(clock, ShotLook.MISS_SECONDS, {
 				id = nil,
