@@ -62,7 +62,7 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 	local smallX = if spec.bigOnLeft then 16 else -16
 	local bigX = -smallX
 	for pair = 1, PAIRS do
-		local arrive = 1 + waveOffset(pair) + spec.waveDelay + 0.4
+		local arrive = 1 + waveOffset(pair) + spec.waveDelay + 1
 		local base = Config.speed * arrive + 20
 		add(pair * 2 - 1, "small", smallX, arrive, base)
 		add(pair * 2, "large", bigX, arrive, base)
