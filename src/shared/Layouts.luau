@@ -134,7 +134,7 @@ local calleMercado = make("calle-del-mercado", 0, {
 	obstacle(3, 88, "left"),
 }, {
 	waveDelay = 9,
-	soaks = { 3, 4, 3, 3 },
+	soaks = { 2, 4, 3, 3 },
 	bigOnLeft = false,
 })
 
@@ -153,7 +153,7 @@ local portalDelSur = make("portal-del-sur", 1, {
 	obstacle(3, 86, "right"),
 }, {
 	waveDelay = 9,
-	soaks = { 3, 4, 3, 3 },
+	soaks = { 2, 4, 3, 3 },
 	bigOnLeft = true,
 })
 
@@ -172,7 +172,7 @@ local esquinaDeLaBanda = make("esquina-de-la-banda", 2, {
 	obstacle(3, 80, "left"),
 }, {
 	waveDelay = 9,
-	soaks = { 3, 4, 3, 3 },
+	soaks = { 2, 4, 3, 3 },
 	bigOnLeft = false,
 })
 
