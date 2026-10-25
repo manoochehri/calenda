@@ -178,14 +178,14 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	gui.Name = "CalendaStartup"
 	GuiLayout.fullScreen(gui) -- decorative backdrop only; the Play button lives in `controls`
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 100
+	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.startup
 	gui.Parent = playerGui
 	-- Issue #78: the primary button is in the safe area, lower right, under the thumb.
 	local controls = Instance.new("ScreenGui")
 	controls.Name = "CalendaStartupControls"
 	GuiLayout.safe(controls)
 	controls.ResetOnSpawn = false
-	controls.DisplayOrder = 101
+	controls.DisplayOrder = ScreenLayout.DISPLAY_ORDER.startupControls
 	controls.Parent = playerGui
 
 	local veil = Instance.new("Frame")
@@ -207,8 +207,9 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local card = Instance.new("Frame")
 	card.Name = "Card"
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.48)
-	card.Size = UDim2.fromScale(0.84, 0.74)
+	local tc = ScreenLayout.TITLE_CARD -- landscape: ends above the lower right Play button
+	card.Position = UDim2.fromScale(tc.x, tc.y)
+	card.Size = UDim2.fromScale(tc.w, tc.h)
 	card.BackgroundColor3 = Color3.fromRGB(58, 39, 69)
 	card.BackgroundTransparency = 0.06
 	card.BorderSizePixel = 0
@@ -216,7 +217,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	round(card, 30)
 	stroke(card, Color3.fromRGB(255, 223, 166), 3)
 	local bounds = Instance.new("UISizeConstraint")
-	bounds.MinSize = Vector2.new(300, 360)
+	bounds.MinSize = Vector2.new(300, 240) -- was 360: taller than a 390 px phone leaves room
 	bounds.MaxSize = Vector2.new(600, 610)
 	bounds.Parent = card
 
@@ -328,7 +329,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local footer = label(card, "Version", VERSION_LABEL, Enum.Font.GothamBold)
 	footer.AnchorPoint = Vector2.new(0.5, 1)
 	footer.Position = UDim2.fromScale(0.5, 0.91)
-	footer.Size = UDim2.fromScale(0.36, 0.045)
+	footer.Size = UDim2.fromScale(0.36, 0.06)
 	footer.TextColor3 = Color3.fromRGB(222, 204, 197)
 	footer.TextTransparency = 0.1
 	footer.TextSize = 12

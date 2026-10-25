@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local HitFeedback = require(Shared:WaitForChild("HitFeedback"))
 local HpBar = require(Shared:WaitForChild("HpBar"))
@@ -67,12 +68,16 @@ function Hud.new(onReplay: () -> (), onMusicMute: (muted: boolean) -> ()): Hud
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CalendaHud"
 	gui.ResetOnSpawn = false
+	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hud
 	GuiLayout.safe(gui)
 	gui.Parent = playerGui
 	-- Decorative full-screen layer (hit flash, results dim): no text, no buttons.
 	local fx = Instance.new("ScreenGui")
 	fx.Name = "CalendaHudFx"
 	fx.ResetOnSpawn = false
+	-- Below CalendaHud (order 0) so the results dim sits UNDER the Title/Score/Best/Replay texts; ties
+	-- are unspecified in the docs. Table and test: ScreenLayout.DISPLAY_ORDER.
+	fx.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hudFx
 	GuiLayout.fullScreen(fx)
 	fx.Parent = playerGui
 

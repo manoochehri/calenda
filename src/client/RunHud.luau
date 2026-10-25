@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local HudMeters = require(Shared:WaitForChild("HudMeters"))
 
@@ -27,7 +28,7 @@ function RunHud.new(): RunHud
 	gui.Name = "CalendaRunHud"
 	gui.ResetOnSpawn = false
 	GuiLayout.safe(gui)
-	gui.DisplayOrder = 5
+	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.runHud
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 	-- Meter: a bar under the counter that fills as loose followers approach the next section.

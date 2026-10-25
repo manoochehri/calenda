@@ -1,6 +1,7 @@
 --!strict
 -- Issue #78: landscape-only HUD layout at every supported aspect ratio, with safe-area insets.
 local CameraRig = require("../src/shared/CameraRig")
+local DebugLayout = require("../src/shared/DebugLayout")
 local ScreenLayout = require("../src/shared/ScreenLayout")
 local Strings = require("../src/shared/Strings")
 
@@ -128,25 +129,60 @@ return {
 		end,
 	},
 	{
-		name = "text is readable: floor >= 14 px, the box is at least the floor tall, and the sample string fits the width",
+		name = "text is readable: the size TextScaled wants (box height or string width) is >= the 14 px floor",
 		run = function()
 			eachAspect(function(a, safe, _)
 				for _, e in ScreenLayout.ELEMENTS do
 					if e.text then
-						local t = e.text
-						assert(t.minSize >= 14, `{e.name} floor {t.minSize} < 14`)
-						local r = ScreenLayout.elementRect(e, safe)
-						local boxH = r.h * (t.heightShare or 1)
-						assert(
-							boxH >= t.minSize - EPS,
-							`{e.name} {a.name}: box {boxH} px < floor {t.minSize}`
-						)
-						local need = ScreenLayout.textWidthPx(t.sample, t.minSize)
-						assert(need <= r.w + EPS, `{e.name} {a.name}: needs {need} px, has {r.w}`)
-						assert(ScreenLayout.effectiveTextPx(e, safe) >= 14, `{e.name} effective`)
+						assert(e.text.minSize >= 14, `{e.name} floor {e.text.minSize} < 14`)
+						local fit = ScreenLayout.fitTextPx(e, safe)
+						assert(fit >= e.text.minSize - EPS, `{e.name} {a.name}: fits only {fit} px`)
 					end
 				end
 			end)
+			-- Non-vacuous: a too-narrow box is caught.
+			local narrow = {
+				name = "x",
+				ax = 0,
+				ay = 0,
+				x = 0,
+				y = 0,
+				w = 0.05,
+				h = 0.1,
+				phases = {},
+				text = { minSize = 14, maxSize = 20, sample = "Arrastra para moverte" },
+			}
+			assert(
+				ScreenLayout.fitTextPx(narrow, ScreenLayout.safeRect(ScreenLayout.ASPECTS[2])) < 14,
+				"narrow box must fail"
+			)
+		end,
+	},
+	{
+		name = "the title card ends above the Play button, and every DisplayOrder is unique with the dim under the HUD text",
+		run = function()
+			local card = ScreenLayout.TITLE_CARD
+			eachAspect(function(a, safe, full)
+				local r = ScreenLayout.elementRect(
+					ScreenLayout.element("Play") :: ScreenLayout.Element,
+					safe
+				)
+				local cardBottom = (card.y + card.h / 2) * full.h
+				assert(
+					r.y >= cardBottom,
+					`{a.name}: Play top {r.y} is inside the card (bottom {cardBottom})`
+				)
+			end)
+			local D = ScreenLayout.DISPLAY_ORDER
+			local seen = {}
+			for k, v in D do
+				assert(seen[v] == nil, `{k} ties with {seen[v]}`)
+				seen[v] = k
+			end
+			assert(D.hudFx < D.hud, "hit flash and results dim under the HUD text and Replay")
+			assert(D.hud < D.runHud and D.runHud < D.sections, "run HUD above the base HUD")
+			assert(D.sections < D.startup, "title above the HUD")
+			assert(D.startup < D.startupControls, "Play above the title backdrop")
 		end,
 	},
 	{
@@ -171,7 +207,7 @@ return {
 					end
 				end
 			end)
-			assert(buttons >= 4, "replay is tested at every aspect")
+			assert(buttons >= 8, "replay is tested at every aspect")
 			assert(ScreenLayout.element("Replay").primary == true, "layout")
 		end,
 	},
@@ -195,11 +231,11 @@ return {
 					local pose = CameraRig.pose(0, 0, pullback)
 					local half = CameraRig.visibleHalfWidth(pose, CameraRig.GATE_NEAR, a.ratio)
 					assert(
-						half >= 20,
+						half >= DebugLayout.halfWidth,
 						`lane clipped at {a.name}, pullback {pullback}: sees +-{half}`
 					)
 					-- px from the screen centre to the lane edge (x = 20), versus the safe half width
-					local lanePx = 20 / half * (full.w / 2)
+					local lanePx = DebugLayout.halfWidth / half * (full.w / 2)
 					assert(
 						lanePx <= full.w / 2 - safe.x + EPS,
 						`{a.name} lane runs under the notch`

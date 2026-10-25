@@ -12,7 +12,7 @@ local ScreenLayout = {}
 
 export type Aspect = { name: string, ratio: number, notched: boolean }
 export type Rect = { x: number, y: number, w: number, h: number }
-export type Phases = { run: boolean?, results: boolean? }
+export type Phases = { run: boolean?, results: boolean?, title: boolean? }
 export type TextSpec = {
 	minSize: number, -- UITextSizeConstraint.MinTextSize, px
 	maxSize: number, -- UITextSizeConstraint.MaxTextSize, px
@@ -42,6 +42,21 @@ ScreenLayout.TOPBAR_HEIGHT = 44 -- [default] px the Roblox top bar and cutout ta
 ScreenLayout.MIN_TEXT = 14 -- px floor for any HUD text
 ScreenLayout.MIN_TOUCH = 44 -- px, each way
 ScreenLayout.GLYPH_EM = 0.62 -- estimate: average advance of a bold sans glyph, in em
+
+-- ScreenGui.DisplayOrder of every GUI, lowest drawn first. Ties are unspecified in the docs, so no
+-- two layers that overlap share a number. The hit flash and results dim sit UNDER the HUD text.
+ScreenLayout.DISPLAY_ORDER = table.freeze({
+	hudFx = -1, -- CalendaHudFx: hit flash, results dim (decorative, full screen)
+	hud = 0, -- CalendaHud: counter, HP bar, hint, results texts and Replay
+	runHud = 5, -- CalendaRunHud: section meter, banner
+	sections = 6, -- CalendaSections: +N secciones (kept above the HUD, below the title)
+	startup = 100, -- CalendaStartup: title backdrop and card
+	startupControls = 101, -- CalendaStartupControls: Play, above the backdrop
+})
+
+-- The title card, a fraction of the FULL screen (centre x, centre y, size). Landscape: it ends
+-- above the lower right Play button.
+ScreenLayout.TITLE_CARD = table.freeze({ x = 0.5, y = 0.42, w = 0.84, h = 0.66 })
 
 ScreenLayout.ASPECTS = table.freeze({
 	table.freeze({ name = "16:9", ratio = 16 / 9, notched = false } :: Aspect),
@@ -95,6 +110,7 @@ end
 local RUN = { run = true }
 local BOTH = { run = true, results = true }
 local RESULTS = { results = true }
+local TITLE = { title = true }
 
 -- The primary button, shared so the start screen's "Jugar" (issue #72) reuses the same corner.
 ScreenLayout.PRIMARY_BUTTON = table.freeze({ ax = 1, ay = 1, x = 1, y = 1, w = 0.28, h = 0.17 })
@@ -106,6 +122,15 @@ local replay = el("Replay", 1, 1, 1, 1, 0.28, 0.17, RESULTS, {
 })
 replay.touch = true
 replay.primary = true
+
+-- The title screen's "Jugar" (issue #72) is the same primary button in the same corner.
+local play = el("Play", 1, 1, 1, 1, 0.28, 0.17, TITLE, {
+	minSize = 14,
+	maxSize = 36,
+	sample = "Jugar",
+})
+play.touch = true
+play.primary = true
 
 -- Top row: HP bar left, crowd counter centre, "+N secciones" right. The centre column below the
 -- counter holds the meter; the middle of the screen is left to the street and the portals.
@@ -243,6 +268,7 @@ local ELEMENTS = {
 		{ minSize = 14, maxSize = 32, sample = "Mejor: 99999" }
 	),
 	replay,
+	play,
 }
 for _, e in ELEMENTS do
 	if e.name == "MusicToggle" then
@@ -276,11 +302,15 @@ function ScreenLayout.textWidthPx(text: string, size: number): number
 	return (utf8.len(text) or #text) * ScreenLayout.GLYPH_EM * size
 end
 
--- Size TextScaled settles on: the box height, held between the min and max constraints.
-function ScreenLayout.effectiveTextPx(e: Element, safe: Rect): number
+-- Size TextScaled wants BEFORE the min/max constraints: the smaller of the box height and the
+-- size at which the sample string fills the box width. Readable means this is >= minSize.
+function ScreenLayout.fitTextPx(e: Element, safe: Rect): number
 	local t = e.text :: TextSpec
-	local boxH = ScreenLayout.elementRect(e, safe).h * (t.heightShare or 1)
-	return math.clamp(boxH, t.minSize, t.maxSize)
+	local r = ScreenLayout.elementRect(e, safe)
+	local byWidth = r.w
+		* (t.widthShare or 1)
+		/ ((utf8.len(t.sample) or #t.sample) * ScreenLayout.GLYPH_EM)
+	return math.min(r.h * (t.heightShare or 1), byWidth)
 end
 
 return ScreenLayout

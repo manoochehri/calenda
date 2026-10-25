@@ -4,10 +4,14 @@
 -- notches, rounded corners and the Roblox top bar), IgnoreGuiInset = false. Purely decorative
 -- full-screen layers (hit flash, dim, title backdrop) are `fullScreen`. Mixing the two for
 -- positions that must line up is the bug this fixes (PlusSections vs the section meter).
--- Source checked: Roblox docs list ScreenGui.ScreenInsets (Enum.ScreenInsets: None,
--- DeviceSafeInsets, CoreUISafeInsets, TopbarSafeInsets) and say CoreUISafeInsets keeps
--- descendants clear of top bar buttons and screen cutouts and is recommended for interactive
--- ScreenGuis. The docs give no semantics for IgnoreGuiInset/the other items. IN-ENGINE UNVERIFIED.
+-- Source checked (create.roblox.com/docs/reference/engine/classes/ScreenGui.md): IgnoreGuiInset
+-- only matters while ScreenInsets is CoreUISafeInsets. false (the default) keeps CoreUISafeInsets,
+-- which keeps contents below the top bar and clear of cutouts; true switches CoreUISafeInsets to
+-- DeviceSafeInsets (cutouts respected, top bar not). ScreenInsets = None applies no insets (and
+-- makes ClipToDeviceSafeArea irrelevant); the docs recommend None only for non-interactive
+-- backgrounds. So `safe` (false + CoreUISafeInsets) and `fullScreen` (true + None) are
+-- consistent and nothing is inset twice, whatever order the two are set in. The inset SIZES in
+-- ScreenLayout are estimates. IN-ENGINE BEHAVIOUR UNVERIFIED.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ScreenLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ScreenLayout"))
