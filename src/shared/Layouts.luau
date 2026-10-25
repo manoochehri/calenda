@@ -16,10 +16,10 @@ type Gate = Level.Gate
 type Obstacle = Level.Obstacle
 
 local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one before
-local PAIRS = 8
+local PAIRS = 4
 
 local function waveOffset(pair: number): number
-	return (pair - 1) * 3.4 -- three-group packs overlap within the low-quality visible cap
+	return (pair - 1) * 7.8 -- five-group packs overlap within the low-quality visible cap
 end
 
 local function at(seconds: number): number
@@ -62,7 +62,7 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 	local smallX = if spec.bigOnLeft then 16 else -16
 	local bigX = -smallX
 	for pair = 1, PAIRS do
-		local arrive = 1 + waveOffset(pair) + spec.waveDelay + 0.5
+		local arrive = 1 + waveOffset(pair) + spec.waveDelay + 0.4
 		local base = Config.speed * arrive + 20
 		add(pair * 2 - 1, "small", smallX, arrive, base)
 		add(pair * 2, "large", bigX, arrive, base)
@@ -120,7 +120,7 @@ local calleMercado = make("calle-del-mercado", 0, {
 	obstacle(3, 88, "left"),
 }, {
 	waveDelay = 9,
-	soaks = { 1, 1, 1, 1, 1, 1, 1, 1 },
+	soaks = { 3, 3, 3, 3 },
 	bigOnLeft = false,
 })
 
@@ -139,11 +139,11 @@ local portalDelSur = make("portal-del-sur", 1, {
 	obstacle(3, 86, "right"),
 }, {
 	waveDelay = 9,
-	soaks = { 1, 1, 1, 1, 1, 1, 1, 1 },
+	soaks = { 3, 3, 3, 3 },
 	bigOnLeft = true,
 })
 
--- Layout C: a quicker first wave (earlier arrival), heavier soaks, and a multiply mid-route.
+-- Layout C: heavier opening groups and a multiply mid-route.
 local esquinaDeLaBanda = make("esquina-de-la-banda", 2, {
 	gate(1, 13, op("add", 20), op("add", 10)),
 	gate(2, 24, op("add", 30), op("add", 20)),
@@ -157,8 +157,8 @@ local esquinaDeLaBanda = make("esquina-de-la-banda", 2, {
 	obstacle(2, 66, "right"),
 	obstacle(3, 80, "left"),
 }, {
-	waveDelay = 8,
-	soaks = { 1, 1, 1, 1, 1, 1, 1, 1 },
+	waveDelay = 9,
+	soaks = { 3, 3, 3, 3 },
 	bigOnLeft = false,
 })
 
