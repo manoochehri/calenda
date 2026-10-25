@@ -24,7 +24,7 @@ local function waveOffset(pair: number): number
 	elseif pair == 2 then
 		return 0.5 -- crowd the first two pairs so early fire can miss a group
 	end
-	return 0.5 + (pair - 2) * 7 -- spread later pairs to stay within the mob draw caps
+	return 0.5 + (pair - 2) * 3 -- keep later waves within the route and mob draw caps
 end
 
 local function at(seconds: number): number
