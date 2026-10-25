@@ -159,6 +159,34 @@ end
 
 -- Size multiplier that grows with the fade (SCALE_FROM .. 1).
 function Emergence.scaleIn(ahead: number, depth: number): number
+	export type Bar = { x: number, z: number, yaw: number, length: number, width: number }
+
+	Emergence.CHEVRON_ARM = 6 -- [default] studs, length of one arm
+	Emergence.CHEVRON_WIDTH = 1.6 -- [default] studs
+	Emergence.CHEVRON_ANGLE = math.rad(40) -- [default] each arm's angle from the lane axis
+	Emergence.CHEVRON_GAP = 1.2 -- [default] studs from the apex to where an arm starts (no overlap)
+
+	-- The warning chevron as two flat bars in ROBLOX space (x already mirrored by the caller): a "v"
+	-- whose apex points down the lane (toward the parade, -z) at (x, z); the arms run back toward the
+	-- camera (+z) and outward. `yaw` is the CFrame.Angles(0, yaw, 0) rotation that turns a bar's
+	-- long X axis along its arm: Roblox maps +X to (cos yaw, -sin yaw) in (x, z).
+	function Emergence.chevronBars(x: number, z: number): { Bar }
+		local out: { Bar } = {}
+		for _, side in { -1, 1 } do
+			local dx, dz =
+				side * math.sin(Emergence.CHEVRON_ANGLE), math.cos(Emergence.CHEVRON_ANGLE)
+			local reach = Emergence.CHEVRON_GAP + Emergence.CHEVRON_ARM / 2
+			table.insert(out, {
+				x = x + dx * reach,
+				z = z + dz * reach,
+				yaw = math.atan2(-dz, dx),
+				length = Emergence.CHEVRON_ARM,
+				width = Emergence.CHEVRON_WIDTH,
+			})
+		end
+		return out
+	end
+
 	return Emergence.SCALE_FROM + (1 - Emergence.SCALE_FROM) * Emergence.fade(ahead, depth)
 end
 
@@ -179,11 +207,66 @@ end
 -- Pulse 0..1 whose rate rises with the threat. Phase is the integral of the rate, so pass the
 -- running phase accumulated with `pulseRate`.
 function Emergence.pulseRate(threat: number): number
+	export type Bar = { x: number, z: number, yaw: number, length: number, width: number }
+
+	Emergence.CHEVRON_ARM = 6 -- [default] studs, length of one arm
+	Emergence.CHEVRON_WIDTH = 1.6 -- [default] studs
+	Emergence.CHEVRON_ANGLE = math.rad(40) -- [default] each arm's angle from the lane axis
+	Emergence.CHEVRON_GAP = 1.2 -- [default] studs from the apex to where an arm starts (no overlap)
+
+	-- The warning chevron as two flat bars in ROBLOX space (x already mirrored by the caller): a "v"
+	-- whose apex points down the lane (toward the parade, -z) at (x, z); the arms run back toward the
+	-- camera (+z) and outward. `yaw` is the CFrame.Angles(0, yaw, 0) rotation that turns a bar's
+	-- long X axis along its arm: Roblox maps +X to (cos yaw, -sin yaw) in (x, z).
+	function Emergence.chevronBars(x: number, z: number): { Bar }
+		local out: { Bar } = {}
+		for _, side in { -1, 1 } do
+			local dx, dz =
+				side * math.sin(Emergence.CHEVRON_ANGLE), math.cos(Emergence.CHEVRON_ANGLE)
+			local reach = Emergence.CHEVRON_GAP + Emergence.CHEVRON_ARM / 2
+			table.insert(out, {
+				x = x + dx * reach,
+				z = z + dz * reach,
+				yaw = math.atan2(-dz, dx),
+				length = Emergence.CHEVRON_ARM,
+				width = Emergence.CHEVRON_WIDTH,
+			})
+		end
+		return out
+	end
+
 	return Emergence.PULSE_HZ_MIN + (Emergence.PULSE_HZ_MAX - Emergence.PULSE_HZ_MIN) * threat
 end
 
 function Emergence.pulse(threat: number, phase: number): number
 	return threat * (0.5 + 0.5 * math.sin(phase * math.pi * 2))
+end
+
+export type Bar = { x: number, z: number, yaw: number, length: number, width: number }
+
+Emergence.CHEVRON_ARM = 6 -- [default] studs, length of one arm
+Emergence.CHEVRON_WIDTH = 1.6 -- [default] studs
+Emergence.CHEVRON_ANGLE = math.rad(40) -- [default] each arm's angle from the lane axis
+Emergence.CHEVRON_GAP = 1.2 -- [default] studs from the apex to where an arm starts (no overlap)
+
+-- The warning chevron as two flat bars in ROBLOX space (x already mirrored by the caller): a "v"
+-- whose apex points down the lane (toward the parade, -z) at (x, z); the arms run back toward the
+-- camera (+z) and outward. `yaw` is the CFrame.Angles(0, yaw, 0) rotation that turns a bar's
+-- long X axis along its arm: Roblox maps +X to (cos yaw, -sin yaw) in (x, z).
+function Emergence.chevronBars(x: number, z: number): { Bar }
+	local out: { Bar } = {}
+	for _, side in { -1, 1 } do
+		local dx, dz = side * math.sin(Emergence.CHEVRON_ANGLE), math.cos(Emergence.CHEVRON_ANGLE)
+		local reach = Emergence.CHEVRON_GAP + Emergence.CHEVRON_ARM / 2
+		table.insert(out, {
+			x = x + dx * reach,
+			z = z + dz * reach,
+			yaw = math.atan2(-dz, dx),
+			length = Emergence.CHEVRON_ARM,
+			width = Emergence.CHEVRON_WIDTH,
+		})
+	end
+	return out
 end
 
 return Emergence

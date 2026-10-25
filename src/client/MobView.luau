@@ -53,7 +53,8 @@ export type Desc = {
 }
 
 export type MobView = {
-	update: (self: MobView, mobs: { Desc }, leadZ: number, clock: number) -> (),
+	update: (self: MobView, mobs: { Desc }, leadZ: number, clock: number, dt: number) -> (),
+	rankFade: (self: MobView, id: number) -> number, -- 0 when the mob is not drawn (its tag must hide)
 	setQuality: (self: MobView, name: string) -> (),
 	quality: (self: MobView) -> string,
 	counts: (self: MobView) -> { figures: number, mobs: number, emitters: number },
@@ -194,6 +195,9 @@ function MobView.new(parent: Instance, quality: string): MobView
 	local byId: { [number]: Swarm } = {}
 	local dusts: { Dust } = {}
 	local puffed: { [number]: boolean } = {}
+	local admission = MobLod.admission(level.maxMobs)
+	local rankFades: { [number]: number } = {}
+	local slotCache: { [number]: { dx: { number }, dz: { number } } } = {}
 	local usedFigures, usedMobs, usedEmitters = 0, 0, 0
 
 	-- Reused per-frame arrays for BulkMoveTo.
@@ -252,12 +256,26 @@ function MobView.new(parent: Instance, quality: string): MobView
 		moveCFrames[moveCount] = cf
 	end
 
-	function self.update(_, mobs: { Desc }, leadZ: number, clock: number)
+	function self.update(_, mobs: { Desc }, leadZ: number, clock: number, dt: number)
 		moveCount = 0
 		local sorted = table.clone(mobs)
 		table.sort(sorted, function(a, b)
 			return a.ahead < b.ahead
 		end)
+		-- Rank-based admission: only the nearest maxMobs are drawn; a farther mob waits for a free
+		-- slot and fades in from 0, a displaced one fades out first (never a pop, never over the cap).
+		local ids: { number } = {}
+		for i, m in sorted do
+			ids[i] = m.id
+		end
+		rankFades = admission:step(ids, dt)
+		local admitted: { Desc } = {}
+		for _, m in sorted do
+			if rankFades[m.id] ~= nil then
+				table.insert(admitted, m)
+			end
+		end
+		sorted = admitted
 		-- LOD: the share of the screen one figure takes, measured at the closest camera pose.
 		local pose = CameraRig.pose(0, leadZ, DEPTH_PULLBACK)
 		local ins: { MobLod.MobIn } = {}
@@ -267,7 +285,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 			ins[i] = {
 				size = MobLod.mobSize(m.reward, levelName),
 				nearWeight = MobLod.nearWeight(frac),
-				fade = m.fade * keep,
+				fade = m.fade * keep * (rankFades[m.id] :: number),
 			}
 		end
 		local alloc = MobLod.allocate(ins, levelName)
@@ -295,15 +313,24 @@ function MobView.new(parent: Instance, quality: string): MobView
 				depthScale = MobCharge.slamDepth(m.age)
 			end
 			local pulse = math.max(m.pulse, m.glow)
-			local sink = (1 - m.fade) * MobCharge.SINK -- rises out of the road as it fades in
-			local centerX = m.x
+			local sink = (1 - m.fade * (rankFades[m.id] :: number)) * MobCharge.SINK -- rises out of the road as it fades in
+			local centerX = MobLod.lateralFit(m.x, width) -- keeps every figure inside |x| 21.5
 			local slam = if m.phase == "slamming" then MobCharge.slam(m.age) else 0
 
 			-- real figures
 			for k = 1, a.figures do
 				figureCursor += 1
 				local f = figureSlots[figureCursor]
-				local dx, dz = MobCharge.wedgeSlot(k, level.maxFiguresPerMob, width, depth)
+				local cache = slotCache[size]
+				if cache == nil then
+					cache = { dx = {}, dz = {} }
+					for j = 1, level.maxFiguresPerMob do
+						cache.dx[j], cache.dz[j] =
+							MobCharge.wedgeSlot(j, level.maxFiguresPerMob, width, depth)
+					end
+					slotCache[size] = cache
+				end
+				local dx, dz = cache.dx[k], cache.dz[k]
 				local x, z = centerX + dx, m.z + dz * depthScale
 				local hop, lean, arm = MobCharge.stride(k + m.id, clock)
 				local down = sink
@@ -407,6 +434,12 @@ function MobView.new(parent: Instance, quality: string): MobView
 	function self.setQuality(_, name: string)
 		levelName = QualityConfig.resolve(name)
 		level = QualityConfig.get(levelName)
+		admission = MobLod.admission(level.maxMobs)
+		table.clear(slotCache) -- slots depend on the per-mob figure cap
+	end
+
+	function self.rankFade(_, id: number): number
+		return rankFades[id] or 0
 	end
 
 	function self.quality(_): string
@@ -426,6 +459,8 @@ function MobView.new(parent: Instance, quality: string): MobView
 			d.emitter.Rate = 0
 		end
 		table.clear(puffed)
+		admission:clear()
+		rankFades = {}
 		usedFigures, usedMobs, usedEmitters = 0, 0, 0
 	end
 

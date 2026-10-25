@@ -71,6 +71,7 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 	local hits: { [number]: number } = {}
 	local filledAt: { [number]: number } = {}
 	local attackedAt: { [number]: number } = {} -- id -> run time of the server's attack Event
+	local slamAt: { [number]: number } = {} -- id -> latched slam start (Event or fallback)
 	local reachedAt: { [number]: number } = {} -- id -> run time the mob was first seen at the parade
 	-- Beyond this (visible depth + spawn margin) a mob is not drawn at all.
 	local _, deepest = Emergence.depthRange(cfg)
@@ -108,7 +109,18 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 	end
 
 	function self.attack(_, id: number, t: number)
-		if byId[id] ~= nil and attackedAt[id] == nil and type(t) == "number" and t == t then
+		if byId[id] == nil or type(t) ~= "number" or t ~= t then
+			return
+		end
+		-- The slam start is LATCHED the first time it is used (an Event or the fallback). A later
+		-- Event changes nothing: it never restarts a slam and never brings back a dispersed mob.
+		if slamAt[id] ~= nil or attackedAt[id] ~= nil then
+			return
+		end
+		local reach = reachedAt[id]
+		if reach ~= nil and t >= reach + MobCharge.SLAM_FALLBACK then
+			slamAt[id] = reach + MobCharge.SLAM_FALLBACK -- the fallback was already due
+		else
 			attackedAt[id] = t
 		end
 	end
@@ -171,9 +183,12 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 							reach = t
 							reachedAt[c.id] = reach
 						end
-						local hitAt = attackedAt[c.id]
+						local hitAt = slamAt[c.id] or attackedAt[c.id]
 						if hitAt == nil and t >= reach + MobCharge.SLAM_FALLBACK then
 							hitAt = reach + MobCharge.SLAM_FALLBACK
+						end
+						if hitAt ~= nil then
+							slamAt[c.id] = hitAt -- latch
 						end
 						if hitAt == nil then
 							view.z = leadZ + MobCharge.SLAM_GAP -- waiting for the Event
@@ -211,6 +226,7 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 		hits = {}
 		filledAt = {}
 		attackedAt = {}
+		slamAt = {}
 		reachedAt = {}
 	end
 

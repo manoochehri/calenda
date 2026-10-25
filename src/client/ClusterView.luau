@@ -181,8 +181,21 @@ function ClusterView.new(layout: any): ClusterView
 	folder.Name = "CalendaSpectators"
 	folder.Parent = Workspace
 
-	local quality = QualityConfig.defaultFor(UserInputService.TouchEnabled)
+	-- Quality: the owner's override (player attribute "CalendaQuality", read now and on change)
+	-- beats Config.debug.quality, which beats the device default (QualityConfig.pick).
+	local player = Players.LocalPlayer
+	local function pickQuality(): string
+		local attribute = if player then player:GetAttribute("CalendaQuality") else nil
+		return QualityConfig.pick(attribute, Config.debug.quality, UserInputService.TouchEnabled)
+	end
+	local quality = pickQuality()
 	local mobs = MobView.new(folder, quality)
+	if player then
+		player:GetAttributeChangedSignal("CalendaQuality"):Connect(function()
+			quality = pickQuality()
+			mobs:setQuality(quality)
+		end)
+	end
 	local pullback = 1
 	local pulsePhase: { [number]: number } = {} -- cluster id -> running alert pulse phase
 	local chevronPool = Pool.new(function(): Chevron
@@ -518,7 +531,6 @@ function ClusterView.new(layout: any): ClusterView
 			local fade = Emergence.fade(v.ahead, depth)
 			local g = gs[i]
 			g.root.Position = Vector3.new(ViewMap.x(v.x), 1, midZ)
-			g.gui.Enabled = fade > 0.5 and v.phase ~= "dispersing" and v.phase ~= "slamming"
 			local caughtAt = catches[v.id]
 			local glow, catchHop = 0, 0
 			if
@@ -573,7 +585,16 @@ function ClusterView.new(layout: any): ClusterView
 				table.insert(runnerViews, r)
 			end
 		end
-		mobs:update(descs, leadZ, clock)
+		debug.profilebegin("Calenda/Mobs")
+		mobs:update(descs, leadZ, clock, dt)
+		debug.profileend()
+		-- Tags only for DRAWN mobs (a mob waiting for a slot has no tag) and not while it slams.
+		for i, v in views do
+			gs[i].gui.Enabled = Emergence.fade(v.ahead, depth) > 0.5
+				and mobs:rankFade(v.id) > 0.5
+				and v.phase ~= "dispersing"
+				and v.phase ~= "slamming"
+		end
 
 		-- Screen-edge pulse: the nearest unconverted wave tints the left and right edges.
 		if edgeLeft ~= nil and edgeRight ~= nil then
@@ -606,12 +627,13 @@ function ClusterView.new(layout: any): ClusterView
 			local z = leadZ + depth * CHEVRON_ROW
 			local y = LayerHeights.TELEGRAPH - 0.1
 			local tr = 1 - sc.alpha * blink
-			-- two bars forming a "v" that points down the lane (toward the parade); the lateral
-			-- offsets go through ViewMap.x with the position
-			c.left.CFrame = CFrame.new(ViewMap.x(sc.x - 2), y, z + 1.4)
-				* CFrame.Angles(0, math.rad(35), 0)
-			c.right.CFrame = CFrame.new(ViewMap.x(sc.x + 2), y, z + 1.4)
-				* CFrame.Angles(0, math.rad(-35), 0)
+			-- two bars forming a "v" whose apex points down the lane (Emergence.chevronBars, tested);
+			-- the lateral position goes through ViewMap.x once, the shape is symmetric
+			local bars = Emergence.chevronBars(ViewMap.x(sc.x), z)
+			c.left.Size = Vector3.new(bars[1].length, 0.2, bars[1].width)
+			c.right.Size = Vector3.new(bars[2].length, 0.2, bars[2].width)
+			c.left.CFrame = CFrame.new(bars[1].x, y, bars[1].z) * CFrame.Angles(0, bars[1].yaw, 0)
+			c.right.CFrame = CFrame.new(bars[2].x, y, bars[2].z) * CFrame.Angles(0, bars[2].yaw, 0)
 			c.left.Transparency, c.right.Transparency = tr, tr
 			c.dust.Rate = 12 * sc.alpha
 		end

@@ -246,4 +246,55 @@ return {
 			eq((ClusterVisual :: any).PASS_DISTANCE, nil, "PASS_DISTANCE removed")
 		end,
 	},
+	{
+		name = "round 1: the slam start is LATCHED (late Event inside the slam, Event after dispersal, duplicate Events, lost Event)",
+		run = function()
+			local cz = Level.clusterPosition(layout, 2, 6).z
+			local leadZ = cz + 1
+			local function fresh(): ClusterVisual.Tracker
+				local tr = ClusterVisual.new(layout)
+				assert(find(tr:views(6, 0, leadZ), 2) ~= nil, "reached the parade at t=6")
+				return tr
+			end
+			local slamEnd = 6 + MobCharge.SLAM_FALLBACK + MobCharge.SLAM_SECONDS
+			local goneAt = slamEnd + MobCharge.DISPERSE_SECONDS
+			-- a late Event after the fallback has started the slam must not restart it
+			local late = fresh()
+			eq(find(late:views(6.6, 0, leadZ), 2).phase, "slamming", "fallback slam running")
+			late:attack(2, 6.7)
+			eq(
+				find(late:views(slamEnd + 0.05, 0, leadZ), 2).phase,
+				"dispersing",
+				"the slam still ends on the fallback schedule"
+			)
+			-- an Event long after the mob dispersed and left must not bring it back
+			local gone = fresh()
+			assert(find(gone:views(goneAt + 0.5, 0, leadZ), 2) == nil, "gone")
+			gone:attack(2, goneAt + 0.5)
+			eq(find(gone:views(goneAt + 0.6, 0, leadZ), 2), nil, "an Event never resurrects a mob")
+			-- an Event that arrives before the views notice the fallback is also ignored
+			local between = fresh()
+			between:attack(2, 6 + MobCharge.SLAM_FALLBACK + 0.2)
+			eq(
+				find(between:views(slamEnd + 0.05, 0, leadZ), 2).phase,
+				"dispersing",
+				"fallback schedule wins over a late Event"
+			)
+			-- duplicate Events: the first one wins
+			local dup = fresh()
+			dup:attack(2, 6.1)
+			dup:attack(2, 6.3)
+			eq(
+				find(dup:views(6.1 + MobCharge.SLAM_SECONDS + 0.05, 0, leadZ), 2).phase,
+				"dispersing",
+				"first Event"
+			)
+			-- a lost Event: the fallback plays the slam, once
+			local lost = fresh()
+			eq(find(lost:views(6.2, 0, leadZ), 2).phase, "walking", "still waiting")
+			eq(find(lost:views(6.6, 0, leadZ), 2).phase, "slamming", "fallback")
+			assert(find(lost:views(goneAt + 0.1, 0, leadZ), 2) == nil, "and then it is gone")
+			assert(find(lost:views(goneAt + 5, 0, leadZ), 2) == nil, "and stays gone")
+		end,
+	},
 }

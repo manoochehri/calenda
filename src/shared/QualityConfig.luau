@@ -13,6 +13,10 @@
 -- maxDust        mobs that also carry a dust emitter (stride dust, puffs).
 -- maxStream      converted spectators running into the parade at once.
 -- puff           particles in one dissolve / impact puff.
+-- Emitters in total = maxMobs + maxDust + CHEVRONS (34 / 27 / 21). Steady particles are bounded
+-- by maxTotalDots; slam puffs are transient Emit() bursts on top, bounded by maxBurst
+-- (maxDust x 3 x puff = 960 / 360 / 108). Override at run time: player attribute CalendaQuality,
+-- or Config.debug.quality (see QualityConfig.pick).
 local QualityConfig = {}
 
 export type Level = {
@@ -88,10 +92,36 @@ function QualityConfig.defaultFor(touchEnabled: boolean): string
 	return if touchEnabled then QualityConfig.TOUCH_DEFAULT else QualityConfig.DESKTOP_DEFAULT
 end
 
--- Emitters one level can create: a swarm emitter per mob plus its dust emitters.
+QualityConfig.CHEVRONS = 6 -- [default] warning chevrons (each carries one small dust emitter)
+QualityConfig.BURSTS_PER_MOB = 3 -- one dust puff plus two swarm puffs when a mob slams
+
+function QualityConfig.isValid(name: any): boolean
+	return type(name) == "string" and QualityConfig.levels[name] ~= nil
+end
+
+-- Emitters one level can create: a swarm emitter per mob, the dust emitters, the chevron dust.
 function QualityConfig.maxEmitters(name: any): number
 	local l = QualityConfig.get(name)
-	return l.maxMobs + l.maxDust
+	return l.maxMobs + l.maxDust + QualityConfig.CHEVRONS
+end
+
+-- Most particles one frame's Emit() bursts can add on top of the steady swarm (a slam puff only
+-- plays on a mob that has a dust emitter, so at most maxDust mobs burst at once). Transient.
+function QualityConfig.maxBurst(name: any): number
+	local l = QualityConfig.get(name)
+	return l.maxDust * QualityConfig.BURSTS_PER_MOB * l.puff
+end
+
+-- The quality to use: the owner's override (a player attribute, set from the Studio Properties
+-- panel or the Command Bar) beats Config.debug.quality, which beats the device default.
+function QualityConfig.pick(attribute: any, configValue: any, touchEnabled: boolean): string
+	if QualityConfig.isValid(attribute) then
+		return attribute :: string
+	end
+	if QualityConfig.isValid(configValue) then
+		return configValue :: string
+	end
+	return QualityConfig.defaultFor(touchEnabled)
 end
 
 return QualityConfig
