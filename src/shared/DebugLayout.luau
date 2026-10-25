@@ -4,8 +4,9 @@
 -- stay stable when the forward pace is tuned. LayoutValidator proves the timeline.
 -- Waves alternate left, right, left, ... Left is negative x. Sidewalks are |x| = 16; this fixed
 -- layout keeps clusters on their authored sidewalk as they approach.
-local Level = require("./Level")
 local Config = require("./Config")
+local Emergence = require("./Emergence")
+local Level = require("./Level")
 
 local BASE_SPEED = 16
 local START_PLAZA_BASE_LENGTH = 80
@@ -13,54 +14,52 @@ local START_PLAZA_LENGTH = START_PLAZA_BASE_LENGTH * Config.speed / BASE_SPEED
 local function paceDistance(baseZ: number): number
 	return baseZ * Config.speed / BASE_SPEED
 end
-local function waveSpawnZ(spawnTime: number, baseGap: number): number
-	-- Keep the original run-time until a wave reaches the lead as the lead speed changes. Both
-	-- speeds contribute to closure; only the authored spawn gap needs to compensate.
-	local currentClosingSpeed = Config.speed + Config.spectators.approachSpeed
-	local baselineClosingSpeed = BASE_SPEED + Config.spectators.approachSpeed
-	return Config.speed * spawnTime + baseGap * currentClosingSpeed / baselineClosingSpeed
-end
 
--- Each pair presents one small and one large target on alternating sides. Their offsets tighten
--- through the route as the authored gates raise firing rate: unattended fire converts early small
--- targets but leaves large threats unfilled, while a player can pre-steer to those threats.
+-- Issue #65 (tension from the top). DATA CHANGE for the skeptic; provisional like the
+-- continuous-fire retune until the #17 ladder is re-run. Why the numbers moved:
+--  * Waves must EMERGE from beyond the camera's view (Emergence.requiredSpawnOffset, about 208
+--    studs ahead) instead of popping in 15-40 studs ahead. A cluster is therefore in firing range
+--    (60 studs) for the whole approach, 60 / (speed + approachSpeed) seconds, instead of the 1 s the
+--    old spawn offsets gave, so the same wave is far easier to convert. To keep the Amendment 1
+--    checks true (no-input run defeated, competent run completed with HP left) the data changes:
+--    1. spectators.approachSpeed 6 -> 20 (Config): the mob CHARGES; closing speed 34.4 studs/s keeps
+--       the visible approach at 3.7 s (a rule, tested) and the range window at 1.7 s.
+--    2. WAVE_DELAY: every pair arrives 9 s later than before (a calm opening: the first wave is
+--       first in view after 5 s).
+--    3. SOAKS: each pair grows a line of extra small groups on the left, a little nearer the lead
+--       than the big group on the right ("waves of rising size"). Unsteered fire spends its hits on
+--       the nearest groups, so the big group is not converted; a player who steers right converts
+--       it and still has hits left over for the soaks. Rising size matches the rising fire rate.
+--  * Each cluster's path is extended BACKWARD along its straight line (spawn earlier and farther
+--    away, rounded up to quarter seconds) until it spawns beyond the visible depth + margin. From
+--    the old geometry on, positions are unchanged.
+local WAVE_DELAY = 9 -- seconds [default]
+local SOAKS = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 } -- [default] extra small groups per pair
+local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
+
+local needOffset = Emergence.requiredSpawnOffset()
+local closing = Config.speed + Config.spectators.approachSpeed
 local clusters: { Level.Cluster } = {}
+local function add(wave: number, kind: string, x: number, spawnTime: number, spawnZ: number)
+	local offset = spawnZ - Config.speed * spawnTime
+	local back = math.max(0, math.ceil((needOffset - offset) / closing * 4) / 4)
+	table.insert(clusters, {
+		id = #clusters + 1,
+		wave = wave,
+		type = kind,
+		spawnTime = spawnTime - back,
+		spawn = { x = x, z = spawnZ + Config.spectators.approachSpeed * back },
+		path = {},
+	})
+end
 for pair = 1, 10 do
-	local spawnTime = 1 + (pair - 1) * 2.5
-	local smallWave = pair * 2 - 1
-	local largeWave = pair * 2
-	local smallX = if smallWave % 2 == 1 then -16 else 16
-	local largeX = if largeWave % 2 == 1 then -16 else 16
-	local smallZ = waveSpawnZ(spawnTime, 20)
-	-- Retuned for continuous fire (ADR 0004: base 6/s, cap 20/s; was 3/s, 12/s, offsets 30 and
-	-- 72..28): every offset is shorter so unsteered fire still loses the large targets. Provisional
-	-- until the #17 ladder is re-run.
-	-- Move the high-hit target closer as the authored route raises the fire rate. Center fire
-	-- first spends 3 hits on the small target; steering toward the large target early can finish
-	-- its 8-hit meter before it reaches the parade.
-	local largeOffset = if pair <= 3
-		then 40
-		elseif pair <= 6 then 30
-		elseif pair <= 8 then 25
-		elseif pair == 9 then 20
-		else 15
-	local largeZ = waveSpawnZ(spawnTime, largeOffset)
-	table.insert(clusters, {
-		id = #clusters + 1,
-		wave = smallWave,
-		type = "small",
-		spawnTime = spawnTime,
-		spawn = { x = smallX, z = smallZ },
-		path = {},
-	})
-	table.insert(clusters, {
-		id = #clusters + 1,
-		wave = largeWave,
-		type = "large",
-		spawnTime = spawnTime,
-		spawn = { x = largeX, z = largeZ },
-		path = {},
-	})
+	local arrive = 1 + (pair - 1) * 2.5 + WAVE_DELAY -- the old spawn time, shifted
+	local base = Config.speed * arrive + 20 -- z of the small group, as before
+	add(pair * 2 - 1, "small", -16, arrive, base)
+	add(pair * 2, "large", 16, arrive, base)
+	for soak = 1, SOAKS[pair] do
+		add(pair * 2 - 1, "small", -16, arrive, base - SOAK_STEP * soak)
+	end
 end
 
 local function deepFreeze<T>(t: T): T

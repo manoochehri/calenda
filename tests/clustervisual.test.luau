@@ -1,7 +1,9 @@
 --!strict
 local ClusterVisual = require("../src/shared/ClusterVisual")
 local Config = require("../src/shared/Config")
+local Emergence = require("../src/shared/Emergence")
 local Level = require("../src/shared/Level")
+local MobCharge = require("../src/shared/MobCharge")
 
 local function near(actual: number, expected: number, name: string)
 	assert(math.abs(actual - expected) < 1e-6, `{name}: expected {expected}, got {actual}`)
@@ -128,20 +130,90 @@ return {
 		end,
 	},
 	{
-		name = "unfilled: walks on, passes around the parade without fuss, then disappears",
+		name = "unfilled: the mob CHARGES straight in (no veer-away), stops at the lead and waits for the attack Event",
 		run = function()
 			local tr = ClusterVisual.new(layout)
 			-- cluster 2 (right side, x=16) walks straight toward -z from z=300 at t=5
 			local cz = Level.clusterPosition(layout, 2, 6).z
-			local before = find(tr:views(6, 0, cz - 4), 2)
+			local before = find(tr:views(6, 0, cz - 40), 2)
 			assert(before ~= nil, "visible")
 			eq(before.phase, "walking", "still walking")
-			local during = find(tr:views(6, 0, cz + ClusterVisual.PASS_DISTANCE / 2), 2)
-			assert(during ~= nil, "visible while passing")
-			eq(during.phase, "passing", "passing")
-			assert(during.x > 16, "swings outward, away from the parade")
-			eq(during.hits, 0, "no change to the meter")
-			eq(find(tr:views(6, 0, cz + ClusterVisual.PASS_DISTANCE + 1), 2), nil, "gone")
+			near(before.x, 16, "straight down the lane")
+			-- the lead catches up with the mob: it never swings out, whatever the distance
+			for _, past in { 0, 3, 10, 20, 30 } do
+				local v = find(tr:views(6, 0, cz + past), 2)
+				assert(v ~= nil, `drawn at {past} studs past (waiting for the Event)`)
+				near(v.x, 16, `no sideways swing at {past}`)
+				eq(v.phase, "walking", "pinned in front of the lead, not passing")
+				near(v.z, cz + past + MobCharge.SLAM_GAP, "front stays SLAM_GAP ahead of the lead")
+			end
+		end,
+	},
+	{
+		name = "the attack Event starts the slam, then the mob disperses to the sidewalk, then it is gone; a lost Event still plays after SLAM_FALLBACK",
+		run = function()
+			local tr = ClusterVisual.new(layout)
+			local cz = Level.clusterPosition(layout, 2, 6).z
+			local leadZ = cz + 1 -- the mob has reached the parade
+			assert(find(tr:views(6, 0, leadZ), 2) ~= nil, "find(tr:views(6, 0, leadZ), 2) ~= nil")
+			tr:attack(2, 6.05)
+			local slam = find(tr:views(6.2, 0, leadZ), 2)
+			assert(slam ~= nil, "visible")
+			eq(slam.phase, "slamming", "slamming")
+			assert(slam.phaseT > 0 and slam.phaseT < 1, "progress")
+			local disp = find(tr:views(6.05 + MobCharge.SLAM_SECONDS + 0.3, 0, leadZ), 2)
+			assert(disp ~= nil, "visible")
+			eq(disp.phase, "dispersing", "dispersing")
+			eq(disp.hits, 0, "no change to the meter")
+			eq(
+				find(
+					tr:views(
+						6.05 + MobCharge.SLAM_SECONDS + MobCharge.DISPERSE_SECONDS + 0.1,
+						0,
+						leadZ
+					),
+					2
+				),
+				nil,
+				"gone"
+			)
+			-- the same Event twice does not restart the slam
+			tr:attack(2, 7.5)
+			eq(find(tr:views(6.2, 0, leadZ), 2).phase, "slamming", "first Event wins")
+			-- no Event at all: the fallback plays the slam anyway
+			local lost = ClusterVisual.new(layout)
+			assert(
+				find(lost:views(6, 0, leadZ), 2) ~= nil,
+				"find(lost:views(6, 0, leadZ), 2) ~= nil"
+			)
+			eq(find(lost:views(6.2, 0, leadZ), 2).phase, "walking", "still waiting")
+			eq(
+				find(lost:views(6 + MobCharge.SLAM_FALLBACK + 0.1, 0, leadZ), 2).phase,
+				"slamming",
+				"fallback slam"
+			)
+		end,
+	},
+	{
+		name = "a converted mob never slams or disperses: it recolours and streams in",
+		run = function()
+			local tr = ClusterVisual.new(layout)
+			tr:shot({ id = 2, hits = 8, shot = "note" }, 6)
+			tr:attack(2, 6.1) -- a stray Event after the fill changes nothing
+			local v = find(tr:views(6.5, 0, 40), 2)
+			assert(v ~= nil, "visible")
+			eq(v.phase, "cheering", "cheering")
+			assert(v.age > 0.4 and v.age < 0.6, "age since the fill")
+		end,
+	},
+	{
+		name = "mobs beyond the visible depth plus margin are not drawn at all (no pop at the far end)",
+		run = function()
+			local tr = ClusterVisual.new(layout)
+			local _, deepest = Emergence.depthRange()
+			local far = Level.clusterPosition(layout, 2, 6).z
+			eq(find(tr:views(6, 0, far - deepest - Emergence.SPAWN_MARGIN - 5), 2), nil, "culled")
+			assert(find(tr:views(6, 0, far - deepest), 2) ~= nil, "drawn inside the view")
 		end,
 	},
 	{
@@ -157,40 +229,72 @@ return {
 		end,
 	},
 	{
-		name = "member counts are bounded per type so the swarm stays dense but cheap",
+		name = "the number of mobs drawn at once is bounded",
 		run = function()
 			local tr = ClusterVisual.new(layout)
-			local v1, v2 = find(tr:views(6, 0, 0), 1), find(tr:views(6, 0, 0), 2)
-			assert(v1 ~= nil and v2 ~= nil, "visible")
-			assert(v1.members >= 3 and v1.members < v2.members, "large has more")
-			assert(v2.members <= ClusterVisual.MAX_MEMBERS, "bounded")
-			assert(ClusterVisual.MAX_VISIBLE_CLUSTERS >= 4, "pool limit exists")
+			assert(ClusterVisual.MAX_VISIBLE_CLUSTERS >= 8, "pool limit exists")
 			assert(
-				#tr:views(6, 0, 0) <= ClusterVisual.MAX_VISIBLE_CLUSTERS,
+				#tr:views(6, 0, 100) <= ClusterVisual.MAX_VISIBLE_CLUSTERS,
 				"never exceeds the limit"
 			)
 		end,
 	},
 	{
-		name = "member grid is dense, centered and distinct for every member",
+		name = "the veer-away constants are gone",
 		run = function()
-			for _, n in { 1, 5, 9, 12 } do
-				local seen, sx, lo, hi = {}, 0, math.huge, -math.huge
-				for i = 1, n do
-					local x, z = ClusterVisual.memberOffset(i, n)
-					seen[string.format("%.3f,%.3f", x, z)] = true
-					sx += x
-					lo, hi = math.min(lo, z), math.max(hi, z)
-					assert(math.abs(x) <= 3 * ClusterVisual.SPACING, "compact")
-				end
-				local count = 0
-				for _ in seen do
-					count += 1
-				end
-				eq(count, n, `distinct slots for {n}`)
-				near(sx, 0, `centered x for {n}`)
-				near(lo + hi, 0, `centered z for {n}`)
+			eq((ClusterVisual :: any).PASS_SWING, nil, "PASS_SWING removed")
+			eq((ClusterVisual :: any).PASS_DISTANCE, nil, "PASS_DISTANCE removed")
+		end,
+	},
+	{
+		name = "round 1: the slam start is LATCHED (late Event inside the slam, Event after dispersal, duplicate Events, lost Event)",
+		run = function()
+			local cz = Level.clusterPosition(layout, 2, 6).z
+			local leadZ = cz + 1
+			local function fresh(): ClusterVisual.Tracker
+				local tr = ClusterVisual.new(layout)
+				assert(find(tr:views(6, 0, leadZ), 2) ~= nil, "reached the parade at t=6")
+				return tr
 			end
+			local slamEnd = 6 + MobCharge.SLAM_FALLBACK + MobCharge.SLAM_SECONDS
+			local goneAt = slamEnd + MobCharge.DISPERSE_SECONDS
+			-- a late Event after the fallback has started the slam must not restart it
+			local late = fresh()
+			eq(find(late:views(6.6, 0, leadZ), 2).phase, "slamming", "fallback slam running")
+			late:attack(2, 6.7)
+			eq(
+				find(late:views(slamEnd + 0.05, 0, leadZ), 2).phase,
+				"dispersing",
+				"the slam still ends on the fallback schedule"
+			)
+			-- an Event long after the mob dispersed and left must not bring it back
+			local gone = fresh()
+			assert(find(gone:views(goneAt + 0.5, 0, leadZ), 2) == nil, "gone")
+			gone:attack(2, goneAt + 0.5)
+			eq(find(gone:views(goneAt + 0.6, 0, leadZ), 2), nil, "an Event never resurrects a mob")
+			-- an Event that arrives before the views notice the fallback is also ignored
+			local between = fresh()
+			between:attack(2, 6 + MobCharge.SLAM_FALLBACK + 0.2)
+			eq(
+				find(between:views(slamEnd + 0.05, 0, leadZ), 2).phase,
+				"dispersing",
+				"fallback schedule wins over a late Event"
+			)
+			-- duplicate Events: the first one wins
+			local dup = fresh()
+			dup:attack(2, 6.1)
+			dup:attack(2, 6.3)
+			eq(
+				find(dup:views(6.1 + MobCharge.SLAM_SECONDS + 0.05, 0, leadZ), 2).phase,
+				"dispersing",
+				"first Event"
+			)
+			-- a lost Event: the fallback plays the slam, once
+			local lost = fresh()
+			eq(find(lost:views(6.2, 0, leadZ), 2).phase, "walking", "still waiting")
+			eq(find(lost:views(6.6, 0, leadZ), 2).phase, "slamming", "fallback")
+			assert(find(lost:views(goneAt + 0.1, 0, leadZ), 2) == nil, "and then it is gone")
+			assert(find(lost:views(goneAt + 5, 0, leadZ), 2) == nil, "and stays gone")
 		end,
 	},
 }

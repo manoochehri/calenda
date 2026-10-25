@@ -159,22 +159,12 @@ return {
 				r.finalGateTime >= 65 and r.finalGateTime <= 90,
 				`final gate at {r.finalGateTime} s`
 			)
+			-- Issue #65: every group meets the lead no earlier than the calm opening allows and no
+			-- later than the last pair's shifted arrival (the spawn is far upstream, not the arrival).
+			local closing = Config.speed + Config.spectators.approachSpeed
 			for _, c in DebugLayout.clusters do
-				local pair = math.ceil(c.id / 2)
-				local baselineGap = if c.type == "small"
-					then 20
-					elseif pair <= 3 then 40
-					elseif pair <= 6 then 30
-					elseif pair <= 8 then 25
-					elseif pair == 9 then 20
-					else 15
-				local gap = c.spawn.z - Config.speed * c.spawnTime
-				local currentClosing = Config.speed + Config.spectators.approachSpeed
-				local baselineClosing = 16 + Config.spectators.approachSpeed
-				assert(
-					math.abs(gap / currentClosing - baselineGap / baselineClosing) < 1e-9,
-					`wave {c.id} reaches too early or late after the pace change`
-				)
+				local arrive = (c.spawn.z + Config.spectators.approachSpeed * c.spawnTime) / closing
+				assert(arrive >= 10 and arrive <= 36, `cluster {c.id} arrives at {arrive} s`)
 			end
 		end,
 	},

@@ -126,6 +126,7 @@ return {
 					"Backdrop",
 					"GateView",
 					"CrowdView",
+					"ClusterView",
 					"Bits",
 				}
 			do

@@ -40,6 +40,7 @@ export type ConfigType = {
 		freezeCamera: boolean,
 		noShadows: boolean,
 		rawExtrapolation: boolean,
+		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
 	},
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
 	sfx: { [string]: string }, -- sound effect asset ids by slot, empty = silent (issue #62)
@@ -105,6 +106,10 @@ local function validate(c: any): (boolean, string?)
 		if type(c.debug[flag]) ~= "boolean" then
 			return false, `debug.{flag} must be a boolean`
 		end
+	end
+	local q = c.debug.quality
+	if q ~= nil and q ~= "low" and q ~= "medium" and q ~= "high" then
+		return false, 'debug.quality must be nil, "low", "medium" or "high"'
 	end
 	if not isPositive(c.speed) then
 		return false, "speed must be a positive number"
@@ -276,7 +281,7 @@ local config: ConfigType = {
 		range = 60, -- [default] studs along the street from the lead; spec (Amendment 1) names the key only
 	},
 	spectators = {
-		approachSpeed = 6, -- [default] studs/second a cluster walks toward the parade; spec names the key only
+		approachSpeed = 20, -- [default] studs/second a mob CHARGES toward the parade (was 6; issue #65, see DebugLayout); spec names the key only
 		centerTolerance = 3, -- [default] studs; |x| at or below this counts as "center" (Amendment 1)
 	},
 	visualBudget = {
@@ -328,6 +333,7 @@ local config: ConfigType = {
 		-- Issue #85 A/B switches for Studio (all default false = normal game):
 		freezeCamera = false, -- hold the camera at its first pose: does the flicker survive a still camera?
 		noShadows = false, -- Lighting.GlobalShadows = false: is it shadow flicker?
+		quality = nil, -- [default] nil = automatic (medium on touch, high otherwise); or "low" | "medium" | "high"
 		rawExtrapolation = false, -- the pre-#85 snap-to-State lead path instead of ServerClock
 	},
 	validate = validate,
