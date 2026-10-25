@@ -17,10 +17,7 @@ end
 local function gateSignature(layout: any): string
 	local parts = {}
 	for _, g in layout.gates do
-		table.insert(
-			parts,
-			`{g.left.kind}{g.left.value}/{g.right.kind}{g.right.value}`
-		)
+		table.insert(parts, `{g.left.kind}{g.left.value}/{g.right.kind}{g.right.value}`)
 	end
 	return table.concat(parts, ",")
 end
@@ -70,7 +67,8 @@ return {
 				for j = i + 1, #Layouts.all do
 					local a, b = Layouts.all[i], Layouts.all[j]
 					assert(
-						gateSignature(a) ~= gateSignature(b) or clusterSignature(a) ~= clusterSignature(b),
+						gateSignature(a) ~= gateSignature(b)
+							or clusterSignature(a) ~= clusterSignature(b),
 						`{a.name} and {b.name} are the same arrangement`
 					)
 				end
@@ -158,7 +156,7 @@ return {
 		name = "the fixed debug layout is still available unchanged",
 		run = function()
 			assert(LayoutValidator.check(DebugLayout).ok, "debug layout no longer valid")
-			assert(Config.speed > 0)
+			assert(Config.speed > 0, "speed must be positive")
 		end,
 	},
 }
