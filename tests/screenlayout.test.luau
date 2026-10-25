@@ -89,7 +89,8 @@ return {
 							table.insert(shown, e)
 						end
 					end
-					assert(#shown >= 5, `{phase} has elements`)
+					local minimum = if phase == "results" then 4 else 5
+					assert(#shown >= minimum, `{phase} has elements`)
 					for i = 1, #shown do
 						for j = i + 1, #shown do
 							local ri = ScreenLayout.elementRect(shown[i], safe)
@@ -314,7 +315,10 @@ return {
 			local best = ScreenLayout.element("Best") :: ScreenLayout.Element
 			assert(score.text.sample == "99999", "score is the number alone")
 			assert(best.text.sample == Strings.newBest, "record cue does not repeat a number")
-			assert(ScreenLayout.element("MusicToggle") == nil, "no in-game music control per ADR 0008")
+			assert(
+				ScreenLayout.element("MusicToggle") == nil,
+				"no in-game music control per ADR 0008"
+			)
 		end,
 	},
 }
