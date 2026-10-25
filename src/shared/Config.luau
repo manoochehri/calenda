@@ -6,6 +6,19 @@
 export type ClusterType = { hits: number, reward: number, attackDamage: number }
 export type GateOp = { kind: string, value: number }
 export type Curve = { start: number, max: number, sectionsToMax: number }
+-- Spectators as individuals across the lane (issue #65; see SpectatorScatter). Studs unless noted.
+export type ScatterConfig = {
+	perReward: number, -- individuals per cluster reward point, capped per mob by QualityConfig
+	spreadHalfWidth: number, -- half the lane the individuals spread across
+	colSpacing: number, -- smallest spacing between columns across the lane
+	rowSpacing: number, -- spacing between rows, front to back
+	jitter: number, -- random offset of each individual, as a fraction of its spacing (0..0.5)
+	minSeparation: number, -- no two individuals closer than this
+	bunchRadius: number, -- a bunch is individuals this close to one another
+	maxBunch: number, -- most individuals allowed in one bunch
+	minScreenFraction: number, -- a figure reads at this share of screen height (phone, high camera)
+	maxScale: number, -- at most this much a far figure is enlarged to keep reading (>= 1)
+}
 export type MusicConfig = {
 	bpm: number,
 	beatsPerBar: number,
@@ -24,7 +37,7 @@ export type ConfigType = {
 	hazards: { tomatoDamage: number },
 	speed: number,
 	firing: { base: number, cap: number, perSection: number, range: number },
-	spectators: { approachSpeed: number, centerTolerance: number },
+	spectators: { approachSpeed: number, centerTolerance: number, scatter: ScatterConfig },
 	visualBudget: {
 		sectionRepresentatives: number,
 		looseAvatars: number,
@@ -184,6 +197,35 @@ local function validate(c: any): (boolean, string?)
 		return false, "spectators.centerTolerance must be a non-negative number"
 	end
 
+	local sc = sp.scatter
+	if type(sc) ~= "table" then
+		return false, "spectators.scatter must be a table"
+	end
+	for _, key in
+		{
+			"perReward",
+			"spreadHalfWidth",
+			"colSpacing",
+			"rowSpacing",
+			"minSeparation",
+			"bunchRadius",
+			"minScreenFraction",
+		}
+	do
+		if not isPositive((sc :: any)[key]) then
+			return false, `spectators.scatter.{key} must be a positive number`
+		end
+	end
+	if type(sc.jitter) ~= "number" or sc.jitter < 0 or sc.jitter >= 0.5 then
+		return false, "spectators.scatter.jitter must be in [0, 0.5)"
+	end
+	if not isPositiveInt(sc.maxBunch) then
+		return false, "spectators.scatter.maxBunch must be a positive integer"
+	end
+	if type(sc.maxScale) ~= "number" or sc.maxScale < 1 or sc.maxScale == math.huge then
+		return false, "spectators.scatter.maxScale must be a number >= 1"
+	end
+
 	local v = c.visualBudget
 	if
 		type(v) ~= "table"
@@ -289,6 +331,18 @@ local config: ConfigType = {
 	spectators = {
 		approachSpeed = 20, -- [default] studs/second a mob CHARGES toward the parade (was 6; issue #65, see DebugLayout); spec names the key only
 		centerTolerance = 3, -- [default] studs; |x| at or below this counts as "center" (Amendment 1)
+		scatter = {
+			perReward = 2, -- [default] individuals per reward point (a +5 cluster stands 10 spectators)
+			spreadHalfWidth = 8, -- [default] studs; a cluster's individuals spread over this half-band around its lane
+			colSpacing = 3.0, -- [default] studs between columns (figures are ~1.9 studs wide with arms)
+			rowSpacing = 3.0, -- [default] studs between rows
+			jitter = 0.15, -- [default] random offset as a share of spacing: keeps it a loose scatter
+			minSeparation = 2.1, -- [default] studs; (1 - 2 x jitter) x spacing, so no two touch
+			bunchRadius = 2.0, -- [default] studs; closer than this counts as one bunch
+			maxBunch = 2, -- [default] most spectators in one bunch
+			minScreenFraction = 0.01, -- [default] share of screen height a figure reads at (about 8 px on an 800 px phone)
+			maxScale = 2.0, -- [default] far figures (top of the lane) grow up to 2x to keep reading
+		},
 	},
 	visualBudget = {
 		sectionRepresentatives = 6, -- [spec s8]
