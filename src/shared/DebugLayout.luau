@@ -18,7 +18,7 @@ end
 -- Issue #65: the authored wave layout keeps its delayed opening, increasing wave sizes, and
 -- backward path extension so mobs emerge beyond the visible depth + margin. `add` derives the
 -- required spawn offset from camera emergence and the current lead + mob closing speed.
-local WAVE_DELAY = 10 -- seconds [default]
+local WAVE_DELAY = 9.5 -- seconds [default]
 local function waveOffset(pair: number): number
 	return (pair - 1) * 7.8 -- five-group packs overlap within the low-quality visible cap
 end
