@@ -46,10 +46,10 @@ for pair = 1, 4 do
 	add(pair * 2 - 1, "small", -16, arrive, base)
 	if pair == 4 then
 		add(pair * 2, "large", 16, arrive, base + 20)
-		for soak = 1, 7 do
-			local kind = if soak == 7 then "large" else "small"
-			add(pair * 2 - 1, kind, -16, arrive, base - SOAK_STEP * soak)
+		for soak = 1, 4 do
+			add(pair * 2 - 1, "small", -16, arrive, base - SOAK_STEP * soak)
 		end
+		add(pair * 2 - 1, "large", -16, arrive, base - SOAK_STEP * 7)
 		for soak = 1, 3 do
 			add(pair * 2, "large", 16, arrive, base + 20 - SOAK_STEP * soak)
 		end
