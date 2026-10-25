@@ -20,14 +20,9 @@ end
 -- required spawn offset from camera emergence and the current lead + mob closing speed.
 local WAVE_DELAY = 9.5 -- seconds [default]
 local function waveOffset(pair: number): number
-	if pair == 1 then
-		return 0
-	elseif pair == 2 then
-		return 0.5 -- crowd the first two pairs so early fire can miss a group
-	end
-	return 0.5 + (pair - 2) * 3 -- keep later waves within the route and mob draw caps
+	return (pair - 1) * 3.6 -- three-group packs overlap within the low-quality visible cap
 end
-local SOAKS = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 } -- [default] extra small groups per pair
+local SOAKS = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } -- one extra large group per pair
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
 
 local needOffset = Emergence.requiredSpawnOffset()
@@ -51,7 +46,7 @@ for pair = 1, 10 do
 	add(pair * 2 - 1, "small", -16, arrive, base)
 	add(pair * 2, "large", 16, arrive, base)
 	for soak = 1, SOAKS[pair] do
-		add(pair * 2 - 1, "small", -16, arrive, base - SOAK_STEP * soak)
+		add(pair * 2 - 1, "large", -16, arrive, base - SOAK_STEP * soak)
 	end
 end
 

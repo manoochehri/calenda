@@ -19,12 +19,7 @@ local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one befor
 local PAIRS = 10
 
 local function waveOffset(pair: number): number
-	if pair == 1 then
-		return 0
-	elseif pair == 2 then
-		return 0.5 -- crowd the first two pairs so early fire can miss a group
-	end
-	return 0.5 + (pair - 2) * 3 -- keep later waves within the route and mob draw caps
+	return (pair - 1) * 3.6 -- three-group packs overlap within the low-quality visible cap
 end
 
 local function at(seconds: number): number
@@ -45,7 +40,7 @@ end
 
 -- Waves: pair p sends a small group (wave 2p-1) and a large group (wave 2p) that arrive together.
 -- Waves alternate sides. `bigOnLeft` puts the large group on the left sidewalk. `soaks[p]` extra
--- small groups trail the small group nearer the lead.
+-- large groups trail the small group nearer the lead.
 type WaveSpec = { waveDelay: number, soaks: { number }, bigOnLeft: boolean }
 
 local function buildClusters(spec: WaveSpec): { Level.Cluster }
@@ -72,7 +67,7 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 		add(pair * 2 - 1, "small", smallX, arrive, base)
 		add(pair * 2, "large", bigX, arrive, base)
 		for soak = 1, spec.soaks[pair] do
-			add(pair * 2 - 1, "small", smallX, arrive, base - SOAK_STEP * soak)
+			add(pair * 2 - 1, "large", smallX, arrive, base - SOAK_STEP * soak)
 		end
 	end
 	return clusters
