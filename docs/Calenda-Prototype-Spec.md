@@ -110,7 +110,7 @@ Issue #96 adds level hazards, drawn from the run seed on the server and listed p
 
 Later levels select their own hazard kinds in configuration; no level name is checked in code.
 
-HUD copy (issue #112, owner-reviewed for a child audience): the section meter caption reads "Faltan N para un grupo" (N followers still needed for the next section). On results, show the final score once and hide gameplay-only follower counts; a new record gets only the brief "¡Récord!" cue. The compact music toggle reads "♫ Sí" / "♫ No". Keep the start hint "Arrastra para moverte" and defeat line unchanged.
+HUD copy (issue #112, owner-reviewed for a child audience): the section meter caption reads "Faltan N para un grupo" (N followers still needed for the next section). On results, show the final score once and hide gameplay-only follower counts; a new record gets only the brief "¡Récord!" cue. Music stays on with no in-game control (ADR 0008). Keep the start hint "Arrastra para moverte" and defeat line unchanged.
 
 Reaching the plaza always completes the run. Score equals the final crowd total, with no extra conversion bonus. On the results screen, show the short "¡Listo!" headline and final score once; do not repeat it as a follower count, points label, or numeric best. Show only the short "¡Récord!" cue when the run sets a new best. Keep the "¡Otra calenda!" replay button. A lightweight three-tier celebration can use provisional thresholds of 50, 150, and 300 followers; tune these after observing normal runs.
 
