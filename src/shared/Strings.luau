@@ -5,7 +5,7 @@ local function sectionsGained(n: number): string
 end
 
 local function nextSectionIn(n: number): string
-	return `Próxima sección en {n}`
+	return `Faltan {n} para un grupo` -- issue #112: PM-decided wording, a count of people, not a sentence about sections
 end
 
 return table.freeze({

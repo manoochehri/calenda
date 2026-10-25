@@ -210,7 +210,7 @@ local ELEMENTS = {
 		0.40,
 		0.06,
 		RUN,
-		{ minSize = 14, maxSize = 28, sample = "Próxima sección en 30" }
+		{ minSize = 14, maxSize = 28, sample = "Faltan 30 para un grupo" }
 	),
 	el(
 		"Banner",

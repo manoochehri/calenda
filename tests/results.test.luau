@@ -124,7 +124,7 @@ return {
 			eq(m.loose, 20, "loose")
 			eq(m.fraction, 0.4, "fraction")
 			eq(m.toNext, 30, "to next")
-			eq(m.label, "Próxima sección en 30", "label")
+			eq(m.label, "Faltan 30 para un grupo", "label")
 			eq(HudMeters.sectionMeter(10).fraction, 0.2, "start")
 			eq(HudMeters.sectionMeter(50).sections, 1, "boundary")
 			eq(HudMeters.sectionMeter(50).fraction, 0, "boundary fraction")
