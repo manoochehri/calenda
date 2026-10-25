@@ -245,6 +245,33 @@ return {
 		end,
 	},
 	{
+		name = "persistent HUD sits in the compact top band, so the road centre stays clear at every aspect",
+		run = function()
+			-- Share of the safe height from its top edge. The street and portals own the rest of the
+			-- middle of the screen (ScreenLayout.ELEMENTS, top row comment).
+			local BAND = 0.4
+			-- Persistent = on screen for the whole run. Hint and Banner are on-demand cues, so they
+			-- are exempt; everything else with the run phase is always visible while playing.
+			local transient = { Hint = true, Banner = true }
+			local checked = 0
+			eachAspect(function(a, safe, _)
+				for _, e in ScreenLayout.ELEMENTS do
+					if e.phases.run and not transient[e.name] then
+						checked += 1
+						local r = ScreenLayout.elementRect(e, safe)
+						local bottom = (r.y + r.h - safe.y) / safe.h
+						assert(
+							bottom <= BAND + EPS,
+							`{e.name} at {a.name} ends {bottom} of the safe height down, past the top band {BAND}`
+						)
+					end
+				end
+			end)
+			-- Non-vacuous: all seven persistent run elements were checked at all four ratios.
+			assert(checked == 7 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
+		end,
+	},
+	{
 		name = "numeral screen fraction is aspect independent (vertical FOV) and gives >= 21 px caps on 390 px tall",
 		run = function()
 			local PortalGeometry = require("../src/shared/PortalGeometry")

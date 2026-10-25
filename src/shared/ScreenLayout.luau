@@ -206,9 +206,9 @@ local ELEMENTS = {
 		0.5,
 		0,
 		0.5,
-		0.33,
+		0.32,
 		0.50,
-		0.10,
+		0.08,
 		RUN,
 		{ minSize = 14, maxSize = 28, sample = "Próxima sección en 30" }
 	),

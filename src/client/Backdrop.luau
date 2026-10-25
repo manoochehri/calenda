@@ -17,6 +17,8 @@ local OaxacaStreet = require(script.Parent:WaitForChild("OaxacaStreet"))
 
 local FOLDER_NAME = "CalendaBackdrop"
 local RUN_IN = 80 -- [default] studs of road behind the start line
+local SCENERY_ROWS = 9
+local HILL_ROWS = 5
 
 local Backdrop = {}
 
@@ -36,6 +38,93 @@ local function slab(parent: Instance, name: string, size: Vector3, position: Vec
 	p.CanQuery = false
 	p.CastShadow = false
 	p.Parent = parent
+end
+
+local function sceneryPart(
+	parent: Instance,
+	name: string,
+	shape: Enum.PartType,
+	size: Vector3,
+	position: Vector3,
+	color: Color3
+)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Shape = shape
+	p.Size = size
+	p.Position = position
+	p.Color = color
+	p.Material = Enum.Material.SmoothPlastic
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Parent = parent
+end
+
+-- Low-detail hills and tree silhouettes fill the large ground plate beyond the street walls.
+-- The fixed row pattern is reset-safe, symmetrical, and adds 64 non-interactive parts total.
+local function buildScenery(parent: Instance, length: number)
+	local earth = LayerHeights.EARTH
+	local trees = {
+		Color3.fromRGB(91, 119, 96),
+		Color3.fromRGB(103, 127, 102),
+		Color3.fromRGB(111, 130, 105),
+	}
+	local trunks = Color3.fromRGB(112, 92, 69)
+	local hills = {
+		Color3.fromRGB(139, 143, 122),
+		Color3.fromRGB(151, 148, 125),
+	}
+
+	for row = 0, SCENERY_ROWS - 1 do
+		local z = -80 + row * (length + 160) / (SCENERY_ROWS - 1)
+		local scale = 0.68 + (row % 4) * 0.08
+		local x = 74 + (row % 3) * 12
+		local trunkHeight = 5 * scale
+		for _, side in { -1, 1 } do
+			local centerX = side * x
+			sceneryPart(
+				parent,
+				`TreeTrunk{row}_{side}`,
+				Enum.PartType.Block,
+				Vector3.new(1.1 * scale, trunkHeight, 1.1 * scale),
+				Vector3.new(centerX, earth + trunkHeight / 2, z),
+				trunks
+			)
+			sceneryPart(
+				parent,
+				`TreeCrownLower{row}_{side}`,
+				Enum.PartType.Ball,
+				Vector3.new(9 * scale, 8 * scale, 9 * scale),
+				Vector3.new(centerX, earth + trunkHeight + 2.7 * scale, z),
+				trees[row % #trees + 1]
+			)
+			sceneryPart(
+				parent,
+				`TreeCrownUpper{row}_{side}`,
+				Enum.PartType.Ball,
+				Vector3.new(6.5 * scale, 7 * scale, 6.5 * scale),
+				Vector3.new(centerX, earth + trunkHeight + 7.6 * scale, z),
+				trees[(row + 1) % #trees + 1]
+			)
+		end
+	end
+
+	for row = 0, HILL_ROWS - 1 do
+		local z = -150 + row * (length + 300) / (HILL_ROWS - 1)
+		for _, side in { -1, 1 } do
+			sceneryPart(
+				parent,
+				`Hillside{row}_{side}`,
+				Enum.PartType.Ball,
+				Vector3.new(340, 42, 560),
+				Vector3.new(side * 230, earth + 9, z),
+				hills[row % #hills + 1]
+			)
+		end
+	end
 end
 
 -- `onProgress(fraction)` reports the street dressing (0..1) for the loading screen (#72).
@@ -65,6 +154,7 @@ function Backdrop.build(onProgress: ((number) -> ())?)
 		Vector3.new(0, LayerHeights.ROAD_BASE - 0.5, -RUN_IN / 2),
 		toColor(palette.road)
 	)
+	buildScenery(folder, length)
 
 	OaxacaStreet.applyTheme(Lighting)
 	Lighting.FogColor = toColor(LevelTheme.level1.lighting.atmosphere.color)
