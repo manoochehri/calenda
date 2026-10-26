@@ -8,6 +8,17 @@ local BotHarness = require("./helpers/BotHarness")
 
 local MAX_WAVE_GAP = 3
 
+-- Tick rates the outcome checks run at. The defeat and completion claims must hold at all three,
+-- not only the 30 Hz server tick. Each (layout, policy, rate) is one deterministic run (n=1).
+local TICK_RATES = { 20, 30, 60 }
+
+-- "Competent" means the scripted policy in tests/helpers/BotHarness.luau: it steers to the side
+-- of the nearest large cluster (else nearest cluster ahead) and takes the gate preference, so it
+-- engages the hordes on the matching side and completes the layout. It is the reference
+-- competent player for these checks; it is not a measure of skill or of the best possible run.
+local NO_INPUT = "none"
+local COMPETENT = "scripted"
+
 local function impactTime(cluster: Level.Cluster): number
 	-- Layouts use straight approaches. At impact, the mob's z equals the lead's z.
 	return (cluster.spawn.z + Config.spectators.approachSpeed * cluster.spawnTime)
@@ -54,31 +65,36 @@ return {
 		end,
 	},
 	{
-		name = "a no-input run is defeated before the plaza on every playable layout",
+		name = "a no-input run is defeated before the plaza on every playable layout at 20, 30 and 60 Hz",
 		run = function()
-			for _, layout in Layouts.all do
-				local result = BotHarness.play(layout, BotHarness.policy("none", 1), { hz = 30 })
-				assert(
-					result.outcome == "defeated",
-					`{layout.name}: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`
-				)
-				assert(
-					result.time < Level.timeAtZ(layout.plazaStart),
-					`{layout.name}: defeat was not before the plaza`
-				)
+			for _, hz in TICK_RATES do
+				for _, layout in Layouts.all do
+					local result =
+						BotHarness.play(layout, BotHarness.policy(NO_INPUT, 1), { hz = hz })
+					assert(
+						result.outcome == "defeated",
+						`{layout.name} @{hz} Hz: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`
+					)
+					assert(
+						result.time < Level.timeAtZ(layout.plazaStart),
+						`{layout.name} @{hz} Hz: defeat was not before the plaza`
+					)
+				end
 			end
 		end,
 	},
 	{
-		name = "a competent scripted run completes on every playable layout",
+		name = "a competent scripted run completes on every playable layout at 20, 30 and 60 Hz",
 		run = function()
-			for _, layout in Layouts.all do
-				local result =
-					BotHarness.play(layout, BotHarness.policy("scripted", 1), { hz = 30 })
-				assert(
-					result.outcome == "completed",
-					`{layout.name}: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`
-				)
+			for _, hz in TICK_RATES do
+				for _, layout in Layouts.all do
+					local result =
+						BotHarness.play(layout, BotHarness.policy(COMPETENT, 1), { hz = hz })
+					assert(
+						result.outcome == "completed",
+						`{layout.name} @{hz} Hz: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`
+					)
+				end
 			end
 		end,
 	},

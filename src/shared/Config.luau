@@ -383,9 +383,13 @@ local config: ConfigType = {
 	-- gift. [default, provisional]
 	hazards = { tomatoSharePercent = 10 },
 	-- Owner decision (2026-10-26, issue #142): the validator's bound on every layout's best-route
-	-- final total. Raised from 2500 so the continuous-hordes layouts (best routes 3390 / 3850 / 3490)
-	-- pass; 4000 is the smallest round value above the highest best route with headroom. Not a
-	-- balance claim: the balance evidence is UNVERIFIED until the skeptic reviews it.
+	-- final total. Raised from 2500 so the continuous-hordes layouts pass.
+	-- POST-HOC FIT: 4000 was chosen AFTER the best routes were known (calle-del-mercado 3390,
+	-- portal-del-sur 3850, esquina-de-la-banda 3490); it is the smallest round value above the
+	-- highest of them. It is a fit to the output, not a pre-set bound, so the validator passing
+	-- is not independent evidence. The 3850 best route is a steering-optimistic ceiling from the
+	-- validator's optimiser (perfect steering and foresight), not a total any bot or player reaches.
+	-- Not a balance claim: the balance evidence is UNVERIFIED until the skeptic holds it.
 	layout = { maxTotal = 4000 },
 	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
 	firing = {
