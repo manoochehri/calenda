@@ -156,6 +156,41 @@ return {
 		end,
 	},
 	{
+		name = "issue 54: every papel picado flag reads against the sky (Atmosphere colour) at least 3:1",
+		run = function()
+			local sky = theme.lighting.atmosphere.color
+			for i, flag in theme.flagColors do
+				local ratio = LevelTheme.contrast(flag, sky)
+				assert(ratio >= 3, `flag {i} vs sky: {ratio}`)
+			end
+		end,
+	},
+	{
+		name = "issue 54: every papel picado flag reads against every facade wall and the stone corner at least 2:1",
+		run = function()
+			local walls = { theme.palette.stone }
+			for _, style in theme.facades do
+				table.insert(walls, style.wall)
+			end
+			for i, flag in theme.flagColors do
+				for j, wall in walls do
+					local ratio = LevelTheme.contrast(flag, wall)
+					assert(ratio >= 2, `flag {i} vs wall {j}: {ratio}`)
+				end
+			end
+		end,
+	},
+	{
+		name = "issue 54: road and its alternate course both read against the ground plate at least 3:1",
+		run = function()
+			local p = theme.palette
+			local road = LevelTheme.contrast(p.road, p.ground)
+			local alt = LevelTheme.contrast(p.roadAlt, p.ground)
+			assert(road >= 3, `road vs ground: {road}`)
+			assert(alt >= 3, `roadAlt vs ground: {alt}`)
+		end,
+	},
+	{
 		name = "lighting values are in range",
 		run = function()
 			local l = theme.lighting
