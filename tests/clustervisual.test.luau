@@ -240,6 +240,27 @@ return {
 		end,
 	},
 	{
+		name = "with more clusters than the cap, views still fills the cap exactly (scan stops early)",
+		run = function()
+			local many = table.clone(layout)
+			local clusters = {}
+			for i = 1, ClusterVisual.MAX_VISIBLE_CLUSTERS + 10 do
+				clusters[i] = {
+					id = i,
+					wave = i,
+					type = "small",
+					spawnTime = 0,
+					spawn = { x = -16, z = 130 },
+					path = { { x = -5, z = 70 } },
+				}
+			end
+			many.clusters = clusters
+			local tr = ClusterVisual.new(many)
+			local views = tr:views(0, 0, 0)
+			eq(#views, ClusterVisual.MAX_VISIBLE_CLUSTERS, "exactly the cap is drawn")
+		end,
+	},
+	{
 		name = "the veer-away constants are gone",
 		run = function()
 			eq((ClusterVisual :: any).PASS_SWING, nil, "PASS_SWING removed")
