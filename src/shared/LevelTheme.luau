@@ -134,8 +134,8 @@ LevelTheme.level1 = {
 	name = "oaxaca-street-1",
 	palette = {
 		ground = rgb(170, 140, 100),
-		road = rgb(64, 60, 62), -- warm dark flagstone: followers/gates/lead stand out
-		roadAlt = rgb(80, 75, 76), -- alternate course, a subtle step
+		road = rgb(56, 51, 50), -- warm dark flagstone: followers/gates/lead stand out (>=3:1 vs ground)
+		roadAlt = rgb(70, 64, 63), -- alternate course, a subtle step (>=3:1 vs ground)
 		sidewalk = rgb(205, 196, 172), -- pale cantera
 		forecourt = rgb(178, 168, 146),
 		curb = rgb(244, 194, 44), -- yellow curb stripe
@@ -154,13 +154,15 @@ LevelTheme.level1 = {
 		cathedral = rgb(205, 185, 150),
 		flagCord = rgb(50, 40, 40),
 	},
+	-- Dark jewel tones on purpose: a light flag cannot reach 3:1 against the pale sky, and a dark
+	-- one is needed to keep 2:1 against the lavender wall. Hue carries the distinction.
 	flagColors = {
-		rgb(232, 84, 150), -- pink
-		rgb(244, 130, 40), -- orange
-		rgb(250, 210, 50), -- yellow
-		rgb(60, 180, 110), -- green
-		rgb(60, 140, 230), -- blue
-		rgb(150, 90, 200), -- purple
+		rgb(120, 44, 78), -- pink
+		rgb(120, 51, 3), -- orange
+		rgb(87, 69, 27), -- yellow (dark gold)
+		rgb(27, 81, 50), -- green
+		rgb(31, 72, 119), -- blue
+		rgb(91, 55, 122), -- purple
 	},
 	facades = {
 		{

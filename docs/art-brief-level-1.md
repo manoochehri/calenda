@@ -31,14 +31,14 @@ crowd stay the plainest, clearest things on screen: all the festivity sits at th
 | iron | #1E1C1E | grilles, balcony railings, lamp posts |
 | window glass | #283446 | dark window and arch openings |
 | cantera stone | #B8C2A6 | stone-block corner buildings and the church wall (grey-green) |
-| road | #403C3E | warm dark flagstone: followers, gates and the lead read on it |
-| road course alt | #504B4C | alternate flagstone course, a subtle step (contrast 1.15 to 1.5) |
+| road | #383332 | warm dark flagstone: followers, gates and the lead read on it (3:1 or more vs the ground plate) |
+| road course alt | #46403F | alternate flagstone course, a subtle step (contrast 1.15 to 1.5 vs road; 3:1 or more vs ground) |
 | yellow curb stripe | #F4C22C | painted line at the road edge |
 | sidewalk | #CDC4AC | pale cantera pavement, |x| 14 to 20 |
 | forecourt | #B2A892 | pavement from the sidewalk to the facades (|x| 20 to 28) |
 | earth plate | #AA8C64 | the plain ground around everything |
 | plaza paving | #C49868 / #B0865C | zocalo checker |
-| papel picado | pink #E85496, orange #F48228, yellow #FAD232, green #3CB46E, blue #3C8CE6, purple #965AC8 | flags, never two neighbours alike |
+| papel picado | pink #782C4E, orange #783303, yellow #57451B, green #1B5132, blue #1F4877, purple #5B377A | dark jewel tones so each flag reads 3:1 or more against the sky and 2:1 or more against every facade wall; never two neighbours alike |
 | farol glass / light | #FFD682 / #FFC878 | lamp lantern and PointLight |
 
 Contrast (WCAG ratio) is checked in `tests/leveltheme.test.luau` for every pair that matters:
@@ -47,6 +47,13 @@ ground and plaza vs each other, vs the crowd colors and vs every facade; plaza v
 Lead and ring against the sidewalk are only 1.25 and 1.2 (they walk on the road, which gives them
 4 and above); the multiplier banner on the plaza is 1.05 and relies on its numerals, icon and dark
 stroke. Those two trade-offs are deliberate and written next to the numbers.
+
+Issue #54 contrast: every papel picado flag is at least 3:1 against the sky (the Atmosphere color)
+and at least 2:1 against every facade wall and the stone corner; road and road course alt are at
+least 3:1 against the ground plate. The flags are dark because a light flag cannot reach 3:1 on the
+pale sky, and the lavender wall (the darkest facade) sets the ceiling of 2:1. As a result the six
+flags share nearly one luminance and differ by hue, not value; the Studio check decides whether
+that reads.
 
 ## Buildings
 
