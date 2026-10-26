@@ -275,3 +275,7 @@ Supersedes, where they conflict: §3's "center position chooses the nearest elig
 - Center steering targets nothing, and steering to a side never engages the other side (`tests/targeting.test.luau`).
 - A no-input run (no steer messages) is defeated before the plaza on every playable layout. A scripted competent run completes on every playable layout. Both are measured with the BotHarness at 30 Hz, one seed; the balance evidence is UNVERIFIED until the skeptic clears it.
 - The layout validator's `maxTotal` bound applies to every layout. Where the best route exceeds `maxTotal` the layout is not accepted; the bound is not raised by this amendment.
+
+## Amendment 6 — The layout validator bound is raised (owner decision, 2026-10-26)
+
+Supersedes, where they conflict, the Amendment 5 checks line that says the `maxTotal` bound is not raised. `maxTotal` is raised from 2500 to 4000 and now lives in `Config.layout.maxTotal`, read by every authored layout. The best-route totals on this branch are calle-del-mercado 3390, portal-del-sur 3850 and esquina-de-la-banda 3490, so 4000 is the smallest round value that covers all three. The 10% loss rule, the steering-targeting rule and the authored layouts are unchanged. The balance evidence this raise rests on is UNVERIFIED until the skeptic reviews it.

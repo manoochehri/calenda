@@ -103,7 +103,7 @@ local function make(
 		streetLength = at(100),
 		plazaStart = at(PLAZA_SECONDS),
 		halfWidth = 20,
-		maxTotal = 2500,
+		maxTotal = Config.layout.maxTotal,
 		intendedRecruitTotal = 30,
 		gates = gates,
 		obstacles = obstacles,

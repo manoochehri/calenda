@@ -50,6 +50,7 @@ export type ConfigType = {
 	attackSharePercent: number,
 	minShareLoss: number,
 	hazards: { tomatoSharePercent: number },
+	layout: { maxTotal: number },
 	speed: number,
 	firing: { base: number, cap: number, perSection: number, range: number },
 	spectators: { approachSpeed: number, centerTolerance: number, scatter: ScatterConfig },
@@ -163,6 +164,9 @@ local function validate(c: any): (boolean, string?)
 	end
 	if type(c.hazards) ~= "table" or not isPercent(c.hazards.tomatoSharePercent) then
 		return false, "hazards.tomatoSharePercent must be a whole number from 1 to 100"
+	end
+	if type(c.layout) ~= "table" or not isPositiveInt(c.layout.maxTotal) then
+		return false, "layout.maxTotal must be a positive integer"
 	end
 
 	if type(c.gateOps) ~= "table" or #c.gateOps == 0 then
@@ -378,6 +382,11 @@ local config: ConfigType = {
 	-- Issue #96: followers lost once when an unblocked tomato hits the lead. Blocking is by a landed
 	-- gift. [default, provisional]
 	hazards = { tomatoSharePercent = 10 },
+	-- Owner decision (2026-10-26, issue #142): the validator's bound on every layout's best-route
+	-- final total. Raised from 2500 so the continuous-hordes layouts (best routes 3390 / 3850 / 3490)
+	-- pass; 4000 is the smallest round value above the highest best route with headroom. Not a
+	-- balance claim: the balance evidence is UNVERIFIED until the skeptic reviews it.
+	layout = { maxTotal = 4000 },
 	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.

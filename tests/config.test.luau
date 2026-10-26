@@ -54,6 +54,7 @@ return {
 			eq(c.attackSharePercent, 10, "attackSharePercent (ADR 0006)")
 			eq(c.minShareLoss, 1, "minShareLoss (ADR 0006)")
 			eq(c.hazards.tomatoSharePercent, 10, "hazards.tomatoSharePercent")
+			eq(c.layout.maxTotal, 4000, "layout.maxTotal (issue #142 owner decision, 2026-10-26)")
 			eq(c.obstacleLoss, 10, "obstacleLoss")
 			eq(c.firing.base, 6, "firing.base (ADR 0004; was 3)")
 			eq(c.firing.cap, 20, "firing.cap (ADR 0004; was 12)")
@@ -123,6 +124,9 @@ return {
 	end),
 	expectInvalid("tomato share zero", function(c)
 		c.hazards.tomatoSharePercent = 0
+	end),
+	expectInvalid("layout maxTotal zero", function(c)
+		c.layout.maxTotal = 0
 	end),
 	expectInvalid("missing field", function(c)
 		c.obstacleLoss = nil
