@@ -79,9 +79,8 @@ local layout: Level.Layout = {
 	streetLength = paceDistance(1600),
 	plazaStart = paceDistance(1440),
 	halfWidth = 20,
-	-- 2500 (was 1500): the continuous-fire base rate of 6/s (ADR 0004) converts more clusters on the
-	-- best route (real scripted run 2010, noisy runs up to about 2430; the validator reports 1785). Provisional until the #17 ladder is re-run.
-	maxTotal = 2500,
+	-- The bound lives in Config.layout.maxTotal (issue #142 owner decision, 2026-10-26).
+	maxTotal = Config.layout.maxTotal,
 	intendedRecruitTotal = 30,
 	gates = {
 		{

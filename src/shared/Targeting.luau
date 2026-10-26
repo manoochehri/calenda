@@ -3,11 +3,13 @@
 -- Coordinates follow Level: z is distance along the street (the lead's forward position is
 -- Level.leadZ(t)), x is lateral. A target's distance is z - leadZ.
 --
--- Rules (Amendment 1): eligible = in range (distance <= firing.range), meter not full, not yet
--- passed (z > leadZ), and already spawned. Steering toward a side prefers eligible targets on that
--- side (Level.sideOf, which applies spectators.centerTolerance); otherwise, or if that side has none,
--- the nearest to the lead is chosen. Reaching the parade reports an unfilled cluster in `passed`
--- for the attack phase; later hits to a passed cluster are inert.
+-- Rules (Amendment 1, as amended for issue #142): eligible = in range (distance <= firing.range),
+-- meter not full, not yet passed (z > leadZ), and already spawned. Steering decides the side:
+-- steer left engages only eligible hordes on the left, steer right only on the right (Level.sideOf,
+-- which applies spectators.centerTolerance). Center steering engages nothing, and there is no
+-- fallback to the other side. Among eligible hordes on the steered side, the nearest to the lead is
+-- chosen. Reaching the parade reports an unfilled cluster in `passed` for the attack phase; later
+-- hits to a passed cluster are inert.
 --
 -- Firing is CONTINUOUS (ADR 0004, spec Amendment 2): a shot every 1 / fireRate seconds whether or
 -- not anything is in range. A shot with an eligible target is a hit (one meter hit, credit-once).
@@ -107,33 +109,30 @@ function Targeting.shotKind(shotNumber: number, sectionCount: number, config: an
 	return "note"
 end
 
--- Pure target choice. Returns the chosen id or nil (no eligible target => no shots).
+-- Pure target choice (issue #142). Only eligible candidates on the steered side are considered;
+-- center steering considers none. Returns the nearest such id, ties broken by lowest id, or nil.
 function Targeting.selectTarget(
 	candidates: { Candidate },
 	leadZ: number,
 	steer: Steer,
 	config: any?
 ): number?
+	if steer == "center" then
+		return nil
+	end
 	local cfg = config or Config
 	local best: Candidate? = nil
 	local bestDist = math.huge
-	local bestOnSide = false
 	for _, c in candidates do
 		local dist = c.z - leadZ
-		if not c.full and dist > 0 and dist <= cfg.firing.range then
-			local onSide = steer ~= "center" and Level.sideOf(c.x, cfg) == steer
-			local better = false
-			if best == nil then
-				better = true
-			elseif onSide ~= bestOnSide then
-				better = onSide
-			elseif dist ~= bestDist then
-				better = dist < bestDist
-			else
-				better = c.id < best.id
-			end
-			if better then
-				best, bestDist, bestOnSide = c, dist, onSide
+		if
+			not c.full
+			and dist > 0
+			and dist <= cfg.firing.range
+			and Level.sideOf(c.x, cfg) == steer
+		then
+			if best == nil or dist < bestDist or (dist == bestDist and c.id < best.id) then
+				best, bestDist = c, dist
 			end
 		end
 	end

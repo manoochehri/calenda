@@ -68,7 +68,7 @@ local function runLarge(sectionCount: number, config: any?): ({ any }, number, n
 	local credits = 0
 	local t = 0.0
 	while t <= 5 do
-		for _, s in session:advance(t, sectionCount, "center").shots do
+		for _, s in session:advance(t, sectionCount, "right").shots do
 			if s.miss then
 				continue -- continuous fire: misses are display only (they still count as shots)
 			end

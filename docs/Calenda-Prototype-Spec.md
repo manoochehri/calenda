@@ -22,7 +22,7 @@ Deferred: shops, paid multipliers, pets, trading, clothing creation, custom musi
 
 - Automatic forward movement; drag horizontally to steer on touch, A/D or arrow keys on keyboard. No jumping or rhythm precision required.
 - Elevated camera behind the parade, showing upcoming gates and both sidewalks. Gates must remain readable behind tall props.
-- Music notes fire automatically. Steering toward a sidewalk prioritizes that side’s spectators; center position chooses the nearest eligible target. No target means no projectile spam.
+- Music notes fire automatically. Steering toward a sidewalk engages that side’s spectators only; center position engages none (Amendment 5). Shots keep firing as visual misses when nothing is engaged.
 - Keep the lead musician visible as the steering anchor. Sections follow in compact rows; decorative size does not enlarge the gameplay collision area.
 - Gameplay remains understandable muted through icons, meters, counters, and animations.
 
@@ -255,3 +255,27 @@ Supersedes, where they conflict: all of Amendment 1's parade HP (its "Crowd size
 - Reaching zero defeats the run once; later events are ignored; reset restores the starting total.
 - No `hp` field exists in RunState, the run snapshot, the State payload or Config; no `attackLoss` or `tomatoLoss` key exists.
 - Clients display the server's total only and never compute a loss.
+
+## Amendment 5 — Steering chooses the side; hordes keep arriving (owner decisions, issue #142, 2026-10-26)
+
+Owner decisions recorded on [issue #142](https://github.com/manoochehri/calenda/issues/142): "the hordes of spectators just stop, they should be continuous," and an idle win has no challenge.
+
+Supersedes, where they conflict: §3's "center position chooses the nearest eligible target"; Amendment 1's targeting line ("otherwise the nearest target to the lead is chosen") and its "Targeting" sentence; and Amendment 1's "Attacking waves" schedule, which ends its waves at the 10th pair. Everything else is unchanged: eligibility, credit-once, meters, the gift cadence, continuous fire (Amendment 2), the same-tick order, server authority, the share loss rule and its 10% values (ADR 0007), gates, sections and crowd math.
+
+**Targeting follows steering.**
+- The server reads the lead's lateral position and derives its side with `Level.sideOf` (`spectators.centerTolerance`). Steer left engages only eligible hordes on the left; steer right only eligible hordes on the right.
+- Among eligible hordes on the steered side, the nearest to the lead is chosen (ties: lowest id).
+- Center steering engages no horde. Every shot is a visual-only miss (Amendment 2), with no meter, credit or loss.
+- There is no fallback to the other side. A horde on the side not steered to is not engaged and attacks on reaching the parade as before.
+
+**Continuous arrivals.** Each authored layout keeps the 2.5-second pair rhythm through the late route. Pairs arrive on that spacing for as long as the last arrival is at or before the plaza minus 2 seconds, so the last horde reaches the parade within 3 seconds of the plaza (the layout test checks this). Pairs past each layout's authored soak list repeat its last soak count. The plaza, the finite run and the `maxTotal` bound are unchanged.
+
+**Checks.**
+- Hordes keep arriving through the late route on every playable layout (`tests/issue142_continuous_hordes.test.luau`).
+- Center steering targets nothing, and steering to a side never engages the other side (`tests/targeting.test.luau`).
+- A no-input run (no steer messages) is defeated before the plaza on every playable layout. A scripted competent run completes on every playable layout. Both are measured with the BotHarness at 30 Hz, one seed; the balance evidence is UNVERIFIED until the skeptic clears it.
+- The layout validator's `maxTotal` bound applies to every layout. Where the best route exceeds `maxTotal` the layout is not accepted; the bound is not raised by this amendment.
+
+## Amendment 6 — The layout validator bound is raised (owner decision, 2026-10-26)
+
+Supersedes, where they conflict, the Amendment 5 checks line that says the `maxTotal` bound is not raised. `maxTotal` is raised from 2500 to 4000 and now lives in `Config.layout.maxTotal`, read by every authored layout. The best-route totals on this branch are calle-del-mercado 3390, portal-del-sur 3850 and esquina-de-la-banda 3490, so 4000 is the smallest round value that covers all three. The 10% loss rule, the steering-targeting rule and the authored layouts are unchanged. The balance evidence this raise rests on is UNVERIFIED until the skeptic reviews it.

@@ -52,7 +52,7 @@ local function shotsFor(layout: Level.Layout, startingTotal: number, t1: number)
 		t1 = t1,
 		z0 = 0,
 		z1 = 0,
-		x = 0,
+		x = 16,
 		state = state,
 		passedClusters = {},
 		emit = function(e: any)
