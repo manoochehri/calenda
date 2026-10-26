@@ -16,7 +16,7 @@ end
 
 return {
 	{
-		name = "one stream at the start, one more per logical section",
+		name = "one stream for 0 or 1 sections, then one per section",
 		run = function()
 			eq(ShotStreams.count(0), 1, "no sections: one stream")
 			eq(ShotStreams.count(1), 1, "one section: one stream")
@@ -88,6 +88,50 @@ return {
 					"never beyond the lane"
 				)
 			end
+		end,
+	},
+	{
+		name = "ShotLook.miss with lateral: eases out to the lane by a third of the flight, ignores n",
+		run = function()
+			local lateral = -3.2
+			near(ShotLook.miss(0.1, 1, lateral).dx, lateral * 0.3, "30% of the way at k=0.1")
+			near(ShotLook.miss(1 / 3, 1, lateral).dx, lateral, "on the lane at k=1/3")
+			near(ShotLook.miss(0.5, 1, lateral).dx, lateral, "holds the lane after k=1/3")
+			for n = 1, 10 do
+				near(
+					ShotLook.miss(0.2, n, lateral).dx,
+					ShotLook.miss(0.2, 1, lateral).dx,
+					"n ignored"
+				)
+			end
+			-- The other channels are the same with or without a lateral offset.
+			local a, b = ShotLook.miss(0.6, 4, lateral), ShotLook.miss(0.6, 4)
+			eq(a.dy, b.dy, "dy unchanged")
+			eq(a.dz, b.dz, "dz unchanged")
+			eq(a.scale, b.scale, "scale unchanged")
+			eq(a.alpha, b.alpha, "alpha unchanged")
+		end,
+	},
+	{
+		name = "ShotLook.miss without lateral keeps the old five-lane spread",
+		run = function()
+			for n = 1, 10 do
+				for i = 0, 10 do
+					local k = i / 10
+					local expected = ((n % 5) - 2) * ShotLook.MISS_SPREAD * k
+					near(ShotLook.miss(k, n).dx, expected, `nil lateral, n={n}, k={k}`)
+				end
+			end
+			local seen = {}
+			for n = 1, 5 do
+				seen[ShotLook.miss(1, n).dx] = true
+			end
+			local count = 0
+			for _ in seen do
+				count += 1
+			end
+			eq(count, 5, "five distinct lanes")
+			near(ShotLook.miss(1, 5, 0).dx, 0, "an explicit zero lateral is a stream, not nil")
 		end,
 	},
 	{

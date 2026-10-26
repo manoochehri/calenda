@@ -16,7 +16,8 @@ local function checkInt(v: any, name: string)
 	end
 end
 
--- Streams for a logical section count: one, then one more per section, capped at MAX_STREAMS.
+-- Streams for a logical section count: clamp(sections, 1, MAX_STREAMS), so 0 or 1 section is one
+-- stream, two sections two, and so on up to the cap.
 function ShotStreams.count(sections: number): number
 	checkInt(sections, "sections")
 	return math.clamp(sections, 1, ShotStreams.MAX_STREAMS)

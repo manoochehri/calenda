@@ -270,7 +270,7 @@ function ClusterView.new(layout: any): ClusterView
 		fromZ: number,
 		miss: boolean,
 		n: number,
-		lateral: number, -- issue #63: the stream's sideways offset (game units)
+		lateral: number?, -- issue #63: a miss's stream offset (game units); nil for hits (they use fromX)
 	}
 	local flights: Effects.Effects<Flight> = Effects.new(PROJECTILE_CAPACITY)
 	-- A shot (issue #67): a glowing Neon core inside a larger translucent halo, a Trail, and up to
@@ -372,9 +372,13 @@ function ClusterView.new(layout: any): ClusterView
 	local clock, lastT, lastLeadX, lastLeadZ = 0, 0, 0, 0
 	-- Parallel shot streams (issue #63): one per logical section, at most ShotStreams.MAX_STREAMS.
 	local streams = 1
-	-- The stream offset for shot number n (visual only: the same shots, spread across lanes).
-	local function laneOffset(n: number): number
-		local lane = ShotStreams.lane(math.max(1, math.floor(n)), streams)
+	-- The stream offset for a lane key (visual only: the same shots, spread across lanes). The key
+	-- is NOT one counter: a miss passes its shot number (miss.n), so misses cycle through the lanes
+	-- in order; a hit payload carries no shot number (only the target's layout cluster id, shot.id),
+	-- so hits use the target id, which keeps each target's shots in one stable lane. Giving hits the
+	-- shot number would need a wire change (ADR 0004 / Remotes), out of scope for this visual.
+	local function laneOffset(key: number): number
+		local lane = ShotStreams.lane(math.max(1, math.floor(key)), streams)
 		return ShotStreams.offset(lane, streams)
 	end
 	local currentPositions: { [number]: { x: number, z: number } } = {}
@@ -420,7 +424,7 @@ function ClusterView.new(layout: any): ClusterView
 				fromZ = lastLeadZ,
 				miss = false,
 				n = shot.hits,
-				lateral = laneOffset(shot.id),
+				lateral = nil,
 			})
 		then
 			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })
