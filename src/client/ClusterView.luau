@@ -28,6 +28,7 @@ local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
 local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ShotLook = require(Shared:WaitForChild("ShotLook"))
+local ShotStreams = require(Shared:WaitForChild("ShotStreams"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local Bits = require(script.Parent:WaitForChild("Bits"))
@@ -269,6 +270,7 @@ function ClusterView.new(layout: any): ClusterView
 		fromZ: number,
 		miss: boolean,
 		n: number,
+		lateral: number?, -- issue #63: a miss's stream offset (game units); nil for hits (they use fromX)
 	}
 	local flights: Effects.Effects<Flight> = Effects.new(PROJECTILE_CAPACITY)
 	-- A shot (issue #67): a glowing Neon core inside a larger translucent halo, a Trail, and up to
@@ -368,6 +370,15 @@ function ClusterView.new(layout: any): ClusterView
 	local attacked = ClusterEvents.dedupe()
 
 	local clock, lastT, lastLeadX, lastLeadZ = 0, 0, 0, 0
+	-- Parallel shot streams (issue #63): one per logical section, at most ShotStreams.MAX_STREAMS.
+	local streams = 1
+	-- One lane counter for hits and misses (issue #63): each shot that flies takes the next lane, so
+	-- the streams fill in arrival order. The hit payload has no shot number (ClusterFeed carries only
+	-- the target id), so a per-target key would not match the miss path; a shared counter does.
+	local laneCycle = ShotStreams.cycler()
+	local function nextOffset(): number
+		return ShotStreams.offset(laneCycle.next(streams), streams)
+	end
 	local currentPositions: { [number]: { x: number, z: number } } = {}
 	local view = {} :: ClusterView
 
@@ -407,10 +418,11 @@ function ClusterView.new(layout: any): ClusterView
 				id = shot.id,
 				variant = variant,
 				hits = shot.hits,
-				fromX = lastLeadX,
+				fromX = lastLeadX + nextOffset(),
 				fromZ = lastLeadZ,
 				miss = false,
 				n = shot.hits,
+				lateral = nil,
 			})
 		then
 			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })
@@ -443,6 +455,7 @@ function ClusterView.new(layout: any): ClusterView
 				fromZ = lastLeadZ,
 				miss = true,
 				n = miss.n,
+				lateral = nextOffset(),
 			})
 		then
 			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })
@@ -483,6 +496,11 @@ function ClusterView.new(layout: any): ClusterView
 		if type(p) == "number" and p == p and p > 0 then
 			pullback = p
 		end
+	end
+
+	-- Logical section count from the authoritative total (Main passes CrowdMath.sectionCount).
+	function view.setSections(_, sections: number)
+		streams = ShotStreams.count(math.max(0, math.floor(sections)))
 	end
 
 	function view.setQuality(_, name: string)
@@ -697,7 +715,7 @@ function ClusterView.new(layout: any): ClusterView
 			local x, y, z = 0.0, 0.0, 0.0
 			local size = look.size * ShotLook.pulse(f.f)
 			if f.data.miss then
-				local m = ShotLook.miss(f.f, f.data.n)
+				local m = ShotLook.miss(f.f, f.data.n, f.data.lateral)
 				x, y, z = ViewMap.x(f.data.fromX + m.dx), 2.5 + m.dy, f.data.fromZ + m.dz
 				alpha, size = m.alpha, size * m.scale
 			elseif to ~= nil then
