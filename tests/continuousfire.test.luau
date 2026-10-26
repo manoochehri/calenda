@@ -68,7 +68,7 @@ local function run(
 	local out: { any } = {}
 	local t = 0.0
 	while t <= seconds do
-		for _, s in session:advance(t, sections, "center").shots do
+		for _, s in session:advance(t, sections, "right").shots do
 			table.insert(out, s)
 		end
 		t += RunDriver.TICK_DT

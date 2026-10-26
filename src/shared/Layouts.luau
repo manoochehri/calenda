@@ -16,7 +16,10 @@ type Gate = Level.Gate
 type Obstacle = Level.Obstacle
 
 local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one before
-local PAIRS = 10
+local PLAZA_SECONDS = 90 -- run seconds at which the plaza starts (every layout's plazaStart)
+-- Issue #142: the wave rhythm continues through the late route. Pairs keep arriving on the same
+-- 2.5 s spacing until the last arrival is at or before PLAZA_SECONDS - LAST_ARRIVAL_MARGIN.
+local LAST_ARRIVAL_MARGIN = 2
 
 local function at(seconds: number): number
 	return seconds * Config.speed
@@ -36,7 +39,8 @@ end
 
 -- Waves: pair p sends a small group (wave 2p-1) and a large group (wave 2p) that arrive together.
 -- Waves alternate sides. `bigOnLeft` puts the large group on the left sidewalk. `soaks[p]` extra
--- small groups trail the small group nearer the lead.
+-- small groups trail the small group nearer the lead. Pairs past the authored list repeat its last
+-- soak count, so the rhythm reaches the plaza.
 type WaveSpec = { waveDelay: number, soaks: { number }, bigOnLeft: boolean }
 
 local function buildClusters(spec: WaveSpec): { Level.Cluster }
@@ -57,12 +61,18 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 	end
 	local smallX = if spec.bigOnLeft then 16 else -16
 	local bigX = -smallX
-	for pair = 1, PAIRS do
+	local pair = 0
+	while true do
+		pair += 1
 		local arrive = 1 + (pair - 1) * 2.5 + spec.waveDelay
+		if arrive > PLAZA_SECONDS - LAST_ARRIVAL_MARGIN then
+			break
+		end
 		local base = Config.speed * arrive + 20
 		add(pair * 2 - 1, "small", smallX, arrive, base)
 		add(pair * 2, "large", bigX, arrive, base)
-		for soak = 1, spec.soaks[pair] do
+		local soaks = spec.soaks[math.min(pair, #spec.soaks)]
+		for soak = 1, soaks do
 			add(pair * 2 - 1, "small", smallX, arrive, base - SOAK_STEP * soak)
 		end
 	end
@@ -91,7 +101,7 @@ local function make(
 		seed = seed,
 		startPlazaEnd = at(5),
 		streetLength = at(100),
-		plazaStart = at(90),
+		plazaStart = at(PLAZA_SECONDS),
 		halfWidth = 20,
 		maxTotal = 2500,
 		intendedRecruitTotal = 30,

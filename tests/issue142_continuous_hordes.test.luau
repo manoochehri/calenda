@@ -62,7 +62,10 @@ return {
 					result.outcome == "defeated",
 					`{layout.name}: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`
 				)
-				assert(result.time < Level.timeAtZ(layout.plazaStart), `{layout.name}: defeat was not before the plaza`)
+				assert(
+					result.time < Level.timeAtZ(layout.plazaStart),
+					`{layout.name}: defeat was not before the plaza`
+				)
 			end
 		end,
 	},
@@ -70,7 +73,8 @@ return {
 		name = "a competent scripted run completes on every playable layout",
 		run = function()
 			for _, layout in Layouts.all do
-				local result = BotHarness.play(layout, BotHarness.policy("scripted", 1), { hz = 30 })
+				local result =
+					BotHarness.play(layout, BotHarness.policy("scripted", 1), { hz = 30 })
 				assert(
 					result.outcome == "completed",
 					`{layout.name}: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`

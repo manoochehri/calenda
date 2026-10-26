@@ -104,6 +104,68 @@ end
 
 return {
 	{
+		name = "steering center engages no horde, even one that is eligible on either side",
+		run = function()
+			local tol = Config.spectators.centerTolerance
+			local list = { cand(1, -16, 20), cand(2, 16, 30), cand(3, -tol, 10) }
+			assert(Targeting.selectTarget(list, 0, "center") == nil, "center targets nothing")
+		end,
+	},
+	{
+		name = "steering toward a side never falls back to a horde on the other side",
+		run = function()
+			assert(
+				Targeting.selectTarget({ cand(1, 16, 20) }, 0, "left") == nil,
+				"left, right horde"
+			)
+			assert(
+				Targeting.selectTarget({ cand(1, -16, 20) }, 0, "right") == nil,
+				"right, left horde"
+			)
+			local list = { cand(1, -16, 10, true), cand(2, 16, 30) }
+			assert(Targeting.selectTarget(list, 0, "left") == nil, "full left, eligible right")
+		end,
+	},
+	{
+		name = "steering toward a side engages the nearest eligible horde on that side only",
+		run = function()
+			local list = { cand(1, 16, 10), cand(2, -16, 40), cand(3, -16, 25) }
+			assert(Targeting.selectTarget(list, 0, "left") == 3, "nearest left")
+			assert(Targeting.selectTarget(list, 0, "right") == 1, "nearest right")
+		end,
+	},
+	{
+		name = "neutral steering sends only visual misses while hordes on both sides are in range",
+		run = function()
+			local layout = layoutOf({ cluster(1, -16, 30), cluster(2, 16, 30) })
+			local session = newSession(layout)
+			local all = driveAll(session, 0, 2, 1 / 30, 0, "center")
+			assert(#all >= 12, `expected continuous shots, got {#all}`)
+			for i, s in all do
+				assert(s.miss == true and s.targetId == nil, `shot {i} is a miss`)
+			end
+			assert(session:meter(1) == 0 and session:meter(2) == 0, "no meter moved")
+		end,
+	},
+	{
+		name = "steer side is read per advance: switching sides switches the engaged horde",
+		run = function()
+			-- horde 1 passes the lead at ~0.9 s; horde 2 stays eligible on the right for ~1.7 s
+			local layout = layoutOf({ cluster(1, -16, 30), cluster(2, 16, 60) })
+			local session = newSession(layout)
+			local left = drive(session, 0, 1, 1 / 30, 0, "left")
+			assert(#left > 0, "left shots")
+			for _, s in left do
+				assert(s.targetId == 1, "left steer hits the left horde")
+			end
+			local right = drive(session, 1 + 1 / 30, 2, 1 / 30, 0, "right")
+			assert(#right > 0, "right shots")
+			for _, s in right do
+				assert(s.targetId == 2, "right steer hits the right horde")
+			end
+		end,
+	},
+	{
 		name = "fire rate is min(20, 6 + sections) at 0, 1, 9 and 100 sections (ADR 0004)",
 		run = function()
 			assert(Targeting.fireRate(0) == 6, "0 sections")
@@ -147,24 +209,24 @@ return {
 		name = "range is inclusive at firing.range and a cluster at the lead is passed",
 		run = function()
 			assert(
-				Targeting.selectTarget({ cand(1, 5, Config.firing.range) }, 0, "center") == 1,
+				Targeting.selectTarget({ cand(1, 16, Config.firing.range) }, 0, "right") == 1,
 				"edge"
 			)
 			assert(
-				Targeting.selectTarget({ cand(1, 5, 100 + 0.001) }, 100, "center") == 1,
+				Targeting.selectTarget({ cand(1, 16, 100 + 0.001) }, 100, "right") == 1,
 				"just ahead"
 			)
-			assert(Targeting.selectTarget({ cand(1, 5, 100) }, 100, "center") == nil, "at lead")
+			assert(Targeting.selectTarget({ cand(1, 16, 100) }, 100, "right") == nil, "at lead")
 		end,
 	},
 	{
-		name = "nearest eligible target to the lead is chosen when steering center",
+		name = "nearest eligible target on the steered side is chosen, skipping full ones",
 		run = function()
 			local list = { cand(1, -16, 40), cand(2, 16, 20), cand(3, 16, 30) }
-			assert(Targeting.selectTarget(list, 0, "center") == 2, "nearest")
+			assert(Targeting.selectTarget(list, 0, "right") == 2, "nearest")
 			-- a nearer but full cluster is skipped
 			list[2] = cand(2, 16, 20, true)
-			assert(Targeting.selectTarget(list, 0, "center") == 3, "skips full")
+			assert(Targeting.selectTarget(list, 0, "right") == 3, "skips full")
 		end,
 	},
 	{
@@ -176,13 +238,13 @@ return {
 		end,
 	},
 	{
-		name = "steering toward an empty side falls back to nearest overall",
+		name = "steering toward a side with no eligible horde engages nothing",
 		run = function()
 			local list = { cand(1, 16, 40), cand(2, 16, 25) }
-			assert(Targeting.selectTarget(list, 0, "left") == 2, "fallback nearest")
-			-- the only left cluster is full: left has no eligible target, so fall back
+			assert(Targeting.selectTarget(list, 0, "left") == nil, "no left horde")
+			-- the only left horde is full: left has no eligible target and nothing is borrowed
 			local list2 = { cand(1, -16, 10, true), cand(2, 16, 30) }
-			assert(Targeting.selectTarget(list2, 0, "left") == 2, "full left falls back")
+			assert(Targeting.selectTarget(list2, 0, "left") == nil, "full left, no fallback")
 		end,
 	},
 	{
@@ -192,14 +254,14 @@ return {
 			-- x = -tol is center, so it does not count as "left"
 			local list = { cand(1, -tol, 10), cand(2, -tol - 0.5, 50) }
 			assert(Targeting.selectTarget(list, 0, "left") == 2, "strictly left only")
-			assert(Targeting.selectTarget(list, 0, "center") == 1, "center steering is nearest")
+			assert(Targeting.selectTarget(list, 0, "center") == nil, "center engages nothing")
 		end,
 	},
 	{
 		name = "ties on distance break by lowest id (deterministic)",
 		run = function()
-			local list = { cand(7, 16, 20), cand(3, -16, 20) }
-			assert(Targeting.selectTarget(list, 0, "center") == 3, "lowest id")
+			local list = { cand(7, -16, 20), cand(3, -16, 20) }
+			assert(Targeting.selectTarget(list, 0, "left") == 3, "lowest id")
 		end,
 	},
 	{
@@ -208,12 +270,12 @@ return {
 			local layout = layoutOf({ cluster(1, 16, 30, "large") })
 			local session = newSession(layout)
 			-- sections 0 => 6 per second; stand-still lead is not modelled, so use a short window
-			local shots = driveAll(session, 0, 0.9, 1 / 60, 0, "center")
+			local shots = driveAll(session, 0, 0.9, 1 / 60, 0, "right")
 			-- shots at 0, 1/6, ... 5/6 => 6 within [0, 0.9]
 			assert(#shots == 6, `expected 6 shots, got {#shots}`)
 			near(shots[2].time - shots[1].time, 1 / 6, "interval")
 			local fast = newSession(layout)
-			local shots14 = driveAll(fast, 0, 0.52, 1 / 60, 14, "center")
+			local shots14 = driveAll(fast, 0, 0.52, 1 / 60, 14, "right")
 			-- 20 per second (the cap): shots at 0, 0.05, ... 0.5 => 11 shots in [0, 0.52]
 			assert(#shots14 == 11, `expected 11 shots at cap, got {#shots14}`)
 		end,
@@ -225,7 +287,7 @@ return {
 			local session, rs = newSession(layout)
 			local need = Config.clusterTypes.small.hits
 			local before = rs:total()
-			local shots = drive(session, 0, 5, 1 / 60, 0, "center")
+			local shots = drive(session, 0, 5, 1 / 60, 0, "right")
 			assert(#shots == need, `expected exactly {need} shots, got {#shots}`)
 			assert(shots[need].filled == true, "last shot fills the meter")
 			assert(shots[need].credit ~= nil and shots[need].credit.ok, "credited")
@@ -249,7 +311,7 @@ return {
 		run = function()
 			local layout = layoutOf({ cluster(1, 16, 30, "small") })
 			local session, rs = newSession(layout)
-			drive(session, 0, 5, 1 / 60, 0, "center")
+			drive(session, 0, 5, 1 / 60, 0, "right")
 			local total = rs:total()
 			local events = #rs:events()
 			for _ = 1, 5 do
@@ -264,9 +326,13 @@ return {
 	{
 		name = "a full cluster is no longer targeted",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "small"), cluster(2, -16, 50, "small") })
+			local layout = layoutOf({ cluster(1, 16, 30, "small"), cluster(2, -16, 60, "small") })
 			local session = newSession(layout)
-			local shots = drive(session, 0, 10, 1 / 60, 0, "center")
+			-- steer right for the first second (cluster 1 takes its 3 hits), then left (cluster 2)
+			local shots = drive(session, 0, 1, 1 / 60, 0, "right")
+			for _, s in drive(session, 1 + 1 / 60, 2, 1 / 60, 0, "left") do
+				table.insert(shots, s)
+			end
 			local counts: { [number]: number } = {}
 			for _, s in shots do
 				counts[s.targetId] = (counts[s.targetId] or 0) + 1
@@ -298,7 +364,7 @@ return {
 		run = function()
 			local layout = layoutOf({ cluster(1, 16, 30, "large") })
 			local session = newSession(layout)
-			local shots = drive(session, 0, 5, 1 / 60, 3, "center")
+			local shots = drive(session, 0, 5, 1 / 60, 3, "right")
 			assert(#shots == Config.clusterTypes.large.hits, "gifts count as one hit each")
 			assert(shots[4].kind == "gift" and shots[8].kind == "gift", "4th and 8th are gifts")
 			assert(shots[1].kind == "note" and shots[5].kind == "note", "others are notes")
@@ -333,7 +399,7 @@ return {
 			local closing = Config.speed + Config.spectators.approachSpeed
 			-- distance(t) = 500 - closing * t; in range when <= firing.range
 			local tEnter = (500 - Config.firing.range) / closing
-			local shots = drive(session, 0, tEnter + 3, 1 / 30, 0, "center")
+			local shots = drive(session, 0, tEnter + 3, 1 / 30, 0, "right")
 			assert(#shots > 0, "fires once in range")
 			assert(
 				shots[1].time >= tEnter - 1e-6,
@@ -352,9 +418,9 @@ return {
 		run = function()
 			local layout = layoutOf({ cluster(1, 16, 100, "small", 2) })
 			local session = newSession(layout)
-			local shots = drive(session, 0, 1.5, 1 / 30, 0, "center")
+			local shots = drive(session, 0, 1.5, 1 / 30, 0, "right")
 			assert(#shots == 0, "waiting cluster is not targeted")
-			local later = drive(session, 1.6, 3, 1 / 30, 0, "center")
+			local later = drive(session, 1.6, 3, 1 / 30, 0, "right")
 			assert(#later > 0 and later[1].time >= 2 - 1e-6, "targetable from spawnTime")
 		end,
 	},
@@ -370,7 +436,7 @@ return {
 			local t = 0
 			local shotCount = 0
 			while t <= 3 do
-				local step = session:advance(t, 0, "center")
+				local step = session:advance(t, 0, "right")
 				for _, s in step.shots do
 					if not s.miss then
 						shotCount += 1
@@ -389,7 +455,7 @@ return {
 				"left unconsumed (the attack phase consumes it)"
 			)
 			-- and a passed cluster never receives shots again
-			local more = session:advance(t + 1, 0, "center")
+			local more = session:advance(t + 1, 0, "right")
 			for _, s in more.shots do
 				assert(s.miss, "a passed cluster never receives a hit again")
 			end
@@ -402,7 +468,7 @@ return {
 			local layout = layoutOf({ cluster(1, 16, 20, "large") })
 			local session, rs = newSession(layout)
 			local t = (20 / (Config.speed + Config.spectators.approachSpeed)) + 0.01
-			local step = session:advance(t, 0, "center")
+			local step = session:advance(t, 0, "right")
 			assert(#step.passed == 1 and step.passed[1] == 1, "cluster passed")
 			local beforeTotal = rs:total()
 			local beforeEvents = #rs:events()
@@ -424,7 +490,7 @@ return {
 			local shots = 0
 			local t = 0
 			while t <= 3 do
-				local step = session:advance(t, 0, "center")
+				local step = session:advance(t, 0, "right")
 				for _, s in step.shots do
 					if not s.miss then
 						shots += 1
@@ -441,9 +507,9 @@ return {
 		name = "advance rejects time going backwards",
 		run = function()
 			local session = newSession(layoutOf({ cluster(1, 16, 30) }))
-			session:advance(1, 0, "center")
+			session:advance(1, 0, "right")
 			assert(not pcall(function()
-				session:advance(0.5, 0, "center")
+				session:advance(0.5, 0, "right")
 			end), "backwards time must error")
 		end,
 	},

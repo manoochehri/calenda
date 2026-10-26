@@ -432,7 +432,8 @@ return {
 			local events: { RunDriver.DriverEvent } = {}
 			for _ = 1, 100 do
 				for _, event in d:tick(DT) do
-					if event.kind ~= "cluster" then -- shot events (#48) are covered by shotevents.test
+					-- shot events (#48) and display-only misses (ADR 0004) are covered by their own tests
+					if event.kind ~= "cluster" and event.kind ~= "miss" then
 						table.insert(events, event)
 					end
 				end
@@ -485,8 +486,15 @@ return {
 					path = {},
 				},
 			}
-			local d =
-				RunDriver.new({ layout = layout, automated = true, hooks = RunHooks.new(layout) })
+			-- Targeting follows the lead's side (issue #142). This test covers conversion ordering,
+			-- so the shots hook sees the lead on the right sidewalk, where the cluster is.
+			local hooks = RunHooks.new(layout)
+			local shots = hooks.shots
+			hooks.shots = function(ctx)
+				ctx.x = 16
+				shots(ctx)
+			end
+			local d = RunDriver.new({ layout = layout, automated = true, hooks = hooks })
 			local events: { RunDriver.DriverEvent } = {}
 			for _ = 1, 40 do
 				for _, event in d:tick(DT) do
@@ -527,6 +535,8 @@ return {
 			local shots = hooks.shots
 			local crossingTick = false
 			hooks.shots = function(ctx)
+				-- Targeting follows the lead's side (issue #142): hold the lead on the cluster's side.
+				ctx.x = 16
 				if shots then
 					shots(ctx)
 				end
