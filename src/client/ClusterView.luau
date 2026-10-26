@@ -372,14 +372,12 @@ function ClusterView.new(layout: any): ClusterView
 	local clock, lastT, lastLeadX, lastLeadZ = 0, 0, 0, 0
 	-- Parallel shot streams (issue #63): one per logical section, at most ShotStreams.MAX_STREAMS.
 	local streams = 1
-	-- The stream offset for a lane key (visual only: the same shots, spread across lanes). The key
-	-- is NOT one counter: a miss passes its shot number (miss.n), so misses cycle through the lanes
-	-- in order; a hit payload carries no shot number (only the target's layout cluster id, shot.id),
-	-- so hits use the target id, which keeps each target's shots in one stable lane. Giving hits the
-	-- shot number would need a wire change (ADR 0004 / Remotes), out of scope for this visual.
-	local function laneOffset(key: number): number
-		local lane = ShotStreams.lane(math.max(1, math.floor(key)), streams)
-		return ShotStreams.offset(lane, streams)
+	-- One lane counter for hits and misses (issue #63): each shot that flies takes the next lane, so
+	-- the streams fill in arrival order. The hit payload has no shot number (ClusterFeed carries only
+	-- the target id), so a per-target key would not match the miss path; a shared counter does.
+	local laneCycle = ShotStreams.cycler()
+	local function nextOffset(): number
+		return ShotStreams.offset(laneCycle.next(streams), streams)
 	end
 	local currentPositions: { [number]: { x: number, z: number } } = {}
 	local view = {} :: ClusterView
@@ -420,7 +418,7 @@ function ClusterView.new(layout: any): ClusterView
 				id = shot.id,
 				variant = variant,
 				hits = shot.hits,
-				fromX = lastLeadX + laneOffset(shot.id),
+				fromX = lastLeadX + nextOffset(),
 				fromZ = lastLeadZ,
 				miss = false,
 				n = shot.hits,
@@ -457,7 +455,7 @@ function ClusterView.new(layout: any): ClusterView
 				fromZ = lastLeadZ,
 				miss = true,
 				n = miss.n,
-				lateral = laneOffset(miss.n),
+				lateral = nextOffset(),
 			})
 		then
 			muzzles:start(clock, ShotLook.MUZZLE_SECONDS, { variant = variant })

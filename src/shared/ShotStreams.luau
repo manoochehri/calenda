@@ -32,6 +32,19 @@ function ShotStreams.lane(n: number, streams: number): number
 	return (n - 1) % streams
 end
 
+-- One lane counter per client view. Every shot that takes a flight (hit or miss) asks it for the
+-- next lane, so the lane follows the order shots arrive in, whatever their kind. The wire carries
+-- no shared shot number for hits, so this counter is the only key (issue #63 review).
+function ShotStreams.cycler(): { next: (streams: number) -> number }
+	local n = 0
+	return {
+		next = function(streams: number): number
+			n += 1
+			return ShotStreams.lane(n, streams)
+		end,
+	}
+end
+
 -- Lateral offset (game units, x) of a lane, centred on the lead so the streams are symmetric.
 function ShotStreams.offset(lane: number, streams: number): number
 	return (lane - (streams - 1) / 2) * ShotStreams.SPACING

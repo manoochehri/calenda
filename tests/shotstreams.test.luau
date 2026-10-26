@@ -59,6 +59,24 @@ return {
 		end,
 	},
 	{
+		name = "one lane counter for hits and misses: shots cycle through the lanes in arrival order",
+		run = function()
+			-- A hit and a miss draw from the same counter, so the lane follows the shot, not its kind
+			-- (issue #63 review: shot.id and miss.n were two different keys).
+			local cycle = ShotStreams.cycler()
+			local order = {}
+			for i = 1, 10 do
+				order[i] = cycle.next(5)
+			end
+			for i = 1, 10 do
+				eq(order[i], (i - 1) % 5, `shot {i} takes lane {(i - 1) % 5}`)
+			end
+			local fresh = ShotStreams.cycler()
+			eq(fresh.next(1), 0, "one stream: lane 0")
+			eq(fresh.next(1), 0, "one stream: lane 0 again")
+		end,
+	},
+	{
 		name = "lateral offsets are distinct, centred on the lead, and within the stream spacing",
 		run = function()
 			local streams = 5
