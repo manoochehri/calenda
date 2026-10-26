@@ -9,15 +9,20 @@ local Targeting = require("./Targeting")
 
 local RunHooks = {}
 
+-- `layout` is the first level; each tick follows the level the run is on (ctx.layout, issue #128),
+-- and targeting is rebuilt when the level changes so it never reads another level's clusters.
 function RunHooks.new(layout: Level.Layout, config: any?): any
 	local cfg = config or Config
 	local targeting: Targeting.Session? = nil
+	local targetingLayout: Level.Layout? = nil
 	local hooks: any = {}
 
 	local function session(ctx: any): Targeting.Session
-		if targeting == nil then
+		local current: Level.Layout = ctx.layout or layout
+		if targeting == nil or targetingLayout ~= current then
+			targetingLayout = current
 			targeting = Targeting.new({
-				layout = layout,
+				layout = current,
 				runState = ctx.state,
 				runIdPrefix = "c",
 				config = cfg,

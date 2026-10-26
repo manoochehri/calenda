@@ -9,12 +9,21 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local LevelChain = require(Shared:WaitForChild("LevelChain"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local RunDriver = require(Shared:WaitForChild("RunDriver"))
 local RunHooks = require(Shared:WaitForChild("RunHooks"))
 local RunLog = require(Shared:WaitForChild("RunLog"))
 local TickPacer = require(Shared:WaitForChild("TickPacer"))
+
+-- Authored levels by id (issue #128). The ids are Config.levelPlayOrder; the server, not the client,
+-- decides when a level's finale moves the run to the next one.
+local LEVELS = {
+	["oaxacan-street"] = DebugLayout,
+}
+local PLAY_ORDER = LevelChain.resolve(Config.levelPlayOrder, LEVELS)
 
 local STATE_INTERVAL = 0.1 -- seconds between State snapshots per player (about 10 Hz)
 -- A ready (not started) run costs almost nothing: no ticking, and State only once a second so a
@@ -51,12 +60,13 @@ local function sendState(player: Player, session: Session)
 end
 
 local function startRun(player: Player)
-	-- The layout is the authored constant; nothing from the client reaches the driver's setup.
+	-- The layouts are the authored constants; nothing from the client reaches the driver's setup.
 	local session: Session = {
 		driver = RunDriver.new({
-			layout = DebugLayout,
+			layout = PLAY_ORDER[1],
+			levels = PLAY_ORDER,
 			automated = false,
-			hooks = RunHooks.new(DebugLayout),
+			hooks = RunHooks.new(PLAY_ORDER[1]),
 			startReady = true, -- paused until the client's Start (issue #72)
 			-- Issue #96: the server draws each run's hazard schedule from its own seed.
 			runSeed = math.random(1, 2147483646),
