@@ -84,8 +84,6 @@ function Hud.new(onReplay: () -> ()): Hud
 
 	-- Crowd counter, top center. The big number is the exact total; the line under it is the
 	-- exact loose count and section count. Rects come from ScreenLayout (tested at every aspect).
-	local caption = placed(gui, "Caption", TypeStyle.font("body"))
-	caption.Text = Strings.followers
 	local counter = placed(gui, "Counter", TypeStyle.font("number"))
 	local scale = Instance.new("UIScale")
 	scale.Parent = counter
@@ -168,7 +166,6 @@ function Hud.new(onReplay: () -> ()): Hud
 
 	function hud.update(_, view: RunView.Hud, hintVisible: boolean)
 		local gameplayHudVisible = not view.showEnd
-		caption.Visible = gameplayHudVisible
 		counter.Visible = gameplayHudVisible
 		detail.Visible = gameplayHudVisible
 		if view.counter ~= last.counter then

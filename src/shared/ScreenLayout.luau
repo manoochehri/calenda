@@ -136,22 +136,11 @@ play.primary = true
 -- counter holds the meter; the middle of the screen is left to the street and the portals.
 local ELEMENTS = {
 	el(
-		"Caption",
-		0.5,
-		0,
-		0.5,
-		0,
-		0.30,
-		0.07,
-		RUN,
-		{ minSize = 14, maxSize = 24, sample = "Seguidores" }
-	),
-	el(
 		"Counter",
 		0.5,
 		0,
 		0.5,
-		0.07,
+		0,
 		0.40,
 		0.17,
 		RUN,
@@ -162,7 +151,7 @@ local ELEMENTS = {
 		0.5,
 		0,
 		0.5,
-		0.24,
+		0.17,
 		0.50,
 		0.07,
 		RUN,
@@ -184,7 +173,7 @@ local ELEMENTS = {
 		0.5,
 		0,
 		0.5,
-		0.32,
+		0.24,
 		0.42,
 		0.06,
 		RUN,
@@ -195,9 +184,9 @@ local ELEMENTS = {
 		0.5,
 		0,
 		0.5,
-		0.46,
+		0.30,
 		0.70,
-		0.14,
+		0.10,
 		RUN,
 		{ minSize = 14, maxSize = 72, sample = "¡Calenda legendaria!" }
 	),
