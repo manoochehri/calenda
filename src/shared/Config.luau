@@ -378,8 +378,10 @@ local config: ConfigType = {
 	-- floor(percent * parade / 100) followers, the parade as it stood before the hit, and never fewer
 	-- than minShareLoss. Tune with the #17 ladder.
 	-- Owner approval (2026-10-26, issue #148): 10 -> 7. Measured under the share rule on 3 layouts,
-	-- seeds 1-10, 30 Hz, n=3 effective per policy: no run held at 6 or below, and the scripted
-	-- margin was 123 to 172. UNVERIFIED for the skeptic; the #17 ladder re-run is still open.
+	-- seeds 1-10, 30 Hz, n=3 effective per policy. At 6, no-input and always-center completed 10 of 30
+	-- (one layout, all seeds). At 5, 4 and 3, no-input was also not defeated on every layout. The
+	-- defeat holds on every layout from 7 upward. The scripted margin was 123 to 172. UNVERIFIED for
+	-- the skeptic; the #17 ladder re-run is still open.
 	attackSharePercent = 7, -- [owner-approved 2026-10-26, provisional]
 	minShareLoss = 1, -- [default, provisional]
 	-- Issue #96: followers lost once when an unblocked tomato hits the lead. Blocking is by a landed
