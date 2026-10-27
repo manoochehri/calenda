@@ -279,3 +279,11 @@ Supersedes, where they conflict: §3's "center position chooses the nearest elig
 ## Amendment 6 — The layout validator bound is raised (owner decision, 2026-10-26)
 
 Supersedes, where they conflict, the Amendment 5 checks line that says the `maxTotal` bound is not raised. `maxTotal` is raised from 2500 to 4000 and now lives in `Config.layout.maxTotal`, read by every authored layout. The best-route totals on this branch are calle-del-mercado 3390, portal-del-sur 3850 and esquina-de-la-banda 3490, so 4000 is the smallest round value that covers all three. The 10% loss rule, the steering-targeting rule and the authored layouts are unchanged. The balance evidence this raise rests on is UNVERIFIED until the skeptic reviews it.
+
+## Amendment 7 — The horde attack share is 7% (owner decision, 2026-10-26, issue #148)
+
+Supersedes, where they conflict, the 10% value of `attackSharePercent` in Amendment 4 and Amendment 5 and the "10%" and "attackSharePercent 10" balance statements in this document. `attackSharePercent` is changed from 10 to 7 in `Config.attackSharePercent`. Recorded in ADR 0009, which supersedes the 10% value of ADR 0007. ADR 0007's loss rule, its floor rounding, its `minShareLoss` of 1 and `hazards.tomatoSharePercent` (10) are unchanged. The loss formula, server authority, targeting, layouts and the tomato and obstacle losses are unchanged.
+
+**Measured basis (owner approval).** Sample: 3 layouts, seeds 1-10, 30 Hz, n=3 effective per policy. At 6, no-input and always-center runs completed 10 of 30 (one layout, all seeds). At 5, 4 and 3, no-input was also not defeated on every layout. The defeat holds on every layout from 7 upward. The scripted margin was 123 to 172. These numbers are UNVERIFIED: the skeptic has not reviewed them, and the #17 ladder re-run remains open.
+
+**Checks.** A horde that reaches the parade removes `max(1, floor(7% × total / 100))` followers. Example: a total of 100 becomes 93, and 93 becomes 87 on a second hit in the same batch. The tomato share stays at `hazards.tomatoSharePercent` = 10.
