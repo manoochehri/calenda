@@ -97,7 +97,7 @@ local function hasDancers(sectionCount: number): boolean
 end
 
 -- Gift cadence hook (spec s4): every Config.giftEveryNthShot-th shot is a gift once a dancer
--- section exists; otherwise a note. Both are one hit. Hearts/snacks are client-side variants.
+-- section exists; otherwise a note. Both are one hit. Notes/hearts/gifts are client-side variants (ProjectileVisual).
 function Targeting.shotKind(shotNumber: number, sectionCount: number, config: any?): ShotKind
 	if type(shotNumber) ~= "number" or shotNumber < 1 or shotNumber ~= math.floor(shotNumber) then
 		error(`shotNumber must be a positive integer, got {shotNumber}`, 2)

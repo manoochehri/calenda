@@ -27,6 +27,7 @@ local Effects = require(Shared:WaitForChild("Effects"))
 local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
 local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
+local ProjectileVisual = require(Shared:WaitForChild("ProjectileVisual"))
 local ShotLook = require(Shared:WaitForChild("ShotLook"))
 local ShotStreams = require(Shared:WaitForChild("ShotStreams"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
@@ -50,9 +51,11 @@ local EDGE_COLOR = Color3.fromRGB(255, 70, 40)
 local EDGE_MAX_ALPHA = 0.35 -- [default] the pulse never hides the game
 local EDGE_WIDTH = 0.07 -- [default] share of the screen width per side
 local CHEVRON_ROW = 0.88 -- [default] share of the visible depth where the chevron sits
--- Live shots: covers the firing cap x the longest flight (20/s x 0.9 s = 18, +4 slack = 22), under
--- ShotLook.PROJECTILE_HARD_CAP. Extras are simply not drawn. All look knobs live in ShotLook.
-local PROJECTILE_CAPACITY = ShotLook.projectileCapacity(Config.firing.cap, FeedbackMath.MAX_FLIGHT)
+-- Live shots: covers the firing cap x the longest flight (a gift, 1.12 s: 20/s x 1.12 = 23, +4
+-- slack = 27), under ShotLook.PROJECTILE_HARD_CAP. Extras are simply not drawn. Look knobs live in
+-- ShotLook; the note, heart and gift shapes and the gift arc live in ProjectileVisual.
+local PROJECTILE_CAPACITY =
+	ShotLook.projectileCapacity(Config.firing.cap, ProjectileVisual.longestFlight())
 local FLOAT_CAPACITY = 6 -- [default]
 local FLOAT_SECONDS = 1.1 -- [default]
 -- Issue #50: the cartoon bump when an unfilled cluster reaches the parade. Hats and instrument
@@ -274,8 +277,9 @@ function ClusterView.new(layout: any): ClusterView
 	}
 	local flights: Effects.Effects<Flight> = Effects.new(PROJECTILE_CAPACITY)
 	-- A shot (issue #67): a glowing Neon core inside a larger translucent halo, a Trail, and up to
-	-- three extra parts whose meaning depends on the look (note stem; heart lobes; snack ribbon and
-	-- twisted ends, issue #20). Pooled, never destroyed; hard capped by PROJECTILE_CAPACITY.
+	-- three extra parts whose meaning depends on the look (note stem and flag; heart lobes and
+	-- point; gift ribbon and twisted ends, issue #20). Pooled, never destroyed; hard capped by
+	-- PROJECTILE_CAPACITY.
 	type Shot = {
 		body: Part,
 		halo: Part,
@@ -410,9 +414,9 @@ function ClusterView.new(layout: any): ClusterView
 		if not plan.projectile or at == nil then
 			return converted -- over budget, a duplicate, or a cluster that is gone: no projectile
 		end
-		local variant = FeedbackMath.variant(shot.shot, shot.hits)
+		local variant = ProjectileVisual.kind(shot.shot, shot.hits)
 		local dist = math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2)
-		local seconds = FeedbackMath.flightSeconds(dist)
+		local seconds = ProjectileVisual.flightSeconds(shot.shot, dist)
 		if
 			flights:start(clock, seconds, {
 				id = shot.id,
@@ -443,9 +447,8 @@ function ClusterView.new(layout: any): ClusterView
 		if miss == nil or not shotBudget:take() then
 			return
 		end
-		-- Notes and hearts alternate per shot; gifts and snacks alternate per gift (every Nth shot).
-		local parity = if miss.shot == "gift" then miss.n // Config.giftEveryNthShot else miss.n
-		local variant = FeedbackMath.variant(miss.shot, parity)
+		-- Notes and hearts alternate per shot number; every gift (every Nth shot) is a gift (#151).
+		local variant = ProjectileVisual.kind(miss.shot, miss.n)
 		if
 			flights:start(clock, ShotLook.MISS_SECONDS, {
 				id = nil,
@@ -727,10 +730,17 @@ function ClusterView.new(layout: any): ClusterView
 					3,
 					to.z,
 					f.f,
-					FeedbackMath.ARC_HEIGHT
+					if f.data.variant == "gift"
+						then ProjectileVisual.GIFT_APEX
+						else FeedbackMath.ARC_HEIGHT
 				)
 			end
-			local gift = f.data.variant == "snack"
+			local gift = f.data.variant == "gift"
+			if gift then
+				-- A gift loops over its arc (issue #151); the loop starts and ends on the arc.
+				local loop = ProjectileVisual.giftLoop(f.f)
+				x, y, z = x + ViewMap.x(loop.dx), y + loop.dy, z + loop.dz
+			end
 			local core = look.core
 			local glow = look.glow
 			if gift then
@@ -789,7 +799,9 @@ function ClusterView.new(layout: any): ClusterView
 				p.body.Size = Vector3.one * size
 				p.body.Position = Vector3.new(x, y, z)
 				if f.data.variant == "heart" then
-					-- Two lobes on top of the pink core read as a heart from the high camera.
+					-- Two lobes and a point under the pink core: a heart silhouette from the high camera.
+					-- The point is a cube turned 45 degrees.
+					p.body.Size = Vector3.one * size * 0.9
 					for li = 2, 3 do
 						local lobe = p.extras[li]
 						lobe.Shape = Enum.PartType.Ball
@@ -803,15 +815,34 @@ function ClusterView.new(layout: any): ClusterView
 						lobe.Transparency = fade
 						lobe.Parent = folder
 					end
+					local point = p.extras[1]
+					point.Shape = Enum.PartType.Block
+					point.Size = Vector3.one * size * 0.7
+					point.Color = coreColor
+					point.CFrame = CFrame.new(x, y - 0.05 * size, z)
+						* CFrame.Angles(0, 0, math.rad(45))
+					point.Transparency = fade
+					point.Parent = folder
 				else
-					-- A note: a gold stem standing on the glowing head.
+					-- A musical note: a flattened head, a tall gold stem and a flag at its top, so it
+					-- reads as a quaver from the high camera and not as a ball.
+					p.body.Size = Vector3.new(size, size * 0.72, size)
 					local stem = p.extras[1]
+					local stemX = x + 0.4 * size
 					stem.Shape = Enum.PartType.Block
-					stem.Size = Vector3.new(0.22 * size, 1.1 * size, 0.22 * size)
+					stem.Size = Vector3.new(0.22 * size, 1.4 * size, 0.22 * size)
 					stem.Color = coreColor
-					stem.Position = Vector3.new(x + 0.4 * size, y + 0.6 * size, z)
+					stem.Position = Vector3.new(stemX, y + 0.7 * size, z)
 					stem.Transparency = fade
 					stem.Parent = folder
+					local flag = p.extras[2]
+					flag.Shape = Enum.PartType.Block
+					flag.Size = Vector3.new(0.7 * size, 0.28 * size, 0.2 * size)
+					flag.Color = coreColor
+					flag.CFrame = CFrame.new(stemX + 0.3 * size, y + 1.3 * size, z)
+						* CFrame.Angles(0, 0, math.rad(-35))
+					flag.Transparency = fade
+					flag.Parent = folder
 				end
 			end
 		end

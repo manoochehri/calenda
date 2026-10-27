@@ -40,11 +40,11 @@ return {
 	{
 		name = "shots are bigger than the old 0.9 note and the three kinds look different",
 		run = function()
-			for _, name in { "note", "heart", "snack" } do
+			for _, name in { "note", "heart", "gift" } do
 				assert(ShotLook.LOOKS[name].size >= 1.8, `{name} is bigger`)
 			end
 			local seen: { [string]: boolean } = {}
-			for _, name in { "note", "heart", "snack" } do
+			for _, name in { "note", "heart", "gift" } do
 				local c = ShotLook.LOOKS[name].core
 				local key = `{c[1]},{c[2]},{c[3]}`
 				assert(not seen[key], `{name} core color repeats`)

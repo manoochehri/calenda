@@ -35,27 +35,6 @@ return {
 		end,
 	},
 	{
-		name = "shot variants (spec s4, s10): ordinary shots alternate note and heart, gifts alternate heart and snack",
-		run = function()
-			eq(FeedbackMath.variant("note", 1), "heart", "ordinary odd shot is a heart")
-			eq(FeedbackMath.variant("note", 2), "note", "ordinary even shot is a note")
-			local hearts, notes = 0, 0
-			for hits = 1, 10 do
-				local v = FeedbackMath.variant("note", hits)
-				assert(v == "heart" or v == "note", `ordinary shot became {v}`)
-				if v == "heart" then
-					hearts += 1
-				else
-					notes += 1
-				end
-			end
-			eq(hearts, 5, "half the ordinary shots are hearts")
-			eq(notes, 5, "half the ordinary shots are notes")
-			eq(FeedbackMath.variant("gift", 1), "heart", "gift odd")
-			eq(FeedbackMath.variant("gift", 2), "snack", "gift even")
-		end,
-	},
-	{
 		name = "meter fraction is hits over needed, clamped to 0..1",
 		run = function()
 			near(FeedbackMath.meterFraction(0, 3), 0, "empty")
