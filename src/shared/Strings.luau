@@ -11,7 +11,6 @@ end
 return table.freeze({
 	sectionsGained = sectionsGained,
 	hint = "Arrastra para moverte", -- spec s9, first seconds of a run
-	followers = "Seguidores",
 	loose = "Sueltos",
 	sections = "Secciones",
 	completed = "¡Listo!", -- issue #112: one short results headline

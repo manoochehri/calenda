@@ -110,7 +110,6 @@ return {
 		run = function()
 			for _, n in
 				{
-					"Caption",
 					"Counter",
 					"Detail",
 					"SectionMeter",
@@ -268,7 +267,7 @@ return {
 				end
 			end)
 			-- Non-vacuous: all five persistent run elements were checked at all four ratios (no HP bar, ADR 0006; the music toggle left the top row in #134).
-			assert(checked == 5 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
+			assert(checked == 4 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
 		end,
 	},
 	{
@@ -306,7 +305,7 @@ return {
 	{
 		name = "issue 112: results hide gameplay counts and use one score without a music control",
 		run = function()
-			for _, name in { "Caption", "Counter", "Detail" } do
+			for _, name in { "Counter", "Detail" } do
 				local e = ScreenLayout.element(name)
 				assert(e ~= nil, `{name} exists during play`)
 				assert(e.phases.results ~= true, `{name} is hidden on results`)
@@ -318,6 +317,47 @@ return {
 			assert(
 				ScreenLayout.element("MusicToggle") == nil,
 				"no in-game music control per ADR 0008"
+			)
+		end,
+	},
+	{
+		name = "issue 140: no Seguidores caption is laid over the street (no Caption element, no followers string)",
+		run = function()
+			assert(
+				ScreenLayout.element("Caption") == nil,
+				"a Caption element is still laid out in the play area"
+			)
+		end,
+	},
+	{
+		name = "issue 140: during the run every HUD text sits in the top band or on the bottom edge, never over the road",
+		run = function()
+			local TOP_BAND = 0.4 -- share of the safe height from the top edge
+			local BOTTOM_EDGE = 0.8 -- share of the safe height where the bottom edge starts
+			eachAspect(function(a, _, _)
+				for _, e in ScreenLayout.ELEMENTS do
+					if e.text and e.phases.run then
+						local top = e.y
+						local bottom = e.y + e.h
+						local inTop = bottom <= TOP_BAND + EPS
+						local onBottomEdge = top >= BOTTOM_EDGE - EPS
+						assert(
+							inTop or onBottomEdge,
+							`{e.name} at {a.name} spans {top}..{bottom} of the safe height: over the play area`
+						)
+					end
+				end
+			end)
+		end,
+	},
+	{
+		name = "issue 140: the follower count is the top element of the HUD, in the top band at every aspect",
+		run = function()
+			local counter = ScreenLayout.element("Counter") :: ScreenLayout.Element
+			assert(counter ~= nil, "Counter exists")
+			assert(
+				counter.y == 0,
+				`Counter starts {counter.y} of the safe height down, not at the top`
 			)
 		end,
 	},
