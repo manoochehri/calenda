@@ -6,7 +6,7 @@
 -- The owner tunes by editing a `[default]` line below. In-engine look is UNVERIFIED (PR checklist).
 local ShotLook = {}
 
-export type Variant = "note" | "heart" | "snack"
+export type Variant = "note" | "heart" | "gift"
 export type Look = {
 	size: number, -- studs, diameter of the bright core
 	core: { number }, -- RGB of the glowing core
@@ -26,7 +26,7 @@ ShotLook.LOOKS = (
 			core = table.freeze({ 255, 80, 140 }),
 			glow = table.freeze({ 255, 120, 190 }),
 		}),
-		snack = table.freeze({
+		gift = table.freeze({
 			size = 2.3, -- [default] the wrapped treat's thickness; its colors come from GiftVisual
 			core = table.freeze({ 200, 30, 200 }),
 			glow = table.freeze({ 90, 220, 255 }),

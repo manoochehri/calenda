@@ -13,7 +13,7 @@ SfxMap.SLOTS = table.freeze({
 	"gatePop", -- a math gate is crossed
 	"convert", -- spectators join the parade
 	"sparkle", -- the +N counter pops
-	"shotLaunch", -- a note, heart or snack leaves the lead
+	"shotLaunch", -- a note, heart or gift leaves the lead
 	"shotImpact", -- it lands on a spectator group
 	"obstacleThud", -- the parade bumps an obstacle
 	"attackBonk", -- an unconverted group reaches the parade

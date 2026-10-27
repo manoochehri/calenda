@@ -9,7 +9,7 @@
 --   miss: { kind = "miss", shot = "note" | "gift", n = <shot number, int 1..MAX_SHOT_NUMBER> }
 -- A miss (ADR 0004, Amendment 2) is a continuous-fire shot with no eligible target. It carries no
 -- id, position, hit or reward: the client draws it straight ahead and nothing can credit from it.
--- `n` only varies the look (note / heart / snack) and orders nothing.
+-- `n` only varies the look (note / heart / gift) and orders nothing.
 -- The server side is in RunHooks.shots: each Targeting shot is encoded (and validated) and emitted
 -- to the owning player only.
 export type Shot = { id: number, hits: number, shot: "note" | "gift" }
