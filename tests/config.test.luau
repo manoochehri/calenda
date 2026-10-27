@@ -51,7 +51,7 @@ return {
 			eq(c.clusterTypes.small.reward, 5, "small.reward")
 			eq(c.clusterTypes.large.hits, 8, "large.hits")
 			eq(c.clusterTypes.large.reward, 15, "large.reward")
-			eq(c.attackSharePercent, 10, "attackSharePercent (ADR 0006)")
+			eq(c.attackSharePercent, 7, "attackSharePercent (ADR 0007, issue #148)")
 			eq(c.minShareLoss, 1, "minShareLoss (ADR 0006)")
 			eq(c.hazards.tomatoSharePercent, 10, "hazards.tomatoSharePercent")
 			eq(c.layout.maxTotal, 4000, "layout.maxTotal (issue #142 owner decision, 2026-10-26)")

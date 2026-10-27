@@ -59,13 +59,13 @@ return {
 		end,
 	},
 	{
-		name = "a horde that reaches the parade removes 10% of it, once",
+		name = "a horde that reaches the parade removes 7% of it, once",
 		run = function()
 			local r = run(40, { "small" })
 			local first = r:attackCluster("c1")
 			assert(first.ok, "first attack is accepted")
 			eq(first.before, 40, "before")
-			eq(r:total(), 36, "40 - floor(10% of 40)")
+			eq(r:total(), 38, "40 - floor(7% of 40) = 40 - 2")
 			eq(r:outcome(), nil, "still running")
 			local before = snapshotText(r)
 			local again = r:attackCluster("c1")
@@ -78,10 +78,10 @@ return {
 		run = function()
 			local r = run(100, { "large" })
 			assert(r:attackCluster("c1").ok, "attack")
-			eq(r:total(), 90, "large horde: 100 - 10")
+			eq(r:total(), 93, "large horde: 100 - 7")
 			local s = run(100, { "small" })
 			assert(s:attackCluster("c1").ok, "attack")
-			eq(s:total(), 90, "small horde: 100 - 10")
+			eq(s:total(), 93, "small horde: 100 - 7")
 		end,
 	},
 	{
@@ -91,9 +91,9 @@ return {
 			local results = r:attackClusters({ "c1", "c2" })
 			assert(results[1].ok and results[2].ok, "both accepted")
 			eq(results[1].before, 100, "first before")
-			eq(results[1].after, 90, "first after")
-			eq(results[2].before, 90, "second before is the total before its own hit")
-			eq(results[2].after, 81, "90 - floor(10% of 90)")
+			eq(results[1].after, 93, "first after")
+			eq(results[2].before, 93, "second before is the total before its own hit")
+			eq(results[2].after, 87, "93 - floor(7% of 93) = 93 - 6")
 		end,
 	},
 	{
@@ -153,7 +153,7 @@ return {
 		run = function()
 			local r = run(55, {}, { { id = "t1" } })
 			assert(r:hitTomato("t1").ok, "tomato hit")
-			eq(r:total(), 50, "55 - floor(10% of 55) = 55 - 5")
+			eq(r:total(), 50, "55 - floor(tomato 10% of 55) = 55 - 5")
 			local before = snapshotText(r)
 			assert(not r:hitTomato("t1").ok, "the same tomato cannot hit twice")
 			eq(snapshotText(r), before, "no second loss")

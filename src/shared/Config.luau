@@ -377,7 +377,10 @@ local config: ConfigType = {
 	-- ADR 0007 (provisional, Amendment 4; supersedes ADR 0006's loss rule): an unconverted horde and an unblocked tomato each remove
 	-- floor(percent * parade / 100) followers, the parade as it stood before the hit, and never fewer
 	-- than minShareLoss. Tune with the #17 ladder.
-	attackSharePercent = 10, -- [default, provisional]
+	-- Owner approval (2026-10-26, issue #148): 10 -> 7. Measured under the share rule on 3 layouts,
+	-- seeds 1-10, 30 Hz, n=3 effective per policy: no run held at 6 or below, and the scripted
+	-- margin was 123 to 172. UNVERIFIED for the skeptic; the #17 ladder re-run is still open.
+	attackSharePercent = 7, -- [owner-approved 2026-10-26, provisional]
 	minShareLoss = 1, -- [default, provisional]
 	-- Issue #96: followers lost once when an unblocked tomato hits the lead. Blocking is by a landed
 	-- gift. [default, provisional]
