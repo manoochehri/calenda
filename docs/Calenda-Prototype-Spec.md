@@ -344,3 +344,11 @@ The 7.2 pace is the owner's requested tuning target. Scripted balance evidence a
 ## Amendment 11 — Gift lobs are about one shot in 100 (owner direction, 2026-10-30, issue #194)
 
 Owner direction: gift lobs occur about one in 100 shots. The interval is governed by the single tunable `Config.giftEveryNthShot`, now 100 (from 4; PR #197). This supersedes "every fourth shot" at §4 (gift tosses) and in Amendment 2 (continuous fire), and the same interval wording in Amendment 9's shot-cadence line. Everything else about gifts is unchanged: a gift replaces a note, is worth the same one hit, is counted over all shots, and keeps the landed-gift tomato interaction.
+
+## Amendment 12 — One horde lane per layout; colour families (owner direction, 2026-10-30, issue #206)
+
+Owner direction on #206: hordes come down ONE lane so the player can see and shoot them; the other lanes are for +1 pickups and power-ups. Authored layouts therefore put every cluster in one side lane (`bigOnLeft` selects left or right; the large group trails the small group of its pair in the same lane, and appears every second pair). This supersedes Amendment 5's pair rhythm of a small and large group on opposite sides and the layout validator's "waves must alternate sides" rule (removed; the fixed debug layout may still alternate). Targeting, lane contact, `maxTotal` (4000), once-only events, defeat precedence and crowdTotal are unchanged; soak counts were set to 0 so the witness search stays under `maxTotal`.
+
+Display only: horde figures use one saturated red family, the parade and converted runners one saturated blue family, and the world reward floater is a small non-always-on-top billboard.
+
+NOT in this amendment (needs a decision, see #206): starting the parade at 0 (spec s5 says 10; zero also defeats the run, which conflicts with a zero start), and +1 pickups in the non-horde lanes (no authored layout carries pickups yet).

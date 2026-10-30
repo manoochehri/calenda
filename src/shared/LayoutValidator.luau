@@ -275,12 +275,12 @@ local function structure(layout: any, cfg: any, errs: { string })
 		table.insert(waves, w)
 	end
 	table.sort(waves)
+	-- Issue #206 (Amendment 12): alternating sides is no longer required. The authored layouts send
+	-- every horde down one lane (tests/issue206_visual_target.test.luau pins that).
 	for i = 1, #waves do
 		local lane = waveLane[waves[i]]
 		if lane == "center" then
 			bad(`wave {waves[i]} must start on a sidewalk, not the center`)
-		elseif i > 1 and lane == waveLane[waves[i - 1]] then
-			bad(`waves must alternate sides (wave {waves[i]} repeats {lane})`)
 		end
 	end
 end

@@ -61,6 +61,11 @@ function FeedbackMath.burst(i: number, n: number, f: number): Particle
 	}
 end
 
+-- Issue #206: the world reward floater is a small billboard that never draws over a gate banner
+-- (the old 160 x 70 px AlwaysOnTop label covered the gate numbers).
+FeedbackMath.FLOAT_GUI_SIZE = { x = 64, y = 28 } -- [default] pixels
+FeedbackMath.FLOAT_ALWAYS_ON_TOP = false
+
 -- Floating "+N": rises and fades.
 function FeedbackMath.floatText(f: number): { dy: number, alpha: number }
 	local k = math.clamp(f, 0, 1)

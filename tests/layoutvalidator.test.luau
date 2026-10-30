@@ -414,18 +414,6 @@ return {
 	rejects("obstacle before the early gates are done", "early", function(l)
 		l.obstacles[1].z = 15 * Config.speed
 	end),
-	rejects("waves not alternating", "alternat", function(l)
-		for _, c in l.clusters do
-			if c.wave == 3 then
-				c.spawn.x = -c.spawn.x
-				-- the lane follows the spawn (ADR 0010 item 2), so both move together
-				c.lane = if c.lane == "left" then "right" else "left"
-				for _, p in c.path do
-					p.x = -p.x
-				end
-			end
-		end
-	end),
 	rejects("wave mixes lanes", "mixes lanes", function(l)
 		cluster(l, 2).wave = cluster(l, 1).wave
 	end),

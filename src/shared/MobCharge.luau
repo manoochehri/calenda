@@ -29,16 +29,18 @@ MobCharge.STREAM_SECONDS = 2 -- [default] converted mob streams into the parade
 MobCharge.STREAM_SHRINK_FROM = 0.35 -- [default] share of the stream after which the mob thins out
 
 MobCharge.ANGRY = table.freeze({
-	table.freeze({ 214, 58, 46 }),
-	table.freeze({ 236, 104, 40 }),
-	table.freeze({ 176, 42, 62 }),
-	table.freeze({ 240, 150, 52 }),
+	-- Issue #206: one saturated red family so a horde reads as one mass (no orange or amber).
+	table.freeze({ 220, 40, 40 }),
+	table.freeze({ 235, 55, 50 }),
+	table.freeze({ 200, 30, 45 }),
+	table.freeze({ 225, 45, 60 }),
 })
 MobCharge.PARTY = table.freeze({
-	table.freeze({ 64, 142, 255 }),
-	table.freeze({ 255, 204, 48 }),
-	table.freeze({ 255, 96, 164 }),
-	table.freeze({ 72, 212, 172 }),
+	-- Issue #206: converted runners join the blue parade (one saturated blue family).
+	table.freeze({ 40, 110, 240 }),
+	table.freeze({ 60, 135, 250 }),
+	table.freeze({ 30, 95, 225 }),
+	table.freeze({ 50, 125, 245 }),
 })
 MobCharge.ALERT = table.freeze({ 255, 236, 130 }) -- the pulse brightens toward this
 MobCharge.HEADS = table.freeze({

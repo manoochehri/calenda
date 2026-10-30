@@ -20,15 +20,12 @@ export type March = { y: number, squashY: number, squashXZ: number }
 
 local FollowerLook = {}
 
--- Festive costume tones: red, blue, pink, yellow, green, orange. Saturated and distinct from the
--- gray road and the lead's gold so the crowd reads as a colourful swarm.
+-- Issue #206: one saturated blue family, so the parade reads as one ally mass against the red
+-- horde (the owner's reference). Distinct from the gray road, the lead's gold and any enemy red.
 FollowerLook.PALETTE = table.freeze({
-	table.freeze({ 235, 60, 70 }),
-	table.freeze({ 45, 120, 235 }),
-	table.freeze({ 245, 110, 175 }),
-	table.freeze({ 250, 205, 40 }),
-	table.freeze({ 70, 205, 110 }),
-	table.freeze({ 250, 135, 40 }),
+	table.freeze({ 40, 110, 240 }),
+	table.freeze({ 60, 135, 250 }),
+	table.freeze({ 30, 95, 225 }),
 })
 FollowerLook.ACCENT = table.freeze({
 	table.freeze({ 255, 255, 255 }),
