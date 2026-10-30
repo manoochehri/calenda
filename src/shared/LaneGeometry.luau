@@ -35,4 +35,29 @@ function LaneGeometry.centerOf(lane: Lane): number
 	return 0
 end
 
+-- Display only (issue #193): x pulled inside the lane that owns originX, `margin` studs clear of
+-- each lane edge so a figure's arms stay in its own lane. An originX outside the lanes, or a lane
+-- too narrow for the margin, leaves x unchanged.
+function LaneGeometry.fit(originX: number, x: number, margin: number): number
+	local lane = LaneGeometry.laneOf(originX)
+	if lane == nil then
+		return x
+	end
+	local lo: number, hi: number
+	if lane == "left" then
+		lo = LaneGeometry.MIN_X
+		hi = LaneGeometry.LEFT_EDGE
+	elseif lane == "right" then
+		lo = LaneGeometry.RIGHT_EDGE
+		hi = LaneGeometry.MAX_X
+	else
+		lo = LaneGeometry.LEFT_EDGE
+		hi = LaneGeometry.RIGHT_EDGE
+	end
+	if hi - lo <= 2 * margin then
+		return x
+	end
+	return math.clamp(x, lo + margin, hi - margin)
+end
+
 return LaneGeometry

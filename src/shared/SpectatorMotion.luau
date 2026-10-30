@@ -3,6 +3,7 @@
 -- deterministic spawn delay, front/back and lateral offset, turn, and approach speed from the
 -- layout seed, cluster id, and figure index. The server still owns one cluster hit/reward; this
 -- module never changes gameplay.
+local LaneGeometry = require("./LaneGeometry")
 local MobCharge = require("./MobCharge")
 local MobLod = require("./MobLod")
 local SpectatorScatter = require("./SpectatorScatter")
@@ -48,7 +49,10 @@ function SpectatorMotion.plan(
 	offset: SpectatorScatter.Offset,
 	p: any
 ): Path
-	local startX = MobLod.lateralFit(originX + offset.dx, p.armsWidth)
+	-- Issue #193: a horde stays in its own lane, arms and sway included.
+	local margin = p.armsWidth / 2 + math.abs(p.lateralWander) * 0.08
+	local startX =
+		LaneGeometry.fit(originX, MobLod.lateralFit(originX + offset.dx, p.armsWidth), margin)
 	local startZ = originZ
 		+ offset.dz
 		+ (noise(seed, clusterId, person, 1) * 2 - 1) * p.longitudinalJitter
@@ -57,9 +61,13 @@ function SpectatorMotion.plan(
 		- p.approachSpeedSpread
 		+ noise(seed, clusterId, person, 3) * 2 * p.approachSpeedSpread
 	local speed = approachSpeed * speedScale
-	local targetX = MobLod.lateralFit(
-		startX + (noise(seed, clusterId, person, 4) * 2 - 1) * p.lateralWander,
-		p.armsWidth
+	local targetX = LaneGeometry.fit(
+		originX,
+		MobLod.lateralFit(
+			startX + (noise(seed, clusterId, person, 4) * 2 - 1) * p.lateralWander,
+			p.armsWidth
+		),
+		margin
 	)
 	local turnDelay = noise(seed, clusterId, person, 5) * p.turnDelayMax
 	local turnSeconds = p.turnSeconds * (0.6 + noise(seed, clusterId, person, 6) * 0.8)

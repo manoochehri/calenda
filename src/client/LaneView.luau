@@ -19,6 +19,7 @@ LaneView.__index = LaneView
 
 local LINE_COLOR = Color3.fromRGB(240, 236, 220) -- pale paint, readable on the road
 local LEAD_COLOR = Color3.fromRGB(255, 196, 40) -- the lead's bracket: bright, but fixed
+local PLATE_COLOR = Color3.fromRGB(40, 36, 44) -- opaque paint plate behind the lane words
 local MARK_THICKNESS = 0.2 -- [default] studs; the Part sits with its top at the named layer
 
 local function flat(parent: Instance, name: string, sx: number, sz: number, color: Color3): Part
@@ -52,6 +53,29 @@ local function buildArrow(parent: Instance, s: LaneMarkings.Spec)
 	end
 end
 
+-- A painted text plate: an opaque dark Part with a SurfaceGui on its top face. The text reads from
+-- the chase camera (which looks along +Z), so the Part is turned 180 degrees about the vertical.
+-- Words, not colour, say which lane it is and what it holds. Static: no animation, no fade.
+local function buildLabel(parent: Instance, l: LaneMarkings.Label)
+	local plate = flat(parent, l.name, l.sx, l.sz, PLATE_COLOR)
+	place(plate, l.x, l.z, l.top, 180)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 24
+	gui.AlwaysOnTop = false
+	gui.Parent = plate
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundColor3 = PLATE_COLOR
+	text.BorderSizePixel = 0
+	text.Font = Enum.Font.FredokaOne
+	text.TextScaled = true
+	text.TextColor3 = LINE_COLOR
+	text.Text = l.text
+	text.Parent = gui
+end
+
 export type LaneView = typeof(setmetatable(
 	{} :: { model: Model, bars: { Part }, lastCentre: number?, lastZ: number? },
 	LaneView
@@ -66,6 +90,9 @@ function LaneView.new(layout: LaneMarkings.LayoutInfo): LaneView
 		else
 			buildArrow(model, s)
 		end
+	end
+	for _, l in LaneMarkings.labelSpecs(layout) do
+		buildLabel(model, l)
 	end
 	local bars: { Part } = {}
 	for i = 1, 2 do

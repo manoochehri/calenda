@@ -45,6 +45,8 @@ export type LayoutInfo = {
 	startPlazaEnd: number?,
 	gates: { { z: number } }?,
 	obstacles: { { z: number } }?,
+	clusters: { { lane: string } }?,
+	pickups: { { lane: string } }?,
 }
 
 local LANES = { "left", "center", "right" }
@@ -119,6 +121,99 @@ function LaneMarkings.specs(layout: LayoutInfo): { Spec }
 			end
 		end
 		z += LaneMarkings.ARROW_SPACING
+	end
+	return list
+end
+
+-- Lane roles (issue #193), read from the layout's authored data, never fixed per lane: the spec
+-- gives no lane a standing job. A lane holds a horde where a cluster is authored in it and +1
+-- people where a pickup is.
+export type Role = { horde: boolean, pickup: boolean }
+
+function LaneMarkings.roles(layout: LayoutInfo): { left: Role, center: Role, right: Role }
+	local out = {
+		left = { horde = false, pickup = false },
+		center = { horde = false, pickup = false },
+		right = { horde = false, pickup = false },
+	}
+	for _, c in layout.clusters or {} do
+		local r = (out :: any)[c.lane]
+		if r then
+			r.horde = true
+		end
+	end
+	for _, k in layout.pickups or {} do
+		local r = (out :: any)[k.lane]
+		if r then
+			r.pickup = true
+		end
+	end
+	return out
+end
+
+-- The words a lane's job is painted with. Empty when the layout puts nothing in the lane.
+function LaneMarkings.roleText(role: Role): string
+	local words = {}
+	if role.horde then
+		table.insert(words, "SHOOT HORDE")
+	end
+	if role.pickup then
+		table.insert(words, "+1 PEOPLE")
+	end
+	return table.concat(words, " / ")
+end
+
+LaneMarkings.LABEL_SPACING = 96 -- [default] studs between label rows
+LaneMarkings.LABEL_OFFSET = 24 -- [default] studs; rows sit between the arrow rows (multiples of 48) and the centre dashes
+LaneMarkings.LABEL_WIDTH = 9 -- [default] studs across the lane (the band is 10)
+LaneMarkings.LABEL_LENGTH = 8 -- [default] studs along the street
+
+export type Label = {
+	name: string,
+	lane: string,
+	text: string, -- lane word, then (when the layout gives the lane a job) a line break and the role
+	x: number,
+	z: number,
+	sx: number,
+	sz: number,
+	top: number,
+}
+
+-- One painted text label per lane per row, from the street's start to the plaza.
+function LaneMarkings.labelSpecs(layout: LayoutInfo): { Label }
+	local list: { Label } = {}
+	local roles = LaneMarkings.roles(layout)
+	local z0 = layout.startPlazaEnd or 0
+	local half = LaneMarkings.LABEL_LENGTH / 2
+	local first = math.ceil((z0 + half - LaneMarkings.LABEL_OFFSET) / LaneMarkings.LABEL_SPACING)
+	local z = LaneMarkings.LABEL_OFFSET + first * LaneMarkings.LABEL_SPACING
+	while z + half < layout.plazaStart do
+		local clear = LaneMarkings.CLEARANCE + half
+		local blocked = false
+		for _, g in layout.gates or {} do
+			blocked = blocked or math.abs(z - g.z) < clear
+		end
+		for _, o in layout.obstacles or {} do
+			blocked = blocked or math.abs(z - o.z) < clear
+		end
+		if not blocked then
+			for _, lane in LANES do
+				local role = LaneMarkings.roleText((roles :: any)[lane])
+				table.insert(list, {
+					name = `Label_{lane}_{math.floor(z)}`,
+					lane = lane,
+					text = if role == ""
+						then string.upper(lane)
+						else `{string.upper(lane)}\n{role}`,
+					x = LaneGeometry.centerOf(lane :: LaneGeometry.Lane),
+					z = z,
+					sx = LaneMarkings.LABEL_WIDTH,
+					sz = LaneMarkings.LABEL_LENGTH,
+					top = LayerHeights.MARKING,
+				})
+			end
+		end
+		z += LaneMarkings.LABEL_SPACING
 	end
 	return list
 end
