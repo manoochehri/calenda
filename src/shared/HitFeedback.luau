@@ -1,10 +1,8 @@
 --!strict
--- Hit feedback envelopes (issue #50): the wobble on the crowd counter, a short decaying screen shake and a
--- red edge vignette (issue #171: no white, no full-screen pulse; Config.hitVignette), all driven by one tiny state that an "attack" Event restarts. Pure and capped:
+-- Hit feedback envelopes (issue #50): the wobble on the crowd counter and a short decaying screen shake,
+-- driven by one tiny state that an "attack" Event restarts. Pure and capped:
 -- no matter how many attacks arrive, nothing exceeds the MAX_* values. Hits are playful but
 -- impactful (Amendment 1): quick and bouncy, never lingering.
-local Config = require("./Config")
-
 local HitFeedback = {}
 
 HitFeedback.JOLT_SECONDS = 0.4 -- [default]
@@ -31,23 +29,6 @@ function HitFeedback.shakeScale(age: number): number
 	return decay(age, HitFeedback.SHAKE_SECONDS)
 end
 
-local function smooth(x: number): number
-	local t = math.clamp(x, 0, 1)
-	return t * t * (3 - 2 * t)
-end
-
--- 0..1: eases in over riseSeconds, eases out over fallSeconds. Continuous, starts and ends at 0.
-function HitFeedback.vignette(age: number): number
-	local v = Config.hitVignette
-	if age <= 0 or age >= v.riseSeconds + v.fallSeconds then
-		return 0
-	end
-	if age < v.riseSeconds then
-		return smooth(age / v.riseSeconds)
-	end
-	return 1 - smooth((age - v.riseSeconds) / v.fallSeconds)
-end
-
 local function finite(v: any): boolean
 	return type(v) == "number" and v == v and v > -math.huge and v < math.huge
 end
@@ -66,7 +47,7 @@ export type Sample = {
 	jolt: number, -- extra scale, 0..MAX_JOLT_SCALE
 	shakeX: number, -- studs, camera space
 	shakeY: number,
-	flash: number, -- red vignette alpha, 0..Config.hitVignette.peakAlpha
+	flash: number, -- retained for the shared sample shape; always zero
 }
 export type Tracker = {
 	hit: (self: Tracker, intensity: number) -> (),
@@ -78,9 +59,6 @@ export type Tracker = {
 function HitFeedback.new(): Tracker
 	local age = math.huge
 	local strength = 0
-	local vAge = math.huge -- vignette clock; restarts only when the minimum gap has passed
-	local vStrength = 0
-	local vSince = math.huge
 	local self = {} :: Tracker
 
 	function self.hit(_, intensity: number)
@@ -89,17 +67,11 @@ function HitFeedback.new(): Tracker
 		local remaining = strength * HitFeedback.shakeScale(age)
 		strength = math.max(i, remaining)
 		age = 0
-		-- The vignette is rate-limited: a hit inside the gap adds no new vignette.
-		if vSince >= Config.hitVignette.minGapSeconds then
-			vAge, vStrength, vSince = 0, i, 0
-		end
 	end
 
 	function self.step(_, dt: number)
 		if finite(dt) and dt > 0 then
 			age += dt
-			vAge += dt
-			vSince += dt
 		end
 	end
 
@@ -111,13 +83,12 @@ function HitFeedback.new(): Tracker
 			jolt = HitFeedback.jolt(age) * s * HitFeedback.MAX_JOLT_SCALE,
 			shakeX = if shake == 0 then 0 else shake * math.sin(wave),
 			shakeY = if shake == 0 then 0 else shake * math.cos(wave * 0.8),
-			flash = HitFeedback.vignette(vAge) * vStrength * Config.hitVignette.peakAlpha,
+			flash = 0,
 		}
 	end
 
 	function self.reset(_)
 		age, strength = math.huge, 0
-		vAge, vStrength, vSince = math.huge, 0, math.huge
 	end
 
 	return self

@@ -45,9 +45,9 @@ ScreenLayout.MIN_TOUCH = 44 -- px, each way
 ScreenLayout.GLYPH_EM = 0.62 -- estimate: average advance of a bold sans glyph, in em
 
 -- ScreenGui.DisplayOrder of every GUI, lowest drawn first. Ties are unspecified in the docs, so no
--- two layers that overlap share a number. The hit flash and results dim sit UNDER the HUD text.
+-- two layers that overlap share a number. The results dim sits UNDER the HUD text.
 ScreenLayout.DISPLAY_ORDER = table.freeze({
-	hudFx = -1, -- CalendaHudFx: hit flash, results dim (decorative, full screen)
+	hudFx = -1, -- CalendaHudFx: results dim (decorative, full screen)
 	hud = 0, -- CalendaHud: results texts and Replay
 	runHud = 5, -- CalendaRunHud: ending-only banner
 	startup = 100, -- CalendaStartup: title backdrop and card

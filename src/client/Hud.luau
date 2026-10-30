@@ -70,7 +70,7 @@ function Hud.new(onReplay: () -> ()): Hud
 	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hud
 	GuiLayout.safe(gui)
 	gui.Parent = playerGui
-	-- Decorative full-screen layer (hit flash, results dim): no text, no buttons.
+	-- Decorative full-screen layer (results dim): no text, no buttons.
 	local fx = Instance.new("ScreenGui")
 	fx.Name = "CalendaHudFx"
 	fx.ResetOnSpawn = false
@@ -79,28 +79,6 @@ function Hud.new(onReplay: () -> ()): Hud
 	fx.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hudFx
 	GuiLayout.fullScreen(fx)
 	fx.Parent = playerGui
-
-	-- Hit cue (issue #171): a red vignette of four edge gradients. No white, no full-screen wash.
-	local flashParts: { Frame } = {}
-	local function flashEdge(position: UDim2, size: UDim2, rotation: number)
-		local f = Instance.new("Frame")
-		f.Name = "HitEdge"
-		f.Position = position
-		f.Size = size
-		f.BorderSizePixel = 0
-		f.BackgroundTransparency = 1
-		f.Visible = false
-		local g = Instance.new("UIGradient")
-		g.Rotation = rotation
-		g.Transparency = NumberSequence.new(0, 1)
-		g.Parent = f
-		f.Parent = fx
-		table.insert(flashParts, f)
-	end
-	flashEdge(UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.25), 90) -- top, opaque at the edge
-	flashEdge(UDim2.fromScale(0, 0.75), UDim2.fromScale(1, 0.25), 270)
-	flashEdge(UDim2.fromScale(0, 0), UDim2.fromScale(0.15, 1), 0)
-	flashEdge(UDim2.fromScale(0.85, 0), UDim2.fromScale(0.15, 1), 180)
 
 	-- End of run panel. Shown purely from State (over/outcome); hidden again on replay. The dim
 	-- is full screen (fx gui); the texts and the replay button sit in the safe area.
@@ -164,20 +142,10 @@ function Hud.new(onReplay: () -> ()): Hud
 		end
 	end
 
-	local HIT_RED = Color3.fromRGB(200, 30, 40)
-	function hud.applyHit(_, s: HitFeedback.Sample)
-		local on = s.flash > 0.005
-		for _, f in flashParts do
-			f.Visible = on
-			f.BackgroundColor3 = HIT_RED
-			f.BackgroundTransparency = 1 - s.flash
-		end
-	end
+	-- Hit feedback no longer creates a screen flash. Camera shake remains in Main.
+	function hud.applyHit(_, _: HitFeedback.Sample) end
 
-	-- Replay: no flash left over from the last run.
-	function hud.resetHit(_)
-		hud.applyHit(hud, HitFeedback.new():sample())
-	end
+	function hud.resetHit(_) end
 
 	return hud
 end
