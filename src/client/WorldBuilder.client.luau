@@ -99,6 +99,9 @@ local function addSurfaceText(
 	)
 end
 
+-- Issue #171: flat ground-layer Parts do not cast shadows. A flat caster lies on the same plane as
+-- the surface it shades, so the shadow map fights that surface and the road shimmers as the
+-- camera moves. Every other flat ground part in the client opts out the same way.
 local function addGround(
 	parent: Instance,
 	name: string,
@@ -109,7 +112,7 @@ local function addGround(
 	color: Color3,
 	top: number? -- LayerHeights.GROUND unless given
 )
-	makePart(
+	local part = makePart(
 		parent,
 		name,
 		Vector3.new(width, 1, z1 - z0),
@@ -118,6 +121,7 @@ local function addGround(
 		Enum.Material.Concrete,
 		true
 	)
+	part.CastShadow = false
 end
 
 local function addCone(parent: Instance, name: string, x: number, z: number)
@@ -249,7 +253,7 @@ local function buildWorld()
 
 	-- Dashed road centerline keeps the forward route readable without competing with gate text.
 	for z = 48, streetEnd - 48, 96 do
-		makePart(
+		local mark = makePart(
 			world,
 			`RoadMark{z}`,
 			Vector3.new(0.45, 0.2, 24),
@@ -257,6 +261,7 @@ local function buildWorld()
 			Color3.fromRGB(225, 215, 185),
 			Enum.Material.SmoothPlastic
 		)
+		mark.CastShadow = false -- issue #171: a flat road marking casts no shadow
 	end
 
 	-- Standing gate portals (issue #70): drawn, animated and fed by the server Event in GateView.
