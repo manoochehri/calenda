@@ -1,7 +1,6 @@
 --!strict
 local Config = require("../src/shared/Config")
 local SectionEvents = require("../src/shared/SectionEvents")
-local Strings = require("../src/shared/Strings")
 
 local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {tostring(expected)}, got {tostring(actual)}`)
@@ -17,14 +16,13 @@ return {
 		end,
 	},
 	{
-		name = "plan: crossing 50 is a celebration of the Config assembly duration, no +N indicator for one",
+		name = "plan: crossing 50 is a celebration of the Config assembly duration, one threshold",
 		run = function()
 			local p = SectionEvents.plan(40, 60)
 			eq(p.kind, "celebrate", "kind")
 			eq(p.count, 1, "count")
 			eq(p.types[1], "puppet", "first section is a puppet")
 			eq(p.duration, Config.durations.assemblySeconds, "duration from Config")
-			eq(p.indicator, nil, "single threshold has no indicator")
 		end,
 	},
 	{
@@ -33,11 +31,8 @@ return {
 			local p = SectionEvents.plan(40, 200) -- x5-ish: sections 0 -> 4 ... 40 -> 200 crosses 4
 			eq(p.kind, "celebrate", "kind")
 			eq(p.count, 4, "count")
-			eq(p.indicator, "+4 secciones", "indicator")
-			eq(p.indicator, Strings.sectionsGained(4), "from Strings")
 			local p3 = SectionEvents.plan(60, 160)
 			eq(p3.count, 2, "50x1 -> 3 sections is 2 new")
-			eq(p3.indicator, "+2 secciones", "two")
 		end,
 	},
 	{
@@ -50,13 +45,12 @@ return {
 		end,
 	},
 	{
-		name = "plan: a drop across a threshold disperses the newest section, no indicator",
+		name = "plan: a drop across a threshold disperses the newest section, no screen toast",
 		run = function()
 			local p = SectionEvents.plan(55, 45)
 			eq(p.kind, "disperse", "kind")
 			eq(p.count, 1, "count")
 			eq(p.sections[1], 1, "newest section")
-			eq(p.indicator, nil, "no indicator")
 			eq(p.duration, Config.durations.dispersalSeconds, "dispersal duration")
 			local multi = SectionEvents.plan(160, 40)
 			eq(multi.count, 3, "three disperse at once")
@@ -93,7 +87,6 @@ return {
 			local p = SectionEvents.plan(0, 2000)
 			eq(p.count, 40, "40 logical sections")
 			eq(#p.reps.appeared, Config.visualBudget.sectionRepresentatives, "6 appear")
-			eq(p.indicator, "+40 secciones", "indicator")
 		end,
 	},
 	{

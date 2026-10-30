@@ -1,12 +1,11 @@
 --!strict
 -- Pure event-to-animation planning for section thresholds (issue #14, spec s5, s7, s8).
 -- Given the crowd total before and after a change it says what the client should play:
--- ONE combined celebration however many thresholds were crossed (with a '+N secciones' indicator
--- when N > 1), or a quiet dispersal of the newest sections on a drop (no destruction animation),
+-- ONE combined celebration however many thresholds were crossed, or a quiet dispersal of the
+-- newest sections on a drop (no destruction animation),
 -- plus which section representatives appear, vanish or change their xN stack count.
 local Config = require("./Config")
 local CrowdMath = require("./CrowdMath")
-local Strings = require("./Strings")
 local VisualBudget = require("./VisualBudget")
 
 export type RepChange = {
@@ -29,7 +28,6 @@ export type Plan = {
 	count: number,
 	sections: { number },
 	types: { CrowdMath.SectionType },
-	indicator: string?,
 	duration: number,
 	reps: RepDiff,
 }
@@ -75,13 +73,9 @@ function SectionEvents.plan(from: number, to: number): Plan
 	local c = CrowdMath.crossings(from, to)
 	local kind: Kind = "none"
 	local duration = 0
-	local indicator: string? = nil
 	if c.direction == "up" then
 		kind = "celebrate"
 		duration = Config.durations.assemblySeconds
-		if c.count > 1 then
-			indicator = Strings.sectionsGained(c.count)
-		end
 	elseif c.direction == "down" then
 		kind = "disperse"
 		duration = Config.durations.dispersalSeconds
@@ -93,7 +87,6 @@ function SectionEvents.plan(from: number, to: number): Plan
 		count = c.count,
 		sections = c.sections,
 		types = c.types,
-		indicator = indicator,
 		duration = duration,
 		reps = SectionEvents.repDiff(from, to),
 	}

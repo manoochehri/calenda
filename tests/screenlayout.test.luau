@@ -82,14 +82,14 @@ return {
 		name = "no two elements shown at the same time overlap, at every aspect",
 		run = function()
 			eachAspect(function(a, safe, _)
-				for _, phase in { "run", "results" } do
+				for _, phase in { "ending", "results" } do
 					local shown = {}
 					for _, e in ScreenLayout.ELEMENTS do
 						if e.phases[phase] then
 							table.insert(shown, e)
 						end
 					end
-					local minimum = if phase == "results" then 4 else 5
+					local minimum = if phase == "results" then 4 else 1
 					assert(#shown >= minimum, `{phase} has elements`)
 					for i = 1, #shown do
 						for j = i + 1, #shown do
@@ -106,22 +106,9 @@ return {
 		end,
 	},
 	{
-		name = "the named HUD elements exist: counter, meter + caption, PlusSections, hint, replay, results",
+		name = "the ending, results and title controls have layout entries",
 		run = function()
-			for _, n in
-				{
-					"Counter",
-					"Detail",
-					"SectionMeter",
-					"PlusSections",
-					"Hint",
-					"Banner",
-					"Title",
-					"Score",
-					"Best",
-					"Replay",
-				}
-			do
+			for _, n in { "Banner", "Title", "Score", "Best", "Replay", "Play" } do
 				assert(ScreenLayout.element(n) ~= nil, `missing {n}`)
 			end
 			assert(ScreenLayout.element("Nope") == nil, "layout")
@@ -179,8 +166,8 @@ return {
 				seen[v] = k
 			end
 			assert(D.hudFx < D.hud, "hit flash and results dim under the HUD text and Replay")
-			assert(D.hud < D.runHud and D.runHud < D.sections, "run HUD above the base HUD")
-			assert(D.sections < D.startup, "title above the HUD")
+			assert(D.hud < D.runHud, "ending banner above the base HUD")
+			assert(D.runHud < D.startup, "title above the HUD")
 			assert(D.startup < D.startupControls, "Play above the title backdrop")
 		end,
 	},
@@ -244,47 +231,6 @@ return {
 		end,
 	},
 	{
-		name = "persistent HUD sits in the compact top band, so the road centre stays clear at every aspect",
-		run = function()
-			-- Share of the safe height from its top edge. The street and portals own the rest of the
-			-- middle of the screen (ScreenLayout.ELEMENTS, top row comment).
-			local BAND = 0.4
-			-- Persistent = on screen for the whole run. Hint and Banner are on-demand cues, so they
-			-- are exempt; everything else with the run phase is always visible while playing.
-			local transient = { Hint = true, Banner = true }
-			local checked = 0
-			eachAspect(function(a, safe, _)
-				for _, e in ScreenLayout.ELEMENTS do
-					if e.phases.run and not transient[e.name] then
-						checked += 1
-						local r = ScreenLayout.elementRect(e, safe)
-						local bottom = (r.y + r.h - safe.y) / safe.h
-						assert(
-							bottom <= BAND + EPS,
-							`{e.name} at {a.name} ends {bottom} of the safe height down, past the top band {BAND}`
-						)
-					end
-				end
-			end)
-			-- Non-vacuous: all five persistent run elements were checked at all four ratios (no HP bar, ADR 0006; the music toggle left the top row in #134).
-			assert(checked == 4 * #ScreenLayout.ASPECTS, `checked {checked} persistent elements`)
-		end,
-	},
-	{
-		name = "issue 54: the run-phase section meter is a compact strip (<= 6% of safe height, <= 42% of width) and still readable",
-		run = function()
-			local meter = ScreenLayout.element("SectionMeter")
-			assert(meter ~= nil, "meter exists")
-			assert(meter.h <= 0.06 + EPS, `meter height share {meter.h} > 0.06`)
-			assert(meter.w <= 0.42 + EPS, `meter width share {meter.w} > 0.42`)
-			eachAspect(function(a, safe, _)
-				local r = ScreenLayout.elementRect(meter, safe)
-				assert(r.h >= 14, `{a.name}: meter box {r.h} px < 14`)
-				assert(ScreenLayout.fitTextPx(meter, safe) >= 14, `{a.name}: meter text fits only`)
-			end)
-		end,
-	},
-	{
 		name = "numeral screen fraction is aspect independent (vertical FOV) and gives >= 21 px caps on 390 px tall",
 		run = function()
 			local PortalGeometry = require("../src/shared/PortalGeometry")
@@ -305,10 +251,13 @@ return {
 	{
 		name = "issue 112: results hide gameplay counts and use one score without a music control",
 		run = function()
-			for _, name in { "Counter", "Detail" } do
-				local e = ScreenLayout.element(name)
-				assert(e ~= nil, `{name} exists during play`)
-				assert(e.phases.results ~= true, `{name} is hidden on results`)
+			for _, name in
+				{ "Caption", "Counter", "Detail", "Hint", "SectionMeter", "PlusSections" }
+			do
+				assert(
+					ScreenLayout.element(name) == nil,
+					`{name} no longer overlays play or results`
+				)
 			end
 			local score = ScreenLayout.element("Score") :: ScreenLayout.Element
 			local best = ScreenLayout.element("Best") :: ScreenLayout.Element
@@ -326,38 +275,6 @@ return {
 			assert(
 				ScreenLayout.element("Caption") == nil,
 				"a Caption element is still laid out in the play area"
-			)
-		end,
-	},
-	{
-		name = "issue 140: during the run every HUD text sits in the top band or on the bottom edge, never over the road",
-		run = function()
-			local TOP_BAND = 0.4 -- share of the safe height from the top edge
-			local BOTTOM_EDGE = 0.8 -- share of the safe height where the bottom edge starts
-			eachAspect(function(a, _, _)
-				for _, e in ScreenLayout.ELEMENTS do
-					if e.text and e.phases.run then
-						local top = e.y
-						local bottom = e.y + e.h
-						local inTop = bottom <= TOP_BAND + EPS
-						local onBottomEdge = top >= BOTTOM_EDGE - EPS
-						assert(
-							inTop or onBottomEdge,
-							`{e.name} at {a.name} spans {top}..{bottom} of the safe height: over the play area`
-						)
-					end
-				end
-			end)
-		end,
-	},
-	{
-		name = "issue 140: the follower count is the top element of the HUD, in the top band at every aspect",
-		run = function()
-			local counter = ScreenLayout.element("Counter") :: ScreenLayout.Element
-			assert(counter ~= nil, "Counter exists")
-			assert(
-				counter.y == 0,
-				`Counter starts {counter.y} of the safe height down, not at the top`
 			)
 		end,
 	},

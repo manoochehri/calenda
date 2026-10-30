@@ -3,19 +3,15 @@
 -- What to play is decided by the pure SectionEvents/SectionDirector (Lune-tested); how many
 -- representatives and their xN stacks come from VisualBudget via Formation. This module only
 -- draws: the swirl value it returns pulls the loose crowd inward (applied by CrowdView), confetti
--- and dust burst behind the lead, a puppet rises with a small decorative entourage, and a
--- "+N secciones" label shows for a multi-threshold gate. Entourages are decoration only.
+-- and dust burst behind the lead, and a puppet rises with a small decorative entourage.
+-- No screen toast overlays gameplay (issue #160). Entourages are decoration only.
 -- Section types are looked up in a SectionRegistry: puppet, globo (issue #19, decorative rings on
 -- the beat) and dancers (issue #20, tossing on gift shots) each register a builder. IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
-local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
-local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
-local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local Dance = require(Shared:WaitForChild("Dance"))
 local Formation = require(Shared:WaitForChild("Formation"))
 local FollowerSlots = require(Shared:WaitForChild("FollowerSlots"))
@@ -53,7 +49,6 @@ local RING_COLORS = {
 	Color3.fromRGB(60, 200, 240),
 }
 local RING_MIN_RISE = 0.8 -- [default] rings start once the globo has nearly finished rising
-local INDICATOR_SECONDS = 1.3 -- [default] the "+N secciones" label outlives the 0.8 s animation
 local DISPERSE_DANCERS = 5 -- [default] per dispersed section
 
 -- One drawn representative: its visual (figure plus decorative entourage) and its xN badge.
@@ -124,7 +119,6 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local clock = os.clock()
 	local layoutTotal = -1
 	local layout: Formation.Layout = Formation.forTotal(0)
-	local indicatorT = 0
 	local reactionKind = ""
 	local reactionAt = -math.huge
 
@@ -164,26 +158,6 @@ function SectionsView.new(initialTotal: number): SectionsView
 	local ringClock = 0
 	local lastBeatClock = 0
 	local beatCount = 0
-
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "CalendaSections"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.sections
-	GuiLayout.safe(gui) -- same convention as the other HUD guis (issue #78)
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local indicator = Instance.new("TextLabel")
-	indicator.Name = "PlusSections"
-	GuiLayout.place(indicator, "PlusSections") -- top right, clear of the counter and the meter
-	indicator.BackgroundTransparency = 1
-	indicator.TextColor3 = Color3.fromRGB(255, 221, 0)
-	indicator.TextStrokeColor3 = OUTLINE
-	indicator.TextStrokeTransparency = 0
-	indicator.TextScaled = true
-	indicator.Font = TypeStyle.font("alert")
-	TypeStyle.outline(indicator)
-	indicator.Visible = false
-	GuiLayout.limitText(indicator, "PlusSections")
-	indicator.Parent = gui
 
 	local view = {} :: SectionsView
 	view.builders = builders
@@ -252,8 +226,6 @@ function SectionsView.new(initialTotal: number): SectionsView
 	function view.reset(_, total: number)
 		director:reset(total)
 		snap(total)
-		indicatorT = 0
-		indicator.Visible = false
 		bits:clear()
 		rings:clear()
 		ringPool:setCount(0)
@@ -319,11 +291,6 @@ function SectionsView.new(initialTotal: number): SectionsView
 			end
 			bits:burst("confetti", center + Vector3.new(0, 4, 0), 36, 6, CONFETTI_COLORS)
 			bits:burst("dust", center, 10, 5, DUST_COLORS)
-			if plan.indicator then
-				indicator.Text = plan.indicator
-				indicator.Visible = true
-				indicatorT = INDICATOR_SECONDS
-			end
 		else -- disperse: the newest section(s) go back to dancers; nothing is destroyed
 			for _, index in diff.removed do
 				local rep = reps[index]
@@ -410,16 +377,6 @@ function SectionsView.new(initialTotal: number): SectionsView
 					1
 				)
 				g.rep.badgeGui.Enabled = false
-			end
-		end
-		if indicatorT > 0 then
-			indicatorT -= dt
-			local pop = math.clamp(indicatorT / INDICATOR_SECONDS, 0, 1)
-			indicator.TextTransparency = math.clamp(1 - pop * 3, 0, 1)
-			indicator.TextStrokeTransparency = indicator.TextTransparency
-			indicator.Rotation = math.sin(clock * 14) * 3 * pop
-			if indicatorT <= 0 then
-				indicator.Visible = false
 			end
 		end
 		-- One ring per beat per settled globo, however many beats a slow frame spans.

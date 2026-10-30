@@ -1,7 +1,6 @@
 --!strict
--- Always-visible section meter and the end-beat banner (issue #16). Sound-off friendly: a meter
--- filling toward the next section, plus big banner text. The exact counter and section count stay
--- in Hud (issue #10); this adds the meter and the banner only. IN-ENGINE BEHAVIOUR IS UNVERIFIED.
+-- Ending-only banner (issue #16). Active gameplay has no screen text (issue #160).
+-- IN-ENGINE BEHAVIOUR IS UNVERIFIED.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -10,14 +9,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
-local HudMeters = require(Shared:WaitForChild("HudMeters"))
-
-local WHITE = Color3.fromRGB(255, 255, 255)
 
 export type RunHud = {
-	setMeter: (self: RunHud, meter: HudMeters.SectionMeter) -> (),
 	setBanner: (self: RunHud, text: string?) -> (),
-	setMeterVisible: (self: RunHud, visible: boolean) -> (),
 	reset: (self: RunHud) -> (),
 }
 
@@ -30,35 +24,6 @@ function RunHud.new(): RunHud
 	GuiLayout.safe(gui)
 	gui.DisplayOrder = ScreenLayout.DISPLAY_ORDER.runHud
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-	-- Meter: a bar under the counter that fills as loose followers approach the next section.
-	local back = Instance.new("Frame")
-	back.Name = "SectionMeter"
-	GuiLayout.place(back, "SectionMeter")
-	back.BackgroundColor3 = Color3.fromRGB(30, 20, 30)
-	back.BackgroundTransparency = 0.35
-	back.BorderSizePixel = 0
-	TypeStyle.backing(back) -- issue #104: the section caption sits on a rounded backing panel
-	back.Parent = gui
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = Color3.fromRGB(250, 204, 21)
-	fill.BorderSizePixel = 0
-	TypeStyle.pill(fill)
-	fill.Parent = back
-	local caption = Instance.new("TextLabel")
-	caption.Name = "Caption"
-	caption.Size = UDim2.fromScale(1, 1)
-	caption.BackgroundTransparency = 1
-	caption.TextScaled = true
-	GuiLayout.limitText(caption, "SectionMeter")
-	caption.Font = TypeStyle.font("body")
-	caption.TextColor3 = WHITE
-	TypeStyle.outline(caption)
-	caption.Parent = back
-
-	back.Visible = false -- hidden until the first State
 
 	local banner = Instance.new("TextLabel")
 	banner.Name = "Banner"
@@ -75,23 +40,8 @@ function RunHud.new(): RunHud
 	local bannerScale = Instance.new("UIScale")
 	bannerScale.Parent = banner
 
-	local lastFraction, lastLabel, lastBanner = -1.0, "", ""
+	local lastBanner = ""
 	local hud = {} :: RunHud
-
-	function hud.setMeter(_, meter: HudMeters.SectionMeter)
-		if meter.fraction ~= lastFraction then
-			lastFraction = meter.fraction
-			fill.Size = UDim2.fromScale(meter.fraction, 1)
-		end
-		if meter.label ~= lastLabel then
-			lastLabel = meter.label
-			caption.Text = meter.label
-		end
-	end
-
-	function hud.setMeterVisible(_, visible: boolean)
-		back.Visible = visible
-	end
 
 	function hud.setBanner(_, text: string?)
 		local shown = text or ""
@@ -112,7 +62,7 @@ function RunHud.new(): RunHud
 	end
 
 	function hud.reset(_)
-		lastFraction, lastLabel, lastBanner = -1.0, "", ""
+		lastBanner = ""
 		banner.Visible = false
 	end
 

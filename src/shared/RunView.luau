@@ -2,13 +2,10 @@
 -- Pure view helpers over the replicated State payload (issues #10, #13). The client renders the
 -- end of a run from `over`/`outcome` in State, not only from Event: State repeats at 10 Hz, so a
 -- listener that connects late still recovers the end (PR #42 review note on issue #10).
-local CrowdMath = require("./CrowdMath")
 local Remotes = require("./Remotes")
 local Strings = require("./Strings")
 
 export type Hud = {
-	counter: string, -- exact crowd total
-	detail: string, -- "Sueltos 20 · Secciones 2": the exact loose count and the section count
 	showEnd: boolean,
 	endTitle: string,
 	score: string,
@@ -35,10 +32,6 @@ function RunView.hud(state: Remotes.StatePayload): Hud
 		title = Strings.defeated
 	end
 	return {
-		counter = string.format("%d", total),
-		detail = `{Strings.loose} {CrowdMath.looseFollowers(total)} · {Strings.sections} {CrowdMath.sectionCount(
-			total
-		)}`,
 		showEnd = state.over == true,
 		endTitle = title,
 		score = string.format("%d", RunView.wholeTotal(state.score or total)),

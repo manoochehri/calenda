@@ -24,7 +24,6 @@ return {
 			local p = d:observe(200)
 			assert(p ~= nil, "plan")
 			eq(p.count, 4, "count")
-			eq(p.indicator, "+4 secciones", "indicator")
 			eq(d:observe(200), nil, "no second start for the same total")
 			local a = d:active()
 			assert(a ~= nil, "active")
@@ -40,7 +39,6 @@ return {
 			local merged = d:observe(160) -- 2 more
 			assert(merged ~= nil, "merged plan")
 			eq(merged.count, 3, "1 + 2 sections")
-			eq(merged.indicator, "+3 secciones", "combined indicator")
 			eq(#merged.types, 3, "types combined")
 			local a = d:active()
 			assert(a ~= nil, "active")

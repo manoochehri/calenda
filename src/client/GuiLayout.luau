@@ -3,7 +3,7 @@
 -- Every HUD ScreenGui (text, meters, buttons) is `safe`: its 0..1 space is the safe area (clear of
 -- notches, rounded corners and the Roblox top bar), IgnoreGuiInset = false. Purely decorative
 -- full-screen layers (hit flash, dim, title backdrop) are `fullScreen`. Mixing the two for
--- positions that must line up is the bug this fixes (PlusSections vs the section meter).
+-- positions that must line up is the bug this fixes.
 -- Source checked (create.roblox.com/docs/reference/engine/classes/ScreenGui.md): IgnoreGuiInset
 -- only matters while ScreenInsets is CoreUISafeInsets. false (the default) keeps CoreUISafeInsets,
 -- which keeps contents below the top bar and clear of cutouts; true switches CoreUISafeInsets to

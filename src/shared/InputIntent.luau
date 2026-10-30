@@ -10,7 +10,6 @@ InputIntent.KEY_SPEED = 20 -- [default] studs/second the keyboard intent slides 
 InputIntent.DRAG_SPAN = 0.6 -- [default] a drag of this fraction of the screen width crosses the street
 InputIntent.SEND_HZ = 15 -- [default] steer messages per second; below Steering.MESSAGES_PER_SECOND
 InputIntent.MIN_CHANGE = 0.05 -- [default] studs; smaller changes are not worth a message
-InputIntent.HINT_SECONDS = 10 -- [spec s9] 'Arrastra para moverte' during the first seconds
 
 local function isFinite(v: any): boolean
 	return type(v) == "number" and v == v and v > -math.huge and v < math.huge
@@ -61,11 +60,6 @@ function InputIntent.shouldSend(lastX: number?, lastAt: number, x: number, now: 
 		return false
 	end
 	return now - lastAt >= 1 / InputIntent.SEND_HZ
-end
-
--- Spec s9: shown in the first seconds, gone once the player steers or the run ends.
-function InputIntent.hintVisible(runTime: number, hasSteered: boolean, over: boolean): boolean
-	return not hasSteered and not over and runTime < InputIntent.HINT_SECONDS
 end
 
 return InputIntent

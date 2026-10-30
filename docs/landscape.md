@@ -16,3 +16,8 @@ Calenda is a landscape game. Portrait is out of scope (owner decision, 2026-10-2
   right corner under the thumb.
 - **Add a HUD element:** add it to `ScreenLayout.ELEMENTS`; the tests then cover it at every ratio.
 - **Stacking:** `ScreenLayout.DISPLAY_ORDER` gives every GUI a unique `DisplayOrder` (tested); the hit flash and results dim are under the HUD text.
+
+Issue #160 removes active-gameplay screen text entirely, including the counter, detail,
+steering hint, section meter and section toast. `ScreenLayout` now reserves text only for
+ending banners, results and title controls; safe-area, readability, touch and world-lane
+checks remain. Actual phone-size Studio visuals are UNVERIFIED until engine validation.

@@ -1,5 +1,4 @@
 --!strict
-local HudMeters = require("../src/shared/HudMeters")
 local Results = require("../src/shared/Results")
 local RunFlow = require("../src/shared/RunFlow")
 local RunView = require("../src/shared/RunView")
@@ -113,23 +112,7 @@ return {
 			local done = Results.apply(RunView.hud(final), final, finished(final, 0))
 			eq(done.showEnd, true, "shown at the end")
 			eq(done.endTitle, Strings.completed, "title")
-			eq(done.counter, "60", "counter untouched")
-		end,
-	},
-	{
-		name = "section meter: exact sections, fraction toward the next one",
-		run = function()
-			local m = HudMeters.sectionMeter(120)
-			eq(m.sections, 2, "sections")
-			eq(m.loose, 20, "loose")
-			eq(m.fraction, 0.4, "fraction")
-			eq(m.toNext, 30, "to next")
-			eq(m.label, "Faltan 30 para un grupo", "label")
-			eq(HudMeters.sectionMeter(10).fraction, 0.2, "start")
-			eq(HudMeters.sectionMeter(50).sections, 1, "boundary")
-			eq(HudMeters.sectionMeter(50).fraction, 0, "boundary fraction")
-			eq(HudMeters.sectionMeter(-3).sections, 0, "garbage")
-			eq(HudMeters.sectionMeter(10000).sections, 200, "large")
+			eq(done.score, "60", "final total retained")
 		end,
 	},
 }

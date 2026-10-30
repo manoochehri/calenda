@@ -11,7 +11,6 @@ local InputIntent = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 export type Controller = {
 	step: (self: Controller, dt: number, now: number) -> (),
 	reset: (self: Controller, x: number) -> (),
-	hasSteered: (self: Controller) -> boolean,
 }
 
 local InputController = {}
@@ -20,7 +19,6 @@ local InputController = {}
 -- to the server; the server clamps and rate limits it again.
 function InputController.new(bound: number, send: (number) -> ()): Controller
 	local intentX = 0
-	local steered = false
 	local lastSentX: number? = nil
 	local lastSentAt = 0
 	local dragInput: InputObject? = nil
@@ -40,7 +38,6 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 		dragInput = input
 		dragStartPixelX = input.Position.X
 		dragOriginX = intentX
-		steered = true
 	end)
 	UserInputService.InputChanged:Connect(function(input: InputObject)
 		if input == dragInput then
@@ -68,7 +65,6 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 				or UserInputService:IsKeyDown(Enum.KeyCode.Right)
 		)
 		if axis ~= 0 then
-			steered = true
 			intentX = InputIntent.stepKeys(intentX, axis, dt, bound)
 		end
 		if InputIntent.shouldSend(lastSentX, lastSentAt, intentX, now) then
@@ -77,16 +73,11 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 		end
 	end
 
-	-- A new run starts at the lead's server position; forget the old drag and hint state.
+	-- A new run starts at the lead's server position; forget the old drag.
 	function controller.reset(_, x: number)
 		intentX = math.clamp(x, -bound, bound)
-		steered = false
 		dragInput = nil
 		lastSentX = intentX
-	end
-
-	function controller.hasSteered(_): boolean
-		return steered
 	end
 
 	return controller

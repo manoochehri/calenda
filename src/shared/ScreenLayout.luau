@@ -13,7 +13,7 @@ local ScreenLayout = {}
 
 export type Aspect = { name: string, ratio: number, notched: boolean }
 export type Rect = { x: number, y: number, w: number, h: number }
-export type Phases = { run: boolean?, results: boolean?, title: boolean? }
+export type Phases = { run: boolean?, results: boolean?, title: boolean?, ending: boolean? }
 export type TextSpec = {
 	minSize: number, -- UITextSizeConstraint.MinTextSize, px
 	maxSize: number, -- UITextSizeConstraint.MaxTextSize, px
@@ -48,9 +48,8 @@ ScreenLayout.GLYPH_EM = 0.62 -- estimate: average advance of a bold sans glyph, 
 -- two layers that overlap share a number. The hit flash and results dim sit UNDER the HUD text.
 ScreenLayout.DISPLAY_ORDER = table.freeze({
 	hudFx = -1, -- CalendaHudFx: hit flash, results dim (decorative, full screen)
-	hud = 0, -- CalendaHud: counter, hint, results texts and Replay
-	runHud = 5, -- CalendaRunHud: section meter, banner
-	sections = 6, -- CalendaSections: +N secciones (kept above the HUD, below the title)
+	hud = 0, -- CalendaHud: results texts and Replay
+	runHud = 5, -- CalendaRunHud: ending-only banner
 	startup = 100, -- CalendaStartup: title backdrop and card
 	startupControls = 101, -- CalendaStartupControls: Play, above the backdrop
 })
@@ -108,7 +107,7 @@ local function el(
 	}
 end
 
-local RUN = { run = true }
+local ENDING = { ending = true }
 local RESULTS = { results = true }
 local TITLE = { title = true }
 
@@ -132,53 +131,7 @@ local play = el("Play", 1, 1, 1, 1, 0.28, 0.17, TITLE, {
 play.touch = true
 play.primary = true
 
--- Top row: crowd counter centre (the life bar, ADR 0006), "+N secciones" right. The centre column below the
--- counter holds the meter; the middle of the screen is left to the street and the portals.
 local ELEMENTS = {
-	el(
-		"Counter",
-		0.5,
-		0,
-		0.5,
-		0,
-		0.40,
-		0.17,
-		RUN,
-		{ minSize = 14, maxSize = 72, sample = "99999" }
-	),
-	el(
-		"Detail",
-		0.5,
-		0,
-		0.5,
-		0.17,
-		0.50,
-		0.07,
-		RUN,
-		{ minSize = 14, maxSize = 24, sample = "Sueltos 20 · Secciones 12" }
-	),
-	el(
-		"PlusSections",
-		1,
-		0,
-		1,
-		0.17,
-		0.24,
-		0.09,
-		RUN,
-		{ minSize = 14, maxSize = 32, sample = "+99 secciones" }
-	),
-	el(
-		"SectionMeter",
-		0.5,
-		0,
-		0.5,
-		0.24,
-		0.42,
-		0.06,
-		RUN,
-		{ minSize = 14, maxSize = 28, sample = "Faltan 30 para un grupo" }
-	),
 	el(
 		"Banner",
 		0.5,
@@ -187,19 +140,8 @@ local ELEMENTS = {
 		0.30,
 		0.70,
 		0.10,
-		RUN,
+		ENDING,
 		{ minSize = 14, maxSize = 72, sample = "¡Calenda legendaria!" }
-	),
-	el(
-		"Hint",
-		0.5,
-		0,
-		0.5,
-		0.82,
-		0.40,
-		0.10,
-		RUN,
-		{ minSize = 14, maxSize = 32, sample = "Arrastra para moverte" }
 	),
 	el(
 		"Title",
