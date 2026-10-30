@@ -26,7 +26,10 @@ return {
 			assert(filled("heart", -0.3, 0.43) and filled("heart", 0.3, 0.43), "two lobes")
 			assert(not filled("heart", 0, 0.43), "cleft must remain empty, not a central ball")
 			assert(filled("heart", 0, 0) and filled("heart", 0, -0.62), "joined body and tip")
-			assert(not filled("heart", -0.3, -0.62) and not filled("heart", 0.3, -0.62), "tapered tip")
+			assert(
+				not filled("heart", -0.3, -0.62) and not filled("heart", 0.3, -0.62),
+				"tapered tip"
+			)
 		end,
 	},
 	{
@@ -64,11 +67,21 @@ return {
 				assert(ProjectileVisual.lift("gift", 0, miss) == 0, "launch lift")
 				assert(ProjectileVisual.lift("gift", 1, miss) == 0, "landing lift")
 				for _, f in { 0.2, 0.5, 0.8 } do
-					assert(ProjectileVisual.lift("gift", f, miss) > ProjectileVisual.lift("note", f, miss), "gift lobs higher")
+					assert(
+						ProjectileVisual.lift("gift", f, miss)
+							> ProjectileVisual.lift("note", f, miss),
+						"gift lobs higher"
+					)
 				end
 			end
-			assert(ProjectileVisual.lift("note", 0.5, true) == 0, "ordinary misses keep original flight")
-			assert(ProjectileVisual.lift("heart", 0.5, true) == 0, "heart misses keep original flight")
+			assert(
+				ProjectileVisual.lift("note", 0.5, true) == 0,
+				"ordinary misses keep original flight"
+			)
+			assert(
+				ProjectileVisual.lift("heart", 0.5, true) == 0,
+				"heart misses keep original flight"
+			)
 		end,
 	},
 }
