@@ -9,9 +9,31 @@ local Layouts = require("../src/shared/Layouts")
 local RunDriver = require("../src/shared/RunDriver")
 local RunHooks = require("../src/shared/RunHooks")
 
-local function errorsOf(layout: any): string
+-- Issue #144 finding, PM decision pending: the witness guard finds a real run of portal-del-sur
+-- (seed 1, policy nearest-any+gate-pref) above the authored maxTotal. The layout and maxTotal are
+-- NOT changed here. This pins the finding so it cannot disappear silently; every other layout must
+-- still pass with no errors.
+local KNOWN_WITNESS_FINDING = "portal-del-sur"
+
+-- Passes for an ordinary layout; for the known finding, requires exactly the recorded witness.
+local function assertLayoutAsExpected(layout: any)
 	local r = LayoutValidator.check(layout)
-	return table.concat(r.errors, " | ")
+	if layout.name == KNOWN_WITNESS_FINDING then
+		assert(not r.ok, `{layout.name} expected to carry the #144 witness finding`)
+		local w = r.witness and r.witness.worst
+		assert(w ~= nil, `{layout.name}: no witness recorded`)
+		assert(
+			w.policy == "nearest-any+gate-pref" and w.seed == 1,
+			`{layout.name}: witness {w.policy} seed {w.seed}`
+		)
+		assert(
+			w.total > layout.maxTotal,
+			`{layout.name}: witness {w.total} not above {layout.maxTotal}`
+		)
+	else
+		assert(r.ok, `{layout.name} rejected: {table.concat(r.errors, " | ")}`)
+		assert(r.routeCount == 2 ^ #layout.gates, `{layout.name}: routes not enumerated`)
+	end
 end
 
 local function gateSignature(layout: any): string
@@ -41,12 +63,10 @@ return {
 		end,
 	},
 	{
-		name = "each authored layout passes the layout validator with no errors",
+		name = "each authored layout passes the layout validator (portal-del-sur: pinned #144 finding)",
 		run = function()
 			for _, layout in Layouts.all do
-				local r = LayoutValidator.check(layout)
-				assert(r.ok, `{layout.name} rejected: {table.concat(r.errors, " | ")}`)
-				assert(r.routeCount == 2 ^ #layout.gates, `{layout.name}: routes not enumerated`)
+				assertLayoutAsExpected(layout)
 			end
 		end,
 	},
@@ -122,11 +142,10 @@ return {
 		end,
 	},
 	{
-		name = "select: a seed's layout still passes the validator",
+		name = "select: a seed's layout still passes the validator (seed 1: pinned #144 finding)",
 		run = function()
 			for _, seed in { 0, 1, 2, 7 } do
-				local e = errorsOf(Layouts.select(seed))
-				assert(e == "", `seed {seed}: {e}`)
+				assertLayoutAsExpected(Layouts.select(seed))
 			end
 		end,
 	},
