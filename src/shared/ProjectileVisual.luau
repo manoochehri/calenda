@@ -9,6 +9,19 @@ local ProjectileVisual = {}
 
 export type Kind = "note" | "heart" | "gift"
 
+-- One camera-plane primitive of a silhouette. Units are normalized (about -1..1), not studs; x and
+-- y are the centre, w and h the full size, roll the tilt in radians. A ball is an ellipse, a block
+-- a rectangle. A ribbon marks the gift's crossed ribbons.
+export type Piece = {
+	shape: "ball" | "block",
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	roll: number,
+	ribbon: boolean,
+}
+
 -- A gift is slower than a note over the same distance and arcs higher (a lazy, looping toss).
 ProjectileVisual.GIFT_FLIGHT_SCALE = 1.6 -- [default] x the note flight time
 ProjectileVisual.GIFT_APEX = 14 -- [default] studs above the straight line at the top (notes: 7)
@@ -52,6 +65,54 @@ function ProjectileVisual.giftLoop(f: number): { dx: number, dy: number, dz: num
 		dy = r * (1 - math.cos(theta)),
 		dz = 0,
 	}
+end
+
+-- The silhouettes, each at most four primitives (a body and three extras, the part budget). The
+-- note is a head, stem and flag; the heart is two lobes and a pointed body with its cleft left
+-- empty; the gift is a box, a lid and two crossed ribbons, with no spherical core.
+local GEOMETRY: { [Kind]: { Piece } } = {
+	note = {
+		{ shape = "ball", x = 0, y = -0.5, w = 0.8, h = 0.6, roll = 0, ribbon = false },
+		{ shape = "block", x = 0.35, y = 0.1, w = 0.14, h = 0.9, roll = 0, ribbon = false },
+		{ shape = "block", x = 0.6, y = 0.66, w = 0.5, h = 0.22, roll = 0, ribbon = false },
+	},
+	heart = {
+		{ shape = "ball", x = -0.3, y = 0.43, w = 0.5, h = 0.5, roll = 0, ribbon = false },
+		{ shape = "ball", x = 0.3, y = 0.43, w = 0.5, h = 0.5, roll = 0, ribbon = false },
+		-- A square turned 45 degrees: its top stays below the cleft and its point reaches down.
+		{
+			shape = "block",
+			x = 0,
+			y = -0.2,
+			w = 0.71,
+			h = 0.71,
+			roll = math.pi / 4,
+			ribbon = false,
+		},
+	},
+	gift = {
+		{ shape = "block", x = 0, y = -0.2, w = 1.3, h = 1.0, roll = 0, ribbon = false }, -- box
+		{ shape = "block", x = 0, y = 0.45, w = 1.6, h = 0.3, roll = 0, ribbon = false }, -- lid
+		{ shape = "block", x = 0, y = 0, w = 0.16, h = 1.6, roll = 0, ribbon = true }, -- ribbon
+		{ shape = "block", x = 0, y = 0.45, w = 1.6, h = 0.14, roll = 0, ribbon = true }, -- ribbon
+	},
+}
+
+-- The camera-plane primitives of a projectile's silhouette. The result is shared: do not mutate it.
+function ProjectileVisual.geometry(kind: Kind): { Piece }
+	return GEOMETRY[kind]
+end
+
+-- Height in studs above the flight path at progress f (0..1). A gift lobs on both its aimed and
+-- its miss flight, with the same parabola as FeedbackMath.arc, so it is zero at launch and landing.
+-- Notes and hearts add nothing: their hits keep the FeedbackMath arc and their misses ShotLook.miss.
+-- A gift lobs the same whether it hits or misses, so `_miss` is unused.
+function ProjectileVisual.lift(kind: Kind, f: number, _miss: boolean): number
+	if kind ~= "gift" then
+		return 0
+	end
+	local k = math.clamp(f, 0, 1)
+	return 4 * ProjectileVisual.GIFT_APEX * k * (1 - k)
 end
 
 return ProjectileVisual
