@@ -3,7 +3,8 @@
 -- input controller, the crowd view and the HUD. Everything it decides comes from pure, Lune-tested
 -- modules in ReplicatedStorage.Shared; this file only connects Roblox services.
 -- The client sends a steering intent, a replay request and one payload-free Start request
--- after the loading screen is ready (Remotes trust model).
+-- after the loading screen is ready and the opening camera move has settled (Remotes trust model;
+-- issue #177: the move is presentation, the server still starts the run only on that request).
 --
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (not run in Studio by the author): see the PR checklist.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -30,7 +31,7 @@ local RunView = timedRequire("Shared", Shared, "RunView")
 local CrowdMath = timedRequire("Shared", Shared, "CrowdMath")
 local ServerClock = timedRequire("Shared", Shared, "ServerClock")
 local StartFlow = timedRequire("Shared", Shared, "StartFlow")
-local StartCountdown = timedRequire("Shared", Shared, "StartCountdown")
+local IntroCamera = timedRequire("Shared", Shared, "IntroCamera")
 local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
@@ -71,26 +72,12 @@ local function updateProgress()
 		startupScreen:showTitle()
 	end
 end
+local intro: IntroCamera.Intro? = nil -- the opening camera move, while it plays (issue #177)
 local function onPlay()
 	if StartFlow.play(startupFlow) then
 		music:start(os.clock()) -- start the selected loop on Jugar, before the server's first running State
-		local countIn = StartCountdown.new()
-		local function showNextCue()
-			local cue = StartCountdown.advance(countIn)
-			if cue == nil then
-				return
-			end
-			startupScreen:showCountIn(cue)
-			task.delay(StartCountdown.DURATION, function()
-				if StartCountdown.shouldStart(countIn) then
-					startupScreen:finishCountIn()
-					startRemote:FireServer()
-				else
-					showNextCue()
-				end
-			end)
-		end
-		showNextCue()
+		startupScreen:finishIntro()
+		intro = IntroCamera.begin(os.clock())
 	end
 end
 startupScreen = StartupScreen.new(onPlay)
@@ -175,6 +162,28 @@ local serverClock = ServerClock.new() -- smoothed lead timeline (issue #85)
 local frozenCamera: CFrame? = nil -- Config.debug.freezeCamera A/B only
 if Config.debug.noShadows then
 	game:GetService("Lighting").GlobalShadows = false
+end
+
+-- Puts the camera at `pose`, with the screen punch (camera space) applied on top.
+local function placeCamera(pose: CameraRig.Pose, shakeX: number, shakeY: number)
+	local camera = Workspace.CurrentCamera
+	if camera then
+		if camera.CameraType ~= Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
+		if camera.FieldOfView ~= CameraRig.FIELD_OF_VIEW then
+			camera.FieldOfView = CameraRig.FIELD_OF_VIEW
+		end
+		local cf = CFrame.lookAt(
+			Vector3.new(pose.px, pose.py, pose.pz),
+			Vector3.new(pose.lx, pose.ly, pose.lz)
+		) * CFrame.new(shakeX, shakeY, 0) -- decaying screen punch, camera space
+		if Config.debug.freezeCamera then
+			frozenCamera = frozenCamera or cf
+			cf = frozenCamera :: CFrame
+		end
+		camera.CFrame = cf
+	end
 end
 
 local function looksLikeState(p: any): boolean
@@ -285,6 +294,25 @@ RunService:BindToRenderStep(
 			startupTrace:mark("first CalendaFrame render-step callback")
 			StartupTrace.finishIfReady()
 		end
+		if intro ~= nil then
+			-- Opening move (issue #177): the run is still paused, so input and the server clock wait.
+			-- The lead stands at its start (x 0, z 0) while the camera settles on the game view.
+			local now = os.clock()
+			-- The move waits for the avatar to exist (IntroCamera.AVATAR_WAIT at most).
+			local hasAvatar = leadAvatar:update(0, 0, dt)
+			local introPose, startDue = IntroCamera.step(intro, now, ViewMap.x(0), 0, hasAvatar)
+			placeCamera(introPose, 0, 0)
+			local introState = latest
+			if introState ~= nil and StartFlow.shouldUpdateMusic(startupFlow) then
+				-- Music keeps moving through the opening move, as the count-in did.
+				music:update(RunView.wholeTotal(introState.total), now)
+			end
+			if startDue then
+				intro = nil
+				startRemote:FireServer()
+			end
+			return
+		end
 		local state = latest
 		if state == nil then
 			return
@@ -356,24 +384,7 @@ RunService:BindToRenderStep(
 		hitFx:step(dt)
 		local hit = hitFx:sample()
 		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
-		local camera = Workspace.CurrentCamera
-		if camera then
-			if camera.CameraType ~= Enum.CameraType.Scriptable then
-				camera.CameraType = Enum.CameraType.Scriptable
-			end
-			if camera.FieldOfView ~= CameraRig.FIELD_OF_VIEW then
-				camera.FieldOfView = CameraRig.FIELD_OF_VIEW
-			end
-			local cf = CFrame.lookAt(
-				Vector3.new(pose.px, pose.py, pose.pz),
-				Vector3.new(pose.lx, pose.ly, pose.lz)
-			) * CFrame.new(hit.shakeX, hit.shakeY, 0) -- decaying screen punch, camera space
-			if Config.debug.freezeCamera then
-				frozenCamera = frozenCamera or cf
-				cf = frozenCamera :: CFrame
-			end
-			camera.CFrame = cf
-		end
+		placeCamera(pose, hit.shakeX, hit.shakeY)
 
 		hud:applyHit(hit)
 		hud:update(fx.view(RunView.hud(state)))

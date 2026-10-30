@@ -61,7 +61,7 @@ function StartFlow.replay(flow: Flow): boolean
 end
 
 -- The user has already pressed Play even if the server still reports its paused ready State.
--- Main uses this to keep the requested count-in music's SoundGroup volume moving in that window.
+-- Main uses this to keep the music's SoundGroup volume moving through the opening camera move (#177).
 function StartFlow.shouldUpdateMusic(flow: Flow): boolean
 	return flow.phase == "playing"
 end
