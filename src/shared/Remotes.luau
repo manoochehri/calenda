@@ -46,6 +46,7 @@ export type StatePayload = {
 	outcome: string?,
 	score: number?,
 	level: number, -- issue #128: 1-based index of the level being played (the server decides it)
+	levelName: string, -- issue #129: the authored display name for the current level
 	encounter: Encounter?, -- issue #156: the lane encounter to show; absent when none is pending
 	stage: string, -- issue #162: "traveling" | "mini-boss-combat" | "final-boss-combat"; see isStage
 	holdZ: number?, -- issue #162: z of the next unresolved checkpoint plane (or the one held at)
@@ -179,6 +180,7 @@ export type Snapshot = {
 	outcome: string?,
 	score: number?,
 	level: number?, -- issue #128: 1-based index of the level being played; absent = 1
+	levelName: string?, -- issue #129: authored display name; absent = the level index
 	encounter: Encounter?, -- issue #156: the lane encounter to show, if any
 	stage: string?, -- issue #162: absent or invalid = "traveling"
 	holdZ: number?, -- issue #162: hold plane; dropped unless finite
@@ -201,6 +203,7 @@ function Remotes.encodeState(s: Snapshot): StatePayload
 		outcome = s.outcome,
 		score = s.score,
 		level = if type(s.level) == "number" and s.level >= 1 then math.floor(s.level) else 1,
+		levelName = if type(s.levelName) == "string" and s.levelName ~= "" then s.levelName else "",
 		encounter = Remotes.decodeEncounter(s.encounter),
 		stage = if Remotes.isStage(s.stage) then s.stage :: string else "traveling",
 		holdZ = if isFinite(s.holdZ) then round2(s.holdZ :: number) else nil,
