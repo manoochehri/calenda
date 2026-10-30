@@ -32,6 +32,7 @@ local CrowdMath = timedRequire("Shared", Shared, "CrowdMath")
 local ServerClock = timedRequire("Shared", Shared, "ServerClock")
 local StartFlow = timedRequire("Shared", Shared, "StartFlow")
 local StartSequence = timedRequire("Shared", Shared, "StartSequence")
+local IntroCamera = timedRequire("Shared", Shared, "IntroCamera")
 local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
@@ -300,6 +301,14 @@ RunService:BindToRenderStep(
 			awaitingFirstFrame = false
 			startupTrace:mark("first CalendaFrame render-step callback")
 			StartupTrace.finishIfReady()
+		end
+		if sequence == nil and (startupFlow.phase == "loading" or startupFlow.phase == "title") then
+			-- The title (#211): the street shows behind it and the lead stands still at its start,
+			-- framed on the right by the title camera. The move to the game camera starts on Play.
+			local titleX = ViewMap.x(0)
+			leadAvatar:hold(0, 0)
+			placeCamera(IntroCamera.titlePose(titleX, 0), 0, 0)
+			return
 		end
 		if sequence ~= nil then
 			-- Opening move (#177), then tres, dos, uno (#203): the run is still paused, so input and

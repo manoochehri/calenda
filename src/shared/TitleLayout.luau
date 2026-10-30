@@ -1,10 +1,9 @@
 --!strict
--- Issues #176 and #203: the title screen's element layout as pure data, so the start screen's
+-- Issues #176, #203 and #211: the title screen's element layout as pure data, so the start screen's
 -- placement is tested at every aspect ratio (tests/issue203_title_layout.test.luau).
 -- Positions are fractions of the FULL screen (the title ScreenGui covers it). The title (logo,
--- subtitle, loading) is the left column; the player's marching avatar slot is the right column;
--- the papel picado banner runs across the top and PROTOTIPO is a small footer. The Play button
--- is not here: it is ScreenLayout's primary button, in the lower safe corner, under the slot.
+-- subtitle, loading) is the left column over the street; the papel picado banner runs across the
+-- top. The avatar stands in the world (no box) and the Play button is ScreenLayout's primary button.
 -- Shape matches ScreenLayout.Element, so ScreenLayout.elementRect and fitTextPx apply directly.
 local ScreenLayout = require("./ScreenLayout")
 
@@ -59,27 +58,6 @@ TitleLayout.ELEMENTS = table.freeze({
 		y = 0.62,
 		w = 0.46,
 		h = 0.17,
-	} :: ScreenLayout.Element),
-	table.freeze({
-		name = "AvatarSlot",
-		phases = TITLE,
-		ax = 1,
-		ay = 0,
-		x = 0.94,
-		y = 0.16,
-		w = 0.32,
-		h = 0.5,
-	} :: ScreenLayout.Element),
-	table.freeze({
-		name = "Version",
-		phases = TITLE,
-		ax = 0,
-		ay = 1,
-		x = 0.06,
-		y = 0.97,
-		w = 0.2,
-		h = 0.05,
-		text = table.freeze({ minSize = 10, maxSize = 14, sample = "PROTOTIPO" }),
 	} :: ScreenLayout.Element),
 })
 
