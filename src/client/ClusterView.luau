@@ -276,13 +276,13 @@ function ClusterView.new(layout: any): ClusterView
 		lateral: number?, -- issue #63: a miss's stream offset (game units); nil for hits (they use fromX)
 	}
 	local flights: Effects.Effects<Flight> = Effects.new(PROJECTILE_CAPACITY)
-	-- A shot (issue #67): a glowing Neon core inside a larger translucent halo, a Trail, and up to
-	-- three extra parts whose meaning depends on the look (note stem and flag; heart lobes and
-	-- point; gift ribbon and twisted ends, issue #20). Pooled, never destroyed; hard capped by
-	-- PROJECTILE_CAPACITY.
+	-- A shot (issue #151): the silhouette of its look, built from ProjectileVisual.place. Up to four
+	-- Neon parts: the body (the first primitive, and the Trail's anchor) and three extras. No halo
+	-- and no central ball. Pooled, never destroyed; hard capped by PROJECTILE_CAPACITY.
+	-- Thickness of a primitive, as a share of the projectile's size: the camera sees its face.
+	local SILHOUETTE_DEPTH = 0.3
 	type Shot = {
 		body: Part,
-		halo: Part,
 		trail: Trail,
 		a0: Attachment,
 		a1: Attachment,
@@ -291,9 +291,6 @@ function ClusterView.new(layout: any): ClusterView
 	local projectilePool = Pool.new(function(): Shot
 		local body = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
 		body.Material = Enum.Material.Neon
-		local halo = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
-		halo.Material = Enum.Material.Neon
-		halo.Transparency = ShotLook.HALO_TRANSPARENCY
 		local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
 		a0.Parent, a1.Parent = body, body
 		local trail = Instance.new("Trail")
@@ -309,12 +306,12 @@ function ClusterView.new(layout: any): ClusterView
 			e.Material = Enum.Material.Neon
 			table.insert(extras, e)
 		end
-		return { body = body, halo = halo, trail = trail, a0 = a0, a1 = a1, extras = extras }
+		return { body = body, trail = trail, a0 = a0, a1 = a1, extras = extras }
 	end, function(p: Shot)
-		p.body.Parent, p.halo.Parent = folder, folder
+		p.body.Parent = folder
 		p.trail:Clear() -- a recycled shot must not streak from its previous flight
 	end, function(p: Shot)
-		p.body.Parent, p.halo.Parent = nil, nil
+		p.body.Parent = nil
 		for _, e in p.extras do
 			e.Parent = nil
 		end
@@ -717,11 +714,18 @@ function ClusterView.new(layout: any): ClusterView
 			local alpha = 1
 			local x, y, z = 0.0, 0.0, 0.0
 			local size = look.size * ShotLook.pulse(f.f)
+			local kind = f.data.variant :: ProjectileVisual.Kind
+			local gift = kind == "gift"
 			if f.data.miss then
 				local m = ShotLook.miss(f.f, f.data.n, f.data.lateral)
-				x, y, z = ViewMap.x(f.data.fromX + m.dx), 2.5 + m.dy, f.data.fromZ + m.dz
+				-- A gift lobs on a miss too (issue #151); notes and hearts add no lift.
+				x, y, z =
+					ViewMap.x(f.data.fromX + m.dx),
+					2.5 + m.dy + ProjectileVisual.lift(kind, f.f, true),
+					f.data.fromZ + m.dz
 				alpha, size = m.alpha, size * m.scale
 			elseif to ~= nil then
+				-- A gift's lob is ProjectileVisual.lift, so a gift hit has no extra arc height here.
 				x, y, z = FeedbackMath.arc(
 					ViewMap.x(f.data.fromX),
 					2.5,
@@ -730,12 +734,10 @@ function ClusterView.new(layout: any): ClusterView
 					3,
 					to.z,
 					f.f,
-					if f.data.variant == "gift"
-						then ProjectileVisual.GIFT_APEX
-						else FeedbackMath.ARC_HEIGHT
+					if gift then 0 else FeedbackMath.ARC_HEIGHT
 				)
+				y += ProjectileVisual.lift(kind, f.f, false)
 			end
-			local gift = f.data.variant == "gift"
 			if gift then
 				-- A gift loops over its arc (issue #151); the loop starts and ends on the arc.
 				local loop = ProjectileVisual.giftLoop(f.f)
@@ -750,101 +752,35 @@ function ClusterView.new(layout: any): ClusterView
 			local coreColor = Color3.fromRGB(core[1], core[2], core[3])
 			local glowColor = Color3.fromRGB(glow[1], glow[2], glow[3])
 			local fade = 1 - alpha
-			p.body.Transparency = if gone then 1 else fade
-			p.halo.Transparency = if gone
-				then 1
-				else ShotLook.HALO_TRANSPARENCY + (1 - ShotLook.HALO_TRANSPARENCY) * fade
 			p.trail.Enabled = not gone and alpha > 0.15
 			p.trail.Color = ColorSequence.new(glowColor)
-			local half = size * ShotLook.TRAIL_WIDTH / 2
-			p.a0.Position, p.a1.Position = Vector3.new(0, half, 0), Vector3.new(0, -half, 0)
-			p.body.Color, p.halo.Color = coreColor, glowColor
-			p.halo.Size = Vector3.one * size * ShotLook.HALO_SCALE
-			p.halo.Position = Vector3.new(x, y, z)
 			for _, e in p.extras do
 				e.Parent = nil
 			end
+			p.body.Parent = nil
 			if gone then
 				continue
 			end
-			if gift then
-				-- A wrapped treat: a cylinder roll with a ribbon and twisted ends, tumbling; scaled
-				-- up by the look (issue #20 shapes, issue #67 size).
-				local k = look.size / GiftVisual.TREAT_THICK
-				local at = CFrame.new(x, y, z)
-					* CFrame.Angles(
-						GiftVisual.tumble(f.f) * (GiftVisual.look(f.data.hits).spin / 9),
-						0.6,
-						0
-					)
-				local halfLen = GiftVisual.TREAT_LENGTH / 2 * k
-				p.body.Shape = Enum.PartType.Cylinder
-				p.body.Size = Vector3.new(halfLen * 1.3, size, size)
-				p.body.CFrame = at
-				local stripe, twistA, twistB = p.extras[1], p.extras[2], p.extras[3]
-				stripe.Shape = Enum.PartType.Cylinder
-				stripe.Size = Vector3.new(0.4 * k, size + 0.1, size + 0.1)
-				stripe.Color = Color3.new(1, 1, 1)
-				stripe.CFrame = at
-				for _, tw in { twistA, twistB } do
-					tw.Shape = Enum.PartType.Block
-					tw.Size = Vector3.new(0.5 * k, 0.9 * k, 0.2 * k)
-					tw.Color = coreColor
-				end
-				twistA.CFrame = at * CFrame.new(halfLen * 0.8, 0, 0) * CFrame.Angles(0.5, 0, 0)
-				twistB.CFrame = at * CFrame.new(-halfLen * 0.8, 0, 0) * CFrame.Angles(-0.5, 0, 0)
-				stripe.Parent, twistA.Parent, twistB.Parent = folder, folder, folder
-			else
-				p.body.Shape = Enum.PartType.Ball
-				p.body.Size = Vector3.one * size
-				p.body.Position = Vector3.new(x, y, z)
-				if f.data.variant == "heart" then
-					-- Two lobes and a point under the pink core: a heart silhouette from the high camera.
-					-- The point is a cube turned 45 degrees.
-					p.body.Size = Vector3.one * size * 0.9
-					for li = 2, 3 do
-						local lobe = p.extras[li]
-						lobe.Shape = Enum.PartType.Ball
-						lobe.Size = Vector3.one * size * 0.62
-						lobe.Color = coreColor
-						lobe.Position = Vector3.new(
-							x + (if li == 2 then -0.3 else 0.3) * size,
-							y + 0.42 * size,
-							z
-						)
-						lobe.Transparency = fade
-						lobe.Parent = folder
-					end
-					local point = p.extras[1]
-					point.Shape = Enum.PartType.Block
-					point.Size = Vector3.one * size * 0.7
-					point.Color = coreColor
-					point.CFrame = CFrame.new(x, y - 0.05 * size, z)
-						* CFrame.Angles(0, 0, math.rad(45))
-					point.Transparency = fade
-					point.Parent = folder
-				else
-					-- A musical note: a flattened head, a tall gold stem and a flag at its top, so it
-					-- reads as a quaver from the high camera and not as a ball.
-					p.body.Size = Vector3.new(size, size * 0.72, size)
-					local stem = p.extras[1]
-					local stemX = x + 0.4 * size
-					stem.Shape = Enum.PartType.Block
-					stem.Size = Vector3.new(0.22 * size, 1.4 * size, 0.22 * size)
-					stem.Color = coreColor
-					stem.Position = Vector3.new(stemX, y + 0.7 * size, z)
-					stem.Transparency = fade
-					stem.Parent = folder
-					local flag = p.extras[2]
-					flag.Shape = Enum.PartType.Block
-					flag.Size = Vector3.new(0.7 * size, 0.28 * size, 0.2 * size)
-					flag.Color = coreColor
-					flag.CFrame = CFrame.new(stemX + 0.3 * size, y + 1.3 * size, z)
-						* CFrame.Angles(0, 0, math.rad(-35))
-					flag.Transparency = fade
-					flag.Parent = folder
-				end
+			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
+			-- first primitive is the body, which anchors the Trail: its ends are placed in the body's
+			-- frame so the streak still runs through the projectile's centre (x, y, z).
+			local parts = { p.body, p.extras[1], p.extras[2], p.extras[3] }
+			local places = ProjectileVisual.place(kind, size)
+			local thickness = size * SILHOUETTE_DEPTH
+			for j, q in places do
+				local part = parts[j]
+				local ball = q.shape == "ball"
+				part.Shape = if ball then Enum.PartType.Ball else Enum.PartType.Block
+				part.Size = Vector3.new(q.w, q.h, if ball then math.min(q.w, q.h) else thickness)
+				part.CFrame = CFrame.new(x + q.x, y + q.y, z) * CFrame.Angles(0, 0, q.roll)
+				part.Color = if q.ribbon then Color3.new(1, 1, 1) else coreColor
+				part.Transparency = fade
+				part.Parent = folder
 			end
+			local first = places[1]
+			local half = size * ShotLook.TRAIL_WIDTH / 2
+			p.a0.Position = Vector3.new(-first.x, -first.y + half, 0)
+			p.a1.Position = Vector3.new(-first.x, -first.y - half, 0)
 		end
 
 		-- Muzzle pops at the lead: a quick swell with a tiny recoil bob (the pop moves, never the

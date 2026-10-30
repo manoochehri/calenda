@@ -103,6 +103,24 @@ function ProjectileVisual.geometry(kind: Kind): { Piece }
 	return GEOMETRY[kind]
 end
 
+-- The same primitives in studs, for a projectile of `size` studs across: a new table, so the
+-- caller can keep it. ClusterView turns each entry into one Part, in order.
+function ProjectileVisual.place(kind: Kind, size: number): { Piece }
+	local out = {}
+	for i, piece in GEOMETRY[kind] do
+		out[i] = {
+			shape = piece.shape,
+			x = piece.x * size,
+			y = piece.y * size,
+			w = piece.w * size,
+			h = piece.h * size,
+			roll = piece.roll,
+			ribbon = piece.ribbon,
+		}
+	end
+	return out
+end
+
 -- Height in studs above the flight path at progress f (0..1). A gift lobs on both its aimed and
 -- its miss flight, with the same parabola as FeedbackMath.arc, so it is zero at launch and landing.
 -- Notes and hearts add nothing: their hits keep the FeedbackMath arc and their misses ShotLook.miss.

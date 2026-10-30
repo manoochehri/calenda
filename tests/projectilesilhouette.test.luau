@@ -61,6 +61,33 @@ return {
 		end,
 	},
 	{
+		name = "place scales every primitive by the projectile size, in the same order, as a fresh table",
+		run = function()
+			for _, kind in { "note", "heart", "gift" } do
+				local base = ProjectileVisual.geometry(kind)
+				local placed = ProjectileVisual.place(kind :: any, 2)
+				assert(#placed == #base, `{kind}: one Part per primitive`)
+				for i, p in base do
+					local q = placed[i]
+					assert(q ~= p, `{kind}: a copy, not the shared table`)
+					assert(q.shape == p.shape and q.ribbon == p.ribbon, `{kind}: same shape`)
+					assert(
+						math.abs(q.x - p.x * 2) < 1e-9 and math.abs(q.y - p.y * 2) < 1e-9,
+						`{kind}: centre`
+					)
+					assert(
+						math.abs(q.w - p.w * 2) < 1e-9 and math.abs(q.h - p.h * 2) < 1e-9,
+						`{kind}: size`
+					)
+					assert(q.roll == p.roll, `{kind}: roll`)
+				end
+			end
+			-- Mutating a placement must not reach the shared geometry.
+			ProjectileVisual.place("gift", 1)[1].w = 99
+			assert(ProjectileVisual.geometry("gift")[1].w == 1.3, "shared geometry untouched")
+		end,
+	},
+	{
 		name = "gift hits and misses both lob above the baseline and return exactly to their endpoints",
 		run = function()
 			for _, miss in { false, true } do
