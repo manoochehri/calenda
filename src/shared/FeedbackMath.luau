@@ -5,7 +5,7 @@ local FeedbackMath = {}
 
 FeedbackMath.MIN_FLIGHT = 0.25 -- [default] seconds
 FeedbackMath.MAX_FLIGHT = 0.7 -- [default] seconds
-FeedbackMath.FLIGHT_SPEED = 90 -- [default] studs/second of a projectile
+FeedbackMath.FLIGHT_SPEED = 67.5 -- [default] studs/second of a projectile (was 90; owner asked for ~25% slower)
 FeedbackMath.ARC_HEIGHT = 7 -- [default] studs above the straight line at the apex
 
 -- Parabolic arc from (fx,fy,fz) to (tx,ty,tz); f in 0..1 (clamped); `height` is the apex lift.
