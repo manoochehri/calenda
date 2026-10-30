@@ -9,9 +9,10 @@ Steering.EDGE_MARGIN = 1.5 -- [default] studs kept between the lead and the stre
 Steering.MESSAGES_PER_SECOND = 20 -- [default] sustained steer messages accepted per second
 Steering.BURST = 5 -- [default] steer messages accepted at once
 
--- Furthest |x| the lead may be asked to stand at, for a street of the given half width.
-function Steering.bound(halfWidth: number): number
-	return math.max(0, halfWidth - Steering.EDGE_MARGIN)
+-- Furthest |x| the lead may be asked to stand at (ADR 0010 item 3): the one clamp on lead x. It is
+-- the smaller of the street edge bound and the layout's leadLimit, a constant per layout.
+function Steering.bound(halfWidth: number, leadLimit: number): number
+	return math.max(0, math.min(halfWidth - Steering.EDGE_MARGIN, leadLimit))
 end
 
 -- nil for a non-finite request, otherwise the request clamped to [-bound, bound].

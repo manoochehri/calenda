@@ -31,6 +31,7 @@ local function fixture(): Level.Layout
 		streetLength = 400,
 		plazaStart = 320,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {
@@ -48,8 +49,9 @@ local function fixture(): Level.Layout
 				wave = 1,
 				type = "small",
 				spawnTime = 0,
-				spawn = { x = -16, z = 200 },
+				spawn = { x = -10, z = 200 },
 				path = {},
+				lane = "left",
 			},
 		},
 	}
@@ -176,13 +178,13 @@ return {
 					break
 				end
 			end
-			assert(d:snapshot().x <= Steering.bound(20) + 1e-9, "right bound")
+			assert(d:snapshot().x <= Steering.bound(20, 15) + 1e-9, "right bound")
 			local d2 = newDriver()
 			d2:steer(0, { x = -1e9 })
 			for _ = 1, 300 do
 				d2:tick(DT)
 			end
-			assert(d2:snapshot().x >= -Steering.bound(20) - 1e-9, "left bound")
+			assert(d2:snapshot().x >= -Steering.bound(20, 15) - 1e-9, "left bound")
 		end,
 	},
 	{
@@ -271,6 +273,7 @@ return {
 				spawnTime = 0,
 				spawn = { x = 0, z = 1 },
 				path = {},
+				lane = "center",
 			})
 			runOut(d)
 			eq(d:snapshot().score, 15, "run used the original values")
@@ -411,8 +414,9 @@ return {
 					wave = 1,
 					type = "large",
 					spawnTime = 0,
-					spawn = { x = 16, z = 1 },
+					spawn = { x = 0, z = 1 },
 					path = {},
+					lane = "center",
 				})
 			end
 			local layout: Level.Layout = {
@@ -421,6 +425,7 @@ return {
 				streetLength = 400,
 				plazaStart = Config.speed * 0.1,
 				halfWidth = 20,
+				leadLimit = 15,
 				maxTotal = 1000,
 				intendedRecruitTotal = 0,
 				gates = {},
@@ -482,8 +487,9 @@ return {
 					wave = 1,
 					type = "small",
 					spawnTime = 0,
-					spawn = { x = 16, z = 14.67 },
+					spawn = { x = 10, z = 14.67 },
 					path = {},
+					lane = "right",
 				},
 			}
 			-- Targeting follows the lead's side (issue #142). This test covers conversion ordering,
@@ -491,7 +497,7 @@ return {
 			local hooks = RunHooks.new(layout)
 			local shots = hooks.shots
 			hooks.shots = function(ctx)
-				ctx.x = 16
+				ctx.x = 10
 				shots(ctx)
 			end
 			local d = RunDriver.new({ layout = layout, automated = true, hooks = hooks })
@@ -522,9 +528,10 @@ return {
 					type = "small",
 					spawnTime = 0,
 					spawn = {
-						x = 16,
+						x = 0,
 						z = (Config.speed + Config.spectators.approachSpeed) * 0.66,
 					},
+					lane = "center",
 					path = {},
 				},
 			}
@@ -536,7 +543,7 @@ return {
 			local crossingTick = false
 			hooks.shots = function(ctx)
 				-- Targeting follows the lead's side (issue #142): hold the lead on the cluster's side.
-				ctx.x = 16
+				ctx.x = 0
 				if shots then
 					shots(ctx)
 				end
@@ -582,6 +589,7 @@ return {
 				streetLength = 64,
 				plazaStart = 32,
 				halfWidth = 20,
+				leadLimit = 15,
 				maxTotal = 1000,
 				intendedRecruitTotal = 0,
 				gates = {
@@ -632,8 +640,9 @@ return {
 					wave = 1,
 					type = "large",
 					spawnTime = spawnTime,
-					spawn = { x = 16, z = spawnZ },
+					spawn = { x = 0, z = spawnZ },
 					path = {},
+					lane = "center",
 				})
 			end
 			local layout: Level.Layout = {
@@ -642,6 +651,7 @@ return {
 				streetLength = 20,
 				plazaStart = Config.speed * t1,
 				halfWidth = 20,
+				leadLimit = 15,
 				maxTotal = 1000,
 				intendedRecruitTotal = 0,
 				gates = {},

@@ -73,6 +73,7 @@ local function driverFixture(): Level.Layout
 		streetLength = 400,
 		plazaStart = 200,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {
@@ -100,6 +101,7 @@ local function driverFixture(): Level.Layout
 				spawnTime = 0,
 				spawn = { x = -10, z = 20 },
 				path = {},
+				lane = "left",
 			},
 		},
 	}

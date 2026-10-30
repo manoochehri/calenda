@@ -65,19 +65,19 @@ return {
 		end,
 	},
 	{
-		name = "a no-input run is defeated before the plaza on every playable layout at 20, 30 and 60 Hz",
+		-- Issue #156, spec Amendment 9 (ADR 0010 item 1): an unconverted horde attacks only from its own
+		-- lane. A lead that never steers stands at the center, and every authored horde is in an outer
+		-- lane, so no horde attacks and the run completes. This replaces the old "idle run is defeated"
+		-- expectation; the balance consequence is UNVERIFIED until #148 re-runs the evidence.
+		name = "a centered no-input run is never attacked by an outer-lane horde on any playable layout",
 		run = function()
 			for _, hz in TICK_RATES do
 				for _, layout in Layouts.all do
 					local result =
 						BotHarness.play(layout, BotHarness.policy(NO_INPUT, 1), { hz = hz })
 					assert(
-						result.outcome == "defeated",
+						result.outcome == "completed" and #result.attacks == 0,
 						`{layout.name} @{hz} Hz: outcome={tostring(result.outcome)} time={result.time} total={result.total} attacks={#result.attacks}`
-					)
-					assert(
-						result.time < Level.timeAtZ(layout.plazaStart),
-						`{layout.name} @{hz} Hz: defeat was not before the plaza`
 					)
 				end
 			end

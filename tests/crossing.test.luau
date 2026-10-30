@@ -12,6 +12,7 @@ local layout: Level.Layout = {
 	streetLength = 1600,
 	plazaStart = 1440,
 	halfWidth = 20,
+	leadLimit = 15,
 	maxTotal = 1000,
 	intendedRecruitTotal = 0,
 	gates = {

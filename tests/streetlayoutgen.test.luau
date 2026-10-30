@@ -12,6 +12,7 @@ local info = {
 	plazaStart = DebugLayout.plazaStart,
 	startPlazaEnd = DebugLayout.startPlazaEnd,
 	halfWidth = DebugLayout.halfWidth,
+	leadLimit = 15,
 }
 local result = StreetLayoutGen.generate(info, theme, 54)
 

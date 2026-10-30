@@ -9,8 +9,8 @@ return {
 	{
 		name = "bound leaves an edge margin inside the street half width",
 		run = function()
-			eq(Steering.bound(20), 20 - Steering.EDGE_MARGIN, "bound")
-			eq(Steering.bound(1), 0, "never negative")
+			eq(Steering.bound(20, 30), 20 - Steering.EDGE_MARGIN, "bound")
+			eq(Steering.bound(1, 15), 0, "never negative")
 		end,
 	},
 	{

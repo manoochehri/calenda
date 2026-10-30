@@ -2,13 +2,14 @@
 -- The fixed debug layout (issue #7), authored against the spec s9 timeline. Its original authored
 -- distances use a 16 studs/s baseline; scale them with Config.speed so the ~90 s route and beats
 -- stay stable when the forward pace is tuned. LayoutValidator proves the timeline.
--- Waves alternate left, right, left, ... Left is negative x. Sidewalks are |x| = 16; this fixed
--- layout keeps clusters on their authored sidewalk as they approach.
+-- Waves alternate left, right, left, ... Left is negative x. Outer-lane groups spawn at the lane
+-- centers, |x| = 10 (ADR 0011, Amendment 9), and each cluster carries its authored lane (ADR 0010).
 local Config = require("./Config")
 local Emergence = require("./Emergence")
 local Level = require("./Level")
 
 local BASE_SPEED = 16
+local LANE_CENTER = 10 -- ADR 0011: outer-lane spawns at the lane centers
 local START_PLAZA_BASE_LENGTH = 80
 local START_PLAZA_LENGTH = START_PLAZA_BASE_LENGTH * Config.speed / BASE_SPEED
 local function paceDistance(baseZ: number): number
@@ -40,7 +41,14 @@ local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the
 local needOffset = Emergence.requiredSpawnOffset()
 local closing = Config.speed + Config.spectators.approachSpeed
 local clusters: { Level.Cluster } = {}
-local function add(wave: number, kind: string, x: number, spawnTime: number, spawnZ: number)
+local function add(
+	wave: number,
+	kind: string,
+	x: number,
+	lane: "left" | "center" | "right",
+	spawnTime: number,
+	spawnZ: number
+)
 	local offset = spawnZ - Config.speed * spawnTime
 	local back = math.max(0, math.ceil((needOffset - offset) / closing * 4) / 4)
 	table.insert(clusters, {
@@ -50,15 +58,16 @@ local function add(wave: number, kind: string, x: number, spawnTime: number, spa
 		spawnTime = spawnTime - back,
 		spawn = { x = x, z = spawnZ + Config.spectators.approachSpeed * back },
 		path = {},
+		lane = lane,
 	})
 end
 for pair = 1, 10 do
 	local arrive = 1 + (pair - 1) * 2.5 + WAVE_DELAY -- the old spawn time, shifted
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
-	add(pair * 2 - 1, "small", -16, arrive, base)
-	add(pair * 2, "large", 16, arrive, base)
+	add(pair * 2 - 1, "small", -LANE_CENTER, "left", arrive, base)
+	add(pair * 2, "large", LANE_CENTER, "right", arrive, base)
 	for soak = 1, SOAKS[pair] do
-		add(pair * 2 - 1, "small", -16, arrive, base - SOAK_STEP * soak)
+		add(pair * 2 - 1, "small", -LANE_CENTER, "left", arrive, base - SOAK_STEP * soak)
 	end
 end
 
@@ -79,6 +88,7 @@ local layout: Level.Layout = {
 	streetLength = paceDistance(1600),
 	plazaStart = paceDistance(1440),
 	halfWidth = 20,
+	leadLimit = 15, -- ADR 0010 item 3: the one per-layout lead clamp
 	-- The bound lives in Config.layout.maxTotal (issue #142 owner decision, 2026-10-26).
 	maxTotal = Config.layout.maxTotal,
 	intendedRecruitTotal = 30,

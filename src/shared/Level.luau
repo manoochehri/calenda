@@ -20,7 +20,11 @@ export type Cluster = {
 	spawnTime: number,
 	spawn: Point,
 	path: { Point },
+	lane: "left" | "center" | "right", -- authored lane; must equal LaneGeometry.laneOf(spawn.x) (ADR 0010)
 }
+-- An optional +1 pickup (issue #156, Amendment 9): awarded once, only when the lead crosses its
+-- distance plane inside its lane. Passing elsewhere expires it with no reward or loss.
+export type Pickup = { id: number, z: number, lane: "left" | "center" | "right" }
 -- Level hazard set (issue #96): which hazard kinds this level uses and when they can land.
 export type HazardSet = {
 	kinds: { string },
@@ -36,11 +40,13 @@ export type Layout = {
 	streetLength: number,
 	plazaStart: number, -- z where the plaza begins; reaching it ends the run
 	halfWidth: number, -- walkable half width including sidewalks
+	leadLimit: number, -- furthest |x| the lead may stand at in this layout (ADR 0010 item 3)
 	maxTotal: number, -- authored bound on the best-route final crowd total
 	intendedRecruitTotal: number, -- followers the authored waves are meant to give at the base fire rate
 	gates: { Gate },
 	clusters: { Cluster },
 	obstacles: { Obstacle },
+	pickups: { Pickup }?, -- optional +1 pickups (issue #156); absent means none
 	hazardSet: HazardSet?, -- nil: the level has no hazards (issue #96)
 }
 export type Side = "left" | "right" | "center"

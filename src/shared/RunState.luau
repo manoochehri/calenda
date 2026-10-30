@@ -11,7 +11,8 @@ local Config = require("./Config")
 local CrowdMath = require("./CrowdMath")
 
 export type Outcome = "completed" | "defeated"
-export type ClusterUse = "credited" | "attacked"
+-- "passed": an off-lane mob reached the parade and was consumed with no reward and no loss (ADR 0010).
+export type ClusterUse = "credited" | "attacked" | "passed"
 export type Side = "left" | "right"
 export type ClusterKind = "small" | "large"
 
@@ -19,12 +20,15 @@ export type GateSide = { x: number, op: CrowdMath.Op }
 export type GatePair = { id: string, left: GateSide, right: GateSide }
 export type ClusterDef = { id: string, type: ClusterKind }
 export type ObstacleDef = { id: string }
+export type PickupDef = { id: string }
 -- `tomatoes` (issue #96) are follower hazards; a cart is an obstacle. Optional: absent means none.
+-- `pickups` (issue #156) are +1 pickups; the lane check happens in the driver (Crossing), not here.
 export type Layout = {
 	gatePairs: { GatePair },
 	clusters: { ClusterDef },
 	obstacles: { ObstacleDef },
 	tomatoes: { ObstacleDef }?,
+	pickups: { PickupDef }?,
 }
 
 export type Options = {
@@ -66,6 +70,8 @@ export type Event = {
 export type RunState = {
 	resolveGate: (self: RunState, pairId: any, leadX: any) -> Result,
 	creditCluster: (self: RunState, id: any) -> Result,
+	passCluster: (self: RunState, id: any) -> Result,
+	addPickup: (self: RunState, id: any) -> Result,
 	attackCluster: (self: RunState, id: any) -> Result,
 	attackClusters: (self: RunState, ids: { any }) -> { Result },
 	hitObstacle: (self: RunState, id: any) -> Result,
@@ -148,6 +154,7 @@ local function new(opts: Options): RunState
 	local clusters: { [string]: ClusterDef } = {}
 	local obstacles: { [string]: ObstacleDef } = {}
 	local tomatoes: { [string]: boolean } = {}
+	local pickups: { [string]: boolean } = {}
 
 	-- Per-run state. Everything below is replaced wholesale by reset().
 	local seed = opts.seed
@@ -158,6 +165,7 @@ local function new(opts: Options): RunState
 	local usedClusters: { [string]: ClusterUse } = {}
 	local usedObstacles: { [string]: boolean } = {}
 	local usedTomatoes: { [string]: boolean } = {}
+	local usedPickups: { [string]: boolean } = {}
 	local log: { Event } = {}
 	local seenRecruit = false
 	local seenAssembly = false
@@ -168,7 +176,7 @@ local function new(opts: Options): RunState
 
 	-- Loads one level's ids. Consumption resets too: a level's gates and clusters are its own.
 	local function loadLevel(layout: Layout)
-		gates, clusters, obstacles, tomatoes = {}, {}, {}, {}
+		gates, clusters, obstacles, tomatoes, pickups = {}, {}, {}, {}, {}
 		for _, p in layout.gatePairs do
 			gates[p.id] = p
 		end
@@ -181,7 +189,11 @@ local function new(opts: Options): RunState
 		for _, t in layout.tomatoes or {} do
 			tomatoes[t.id] = true
 		end
+		for _, p in layout.pickups or {} do
+			pickups[p.id] = true
+		end
 		usedGates, usedClusters, usedObstacles, usedTomatoes = {}, {}, {}, {}
+		usedPickups = {}
 	end
 
 	local function record(
@@ -217,6 +229,7 @@ local function new(opts: Options): RunState
 		usedClusters = {}
 		usedObstacles = {}
 		usedTomatoes = {}
+		usedPickups = {}
 		log = {}
 		seenRecruit = false
 		seenAssembly = false
@@ -310,6 +323,51 @@ local function new(opts: Options): RunState
 			after,
 			{ id = id, firstRecruit = first, firstAssembly = assembled }
 		)
+		return { ok = true, before = before, after = after }
+	end
+
+	-- An off-lane mob (ADR 0010): consumed with no reward and no loss, so it can never be credited or
+	-- attacked afterwards. Logged so the run record shows the mob passed.
+	function self.passCluster(_, id: any): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		if not isId(id) then
+			return reject("invalid cluster id")
+		end
+		if clusters[id] == nil then
+			return reject("unknown cluster")
+		end
+		if usedClusters[id] ~= nil then
+			return reject(`cluster already {usedClusters[id]}`)
+		end
+		usedClusters[id] = "passed"
+		record("cluster_pass", crowdTotal, crowdTotal, { id = id })
+		return { ok = true, before = crowdTotal, after = crowdTotal }
+	end
+
+	-- An optional +1 pickup (issue #156): exactly one follower, once per id. The driver calls this only
+	-- when the lead was in the pickup's lane at its distance plane (Crossing.pickupsAwarded).
+	function self.addPickup(_, id: any): Result
+		local blocked = guard()
+		if blocked then
+			return blocked
+		end
+		if not isId(id) then
+			return reject("invalid pickup id")
+		end
+		if not pickups[id] then
+			return reject("unknown pickup")
+		end
+		if usedPickups[id] then
+			return reject("pickup already consumed")
+		end
+		local before = crowdTotal
+		local after = CrowdMath.applyOp(before, { kind = "add", value = 1 })
+		usedPickups[id] = true
+		local assembled = setTotal(after)
+		record("pickup", before, after, { id = id, firstAssembly = assembled })
 		return { ok = true, before = before, after = after }
 	end
 

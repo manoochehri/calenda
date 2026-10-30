@@ -23,6 +23,7 @@ local function levelA(): Level.Layout
 		streetLength = 400,
 		plazaStart = 320,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {
@@ -40,8 +41,9 @@ local function levelA(): Level.Layout
 				wave = 1,
 				type = "small",
 				spawnTime = 0,
-				spawn = { x = -16, z = 200 },
+				spawn = { x = -10, z = 200 },
 				path = {},
+				lane = "left",
 			},
 		},
 	}
@@ -55,6 +57,7 @@ local function levelB(): Level.Layout
 		streetLength = 400,
 		plazaStart = 320,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {
@@ -72,8 +75,9 @@ local function levelB(): Level.Layout
 				wave = 1,
 				type = "small",
 				spawnTime = 0,
-				spawn = { x = -16, z = 200 },
+				spawn = { x = -10, z = 200 },
 				path = {},
+				lane = "left",
 			},
 		},
 	}

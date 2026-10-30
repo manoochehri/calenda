@@ -30,6 +30,7 @@ local function layoutOf(clusters: { Level.Cluster }): Level.Layout
 		streetLength = 1600,
 		plazaStart = 1440,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {},
@@ -47,8 +48,9 @@ local function runLarge(sectionCount: number, config: any?): ({ any }, number, n
 			wave = 1,
 			type = "large",
 			spawnTime = 0,
-			spawn = { x = 16, z = 30 },
+			spawn = { x = 10, z = 30 },
 			path = {},
+			lane = "right",
 		},
 	})
 	local rs = RunState.new({

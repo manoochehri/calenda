@@ -49,7 +49,7 @@ export type PlayOptions = {
 -- `t` is run time (event stamps); `session` never goes backwards across replays (steer/replay clock).
 export type Run = { driver: RunDriver.RunDriver, clock: { t: number, session: number } }
 
-local SIDE = 16 -- sidewalk lane |x|, where the authored waves approach
+local SIDE = 10 -- lane center |x| (ADR 0011), where the authored outer-lane waves approach
 
 -- Deterministic LCG (no os/time dependence). Returns a function giving floats in [0, 1).
 function BotHarness.rng(seed: number): () -> number
@@ -376,6 +376,7 @@ local function copyLayout(layout: Level.Layout): Level.Layout
 			spawnTime = c.spawnTime,
 			spawn = { x = c.spawn.x, z = c.spawn.z },
 			path = {},
+			lane = c.lane,
 		})
 	end
 	out.clusters = clusters

@@ -23,6 +23,7 @@ local function layoutOf(clusters: { Level.Cluster }): Level.Layout
 		streetLength = 1600,
 		plazaStart = 1440,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {},
@@ -37,8 +38,9 @@ local function cluster(id: number, z: number, kind: string): Level.Cluster
 		wave = 1,
 		type = kind,
 		spawnTime = 0,
-		spawn = { x = 16, z = z },
+		spawn = { x = 10, z = z },
 		path = {},
+		lane = "right",
 	}
 end
 

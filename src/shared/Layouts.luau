@@ -20,6 +20,10 @@ local PLAZA_SECONDS = 90 -- run seconds at which the plaza starts (every layout'
 -- Issue #142: the wave rhythm continues through the late route. Pairs keep arriving on the same
 -- 2.5 s spacing until the last arrival is at or before PLAZA_SECONDS - LAST_ARRIVAL_MARGIN.
 local LAST_ARRIVAL_MARGIN = 2
+-- ADR 0011: outer-lane spawns sit at the lane centers, x = +-10 (was +-16, which no lane covers).
+local LANE_CENTER = 10
+-- ADR 0010 item 3: the furthest |x| the lead may stand at, per layout (effective limit 15).
+local LEAD_LIMIT = 15
 
 local function at(seconds: number): number
 	return seconds * Config.speed
@@ -43,11 +47,20 @@ end
 -- soak count, so the rhythm reaches the plaza.
 type WaveSpec = { waveDelay: number, soaks: { number }, bigOnLeft: boolean }
 
+-- Outer-lane groups spawn at the lane centers (ADR 0011, Amendment 9): x = +-10. Each cluster's lane
+-- is authored here and LayoutValidator checks it against LaneGeometry.laneOf(spawn.x) (ADR 0010).
 local function buildClusters(spec: WaveSpec): { Level.Cluster }
 	local needOffset = Emergence.requiredSpawnOffset()
 	local closing = Config.speed + Config.spectators.approachSpeed
 	local clusters: { Level.Cluster } = {}
-	local function add(wave: number, kind: string, x: number, spawnTime: number, spawnZ: number)
+	local function add(
+		wave: number,
+		kind: string,
+		x: number,
+		lane: "left" | "center" | "right",
+		spawnTime: number,
+		spawnZ: number
+	)
 		local offset = spawnZ - Config.speed * spawnTime
 		local back = math.max(0, math.ceil((needOffset - offset) / closing * 4) / 4)
 		table.insert(clusters, {
@@ -57,10 +70,13 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 			spawnTime = spawnTime - back,
 			spawn = { x = x, z = spawnZ + Config.spectators.approachSpeed * back },
 			path = {},
+			lane = lane,
 		})
 	end
-	local smallX = if spec.bigOnLeft then 16 else -16
+	local smallX = if spec.bigOnLeft then LANE_CENTER else -LANE_CENTER
 	local bigX = -smallX
+	local smallLane = if spec.bigOnLeft then "right" else "left"
+	local bigLane = if spec.bigOnLeft then "left" else "right"
 	local pair = 0
 	while true do
 		pair += 1
@@ -69,11 +85,11 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 			break
 		end
 		local base = Config.speed * arrive + 20
-		add(pair * 2 - 1, "small", smallX, arrive, base)
-		add(pair * 2, "large", bigX, arrive, base)
+		add(pair * 2 - 1, "small", smallX, smallLane, arrive, base)
+		add(pair * 2, "large", bigX, bigLane, arrive, base)
 		local soaks = spec.soaks[math.min(pair, #spec.soaks)]
 		for soak = 1, soaks do
-			add(pair * 2 - 1, "small", smallX, arrive, base - SOAK_STEP * soak)
+			add(pair * 2 - 1, "small", smallX, smallLane, arrive, base - SOAK_STEP * soak)
 		end
 	end
 	return clusters
@@ -103,6 +119,7 @@ local function make(
 		streetLength = at(100),
 		plazaStart = at(PLAZA_SECONDS),
 		halfWidth = 20,
+		leadLimit = LEAD_LIMIT,
 		maxTotal = Config.layout.maxTotal,
 		intendedRecruitTotal = 30,
 		gates = gates,
