@@ -1,15 +1,14 @@
 --!strict
--- Original, primitive-only title/loading screen (issues #72, #176, #203). Title (logo, subtitle,
--- loading) on the left; the player's own avatar marching in place on the right; a papel picado
--- banner across the top; a small PROTOTIPO footer. No image assets, no asset IDs. Layout numbers
--- come from shared/TitleLayout (tested at every aspect); the march maths from shared/AvatarSlot.
+-- Original, primitive-only title/loading screen (issues #72, #176, #203, #211). Title (logo,
+-- subtitle, loading) on the left, over the street: the player's avatar stands in the world, not in a
+-- box. A papel picado banner runs across the top. No image assets, no asset IDs. Layout numbers
+-- come from shared/TitleLayout (tested at every aspect).
 -- Nothing here flashes or animates brightness (#85, #171): only slow rotation sways.
 -- ENGINE PRESENTATION IS UNVERIFIED until the Studio checklist is completed. In particular:
 --   * Cloning the local character into a ViewportFrame/WorldModel, and that a shipped walk
 --     Animation (taken from the character's "Animate" script, never an invented ID) plays there.
 --   * Whether UIGradient and UIStroke layers on the logo look as intended.
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
@@ -20,7 +19,6 @@ local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
 local TitleLayout = require(Shared:WaitForChild("TitleLayout"))
-local AvatarSlot = require(Shared:WaitForChild("AvatarSlot"))
 
 export type Screen = {
 	setProgress: (self: Screen, fraction: number) -> (),
@@ -36,7 +34,6 @@ local INK = Color3.fromRGB(48, 29, 55)
 local CREAM = Color3.fromRGB(255, 244, 219)
 local GOLD = Color3.fromRGB(255, 222, 164)
 local CRIMSON = Color3.fromRGB(190, 52, 78)
-local VERSION_LABEL = "PROTOTIPO"
 local SUBTITLE = "Música, fiesta y una gran calenda"
 local FLAG_COLORS = {
 	Color3.fromRGB(232, 84, 150),
@@ -47,7 +44,6 @@ local FLAG_COLORS = {
 	Color3.fromRGB(150, 90, 200),
 }
 local FLAG_COUNT = 16
-local CHARACTER_POLL = 0.25 -- seconds between looks for the player's character
 
 local function round(parent: Instance, radius: number)
 	local corner = Instance.new("UICorner")
@@ -246,212 +242,6 @@ local function addFlourish(parent: Instance): Frame
 	return row
 end
 
--- The stand-in shown until the player's character is ready: a puppet cutout swaying in place.
-local function addPuppet(parent: Instance): Frame
-	local puppet = Instance.new("Frame")
-	puppet.Name = "PuppetFallback"
-	puppet.AnchorPoint = Vector2.new(0.5, 1)
-	puppet.Position = UDim2.fromScale(0.5, 0.92)
-	puppet.Size = UDim2.fromScale(0.34, 0.5)
-	puppet.BackgroundColor3 = FLAG_COLORS[2]
-	puppet.BorderSizePixel = 0
-	puppet.Parent = parent
-	round(puppet, 14)
-	stroke(puppet, Color3.fromRGB(255, 228, 185), 2)
-	local head = Instance.new("Frame")
-	head.Name = "Head"
-	head.AnchorPoint = Vector2.new(0.5, 1)
-	head.Position = UDim2.fromScale(0.5, -0.04)
-	head.Size = UDim2.fromScale(0.62, 0.42)
-	head.BackgroundColor3 = GOLD
-	head.BorderSizePixel = 0
-	head.Parent = puppet
-	round(head, 24)
-	TweenService:Create(
-		puppet,
-		TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Rotation = 6 }
-	):Play()
-	puppet.Rotation = -6
-	return puppet
-end
-
--- The avatar slot: a stage for the player's own avatar. It shows the puppet until the character
--- is ready, then a ViewportFrame with a clone of the character marching in place. Returns a
--- function that stops the per-frame work.
-local function addAvatarSlot(parent: Instance): () -> ()
-	local slot = Instance.new("Frame")
-	slot.Name = "AvatarSlot"
-	place(slot, "AvatarSlot")
-	slot.BackgroundColor3 = Color3.fromRGB(58, 39, 69)
-	slot.BackgroundTransparency = 0.25
-	slot.BorderSizePixel = 0
-	slot.ClipsDescendants = true
-	slot.Parent = parent
-	round(slot, 24)
-	stroke(slot, GOLD, 3)
-	local glow = Instance.new("UIGradient")
-	glow.Rotation = 90
-	glow.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(96, 45, 97)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(29, 57, 82)),
-	})
-	glow.Parent = slot
-	-- Marigolds at the stage's feet.
-	marigold(slot, "MarigoldA", UDim2.fromScale(0.16, 0.93), UDim2.fromScale(0.2, 0.2))
-	marigold(slot, "MarigoldB", UDim2.fromScale(0.84, 0.93), UDim2.fromScale(0.2, 0.2))
-	local floor = circle(slot, Color3.fromRGB(34, 26, 44))
-	floor.Name = "Tarima"
-	floor.Position = UDim2.fromScale(0.5, 0.9)
-	floor.Size = UDim2.fromScale(0.7, 0.1)
-
-	local puppet = addPuppet(slot)
-
-	local player = Players.LocalPlayer
-	local viewport: ViewportFrame? = nil
-	local clone: Model? = nil
-	local camera: Camera? = nil
-	local base = CFrame.identity
-	local center = Vector3.zero
-	local size = Vector3.new(2, 5, 1)
-	local sincePoll = CHARACTER_POLL -- look at once
-	local partial: ViewportFrame? = nil -- a viewport mid-build, so a failed build can remove it
-	local alive = true
-
-	local status: AvatarSlot.AttachStatus = "pending"
-
-	-- Everything after the clone: viewport, world, pose, camera, walk animation. Runs under pcall
-	-- (see attach), because a throw here would otherwise repeat inside RenderStepped.
-	local function build(model: Model, walk: Animation?)
-		for _, d in model:GetDescendants() do
-			if d:IsA("BaseScript") then
-				d:Destroy()
-			elseif d:IsA("BasePart") then
-				d.Anchored = true
-				d.CanCollide = false
-			end
-		end
-		local view = Instance.new("ViewportFrame")
-		partial = view
-		view.Name = "Avatar"
-		view.Size = UDim2.fromScale(1, 1)
-		view.BackgroundTransparency = 1
-		view.Ambient = Color3.fromRGB(190, 180, 170)
-		view.LightColor = Color3.fromRGB(255, 244, 225)
-		view.LightDirection = Vector3.new(-0.4, -0.6, 0.7)
-		view.ZIndex = 2
-		view.Parent = slot
-		local world = Instance.new("WorldModel")
-		world.Parent = view
-		model.Parent = world
-		local clonedHumanoid = model:FindFirstChildOfClass("Humanoid")
-		if clonedHumanoid then
-			clonedHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-		end
-		-- Face the camera (a Roblox front is -z) in a slight three-quarter view.
-		local newBase = CFrame.new(0, 3, 0) * CFrame.Angles(0, math.rad(-20), 0)
-		model:PivotTo(newBase)
-		local boxCF, boxSize = model:GetBoundingBox()
-		local cam = Instance.new("Camera")
-		cam.FieldOfView = AvatarSlot.FOV
-		cam.Parent = view
-		view.CurrentCamera = cam
-		-- Play the shipped walk animation if it can run here; the procedural march below always runs.
-		local animator = clonedHumanoid and clonedHumanoid:FindFirstChildOfClass("Animator")
-		if walk and animator then
-			pcall(function()
-				local track = (animator :: Animator):LoadAnimation(walk :: Animation)
-				track.Looped = true
-				track:Play()
-			end)
-		end
-		-- Commit only once nothing above threw.
-		base, center, size = newBase, boxCF.Position, boxSize
-		viewport, clone, camera = view, model, cam
-		puppet.Visible = false
-	end
-
-	-- Tries to build the viewport from the local character. Returns "notready" while the character
-	-- is not ready or cloning fails, "built" on success, and "threw" if the setup errored (the
-	-- half-built pieces are destroyed and the caller latches to the puppet).
-	local function attach(): AvatarSlot.AttachOutcome
-		local character = player.Character
-		if character == nil then
-			return "notready"
-		end
-		local okLoaded, loaded = pcall(function()
-			return player:HasAppearanceLoaded()
-		end)
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		local hrp = character:FindFirstChild("HumanoidRootPart")
-		if not (okLoaded and loaded) or humanoid == nil or hrp == nil then
-			return "notready"
-		end
-		-- The shipped walk Animation of the standard "Animate" script, when present (UNVERIFIED).
-		local walk: Animation? = nil
-		local animate = character:FindFirstChild("Animate")
-		local walkFolder = animate and animate:FindFirstChild("walk")
-		if walkFolder then
-			walk = walkFolder:FindFirstChildWhichIsA("Animation")
-		end
-		local wasArchivable = character.Archivable
-		character.Archivable = true
-		local okClone, copy = pcall(function()
-			return character:Clone()
-		end)
-		character.Archivable = wasArchivable
-		if not okClone or copy == nil then
-			return "notready"
-		end
-		local model = copy :: Model
-		partial = nil
-		local okBuild = pcall(build, model, walk)
-		if okBuild then
-			return "built"
-		end
-		-- Fall back to the puppet: drop the clone and any half-built viewport.
-		model:Destroy()
-		if partial then
-			(partial :: ViewportFrame):Destroy()
-			partial = nil
-		end
-		puppet.Visible = true
-		return "threw"
-	end
-
-	local connection: RBXScriptConnection
-	connection = RunService.RenderStepped:Connect(function(dt: number)
-		if not alive then
-			return
-		end
-		if clone == nil then
-			if AvatarSlot.shouldPoll(status) then
-				sincePoll += dt
-				if sincePoll >= CHARACTER_POLL then
-					sincePoll = 0
-					status = AvatarSlot.attachNext(status, attach())
-				end
-			end
-			return
-		end
-		local model, cam, view = clone, camera, viewport
-		if model == nil or cam == nil or view == nil or model.Parent == nil then
-			return
-		end
-		local m = AvatarSlot.march(os.clock())
-		model:PivotTo(base * CFrame.new(0, m.lift, 0) * CFrame.Angles(0, 0, m.roll))
-		local px, py = view.AbsoluteSize.X, view.AbsoluteSize.Y
-		local aspect = if py > 0 then px / py else 1
-		local distance = AvatarSlot.cameraDistance(size.Y, AvatarSlot.FOV, aspect)
-		cam.CFrame = CFrame.lookAt(center + Vector3.new(0, size.Y * 0.04, -distance), center)
-	end)
-
-	return function()
-		alive = false
-		connection:Disconnect()
-	end
-end
-
 function StartupScreen.new(onPlay: () -> ()): Screen
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local old = playerGui:FindFirstChild("CalendaStartup")
@@ -480,9 +270,17 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local veil = Instance.new("Frame")
 	veil.Name = "Veil"
 	veil.Size = UDim2.fromScale(1, 1)
-	veil.BackgroundColor3 = Color3.fromRGB(38, 27, 55)
+	veil.BackgroundTransparency = 1 -- the street shows through once the title is ready
 	veil.BorderSizePixel = 0
 	veil.Parent = gui
+
+	-- While loading, an opaque cover hides the half-built street. It goes once the title is ready.
+	local cover = Instance.new("Frame")
+	cover.Name = "Cover"
+	cover.Size = UDim2.fromScale(1, 1)
+	cover.BackgroundColor3 = Color3.fromRGB(38, 27, 55)
+	cover.BorderSizePixel = 0
+	cover.Parent = veil
 	local backgroundGradient = Instance.new("UIGradient")
 	backgroundGradient.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(96, 45, 97)),
@@ -490,7 +288,23 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(29, 57, 82)),
 	})
 	backgroundGradient.Rotation = 30
-	backgroundGradient.Parent = veil
+	backgroundGradient.Parent = cover
+
+	-- A soft dark scrim down the left edge, so the title stays readable over the street.
+	local scrim = Instance.new("Frame")
+	scrim.Name = "Scrim"
+	scrim.Size = UDim2.fromScale(1, 1)
+	scrim.BackgroundColor3 = INK
+	scrim.BorderSizePixel = 0
+	scrim.Visible = false
+	scrim.Parent = veil
+	local scrimFade = Instance.new("UIGradient")
+	scrimFade.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.3),
+		NumberSequenceKeypoint.new(0.45, 0.75),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	scrimFade.Parent = scrim
 
 	addBanner(veil)
 	addLogo(veil)
@@ -538,14 +352,6 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	percent.TextColor3 = Color3.fromRGB(255, 228, 185)
 	local flourish = addFlourish(veil)
 
-	local stopAvatar = addAvatarSlot(veil)
-
-	local footer = label(veil, "Version", VERSION_LABEL, Enum.Font.GothamBold)
-	place(footer, "Version")
-	footer.TextXAlignment = Enum.TextXAlignment.Left
-	footer.TextColor3 = Color3.fromRGB(222, 204, 197)
-	footer.TextTransparency = 0.35
-
 	local play = Instance.new("TextButton")
 	play.Name = "Play"
 	local primary = ScreenLayout.PRIMARY_BUTTON
@@ -592,7 +398,6 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local inputConnection: RBXScriptConnection? = nil
 	local function teardown()
 		active = false
-		stopAvatar()
 		if inputConnection then
 			inputConnection:Disconnect()
 			inputConnection = nil
@@ -601,7 +406,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 			GuiService.SelectedObject = nil
 		end
 		controls:Destroy()
-		gui:Destroy() -- releases the banner sways and puppet tween with the instances
+		gui:Destroy() -- releases the banner sways with the instances
 	end
 
 	local screen = {} :: Screen
@@ -620,6 +425,8 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 		if play.Visible then
 			return
 		end
+		cover.Visible = false
+		scrim.Visible = true
 		loading.Visible = false
 		flourish.Visible = true
 		play.Visible = true

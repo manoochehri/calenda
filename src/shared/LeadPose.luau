@@ -42,6 +42,11 @@ function LeadPose.at(worldX: number, z: number, clock: number, lift: number, sta
 	}
 end
 
+-- Where the root stays while the title shows: the lead stands at its start with no bob and no hop.
+function LeadPose.still(worldX: number, z: number, standing: number): Pose
+	return { x = ViewMap.x(worldX), y = standing, z = z }
+end
+
 -- Seconds the lead has been without an avatar (reset the moment one is present).
 function LeadPose.absence(previous: number, hasAvatar: boolean, dt: number): number
 	if hasAvatar then

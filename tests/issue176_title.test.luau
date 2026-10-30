@@ -13,7 +13,7 @@ end
 
 return {
 	{
-		name = "the title screen has the named elements it places (issue #203 adds Banner and AvatarSlot)",
+		name = "the title screen has the named elements it places (issue #211 drops the avatar box and footer)",
 		run = function()
 			assert(okTitle, `TitleLayout module missing: {tostring(TitleLayout)}`)
 			local names = {}
@@ -21,7 +21,7 @@ return {
 				table.insert(names, e.name)
 			end
 			assert(
-				table.concat(names, ",") == "Banner,Logo,Subtitle,Loading,AvatarSlot,Version",
+				table.concat(names, ",") == "Banner,Logo,Subtitle,Loading",
 				table.concat(names, ",")
 			)
 		end,

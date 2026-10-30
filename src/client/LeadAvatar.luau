@@ -38,6 +38,8 @@ export type LeadAvatar = {
 		lift: number?,
 		total: number?
 	) -> boolean,
+	-- Holds the avatar still at its start for the title (issue #211); true when an avatar is in place.
+	hold: (self: LeadAvatar, leadX: number, leadZ: number) -> boolean,
 	-- Seconds without an avatar before the stand-in block may show (LeadPose.graceFor).
 	fallbackGrace: (self: LeadAvatar) -> number,
 	onEvent: (self: LeadAvatar, payload: any) -> (),
@@ -201,6 +203,19 @@ function LeadAvatar.new(): LeadAvatar
 		then
 			reactionKind, reactionAt = payload.kind, clock
 		end
+	end
+
+	-- The title pose (issue #211): the lead stands still at its start, no dance and no bob.
+	function view.hold(_, leadX: number, leadZ: number): boolean
+		local part = root
+		if part == nil or part.Parent == nil then
+			return false
+		end
+		local pose = LeadPose.still(leadX, leadZ, standing)
+		part.CFrame = CFrame.new(pose.x, pose.y, pose.z) * CFrame.Angles(0, LeadPose.FACING_YAW, 0)
+		part.AssemblyLinearVelocity = Vector3.zero
+		part.AssemblyAngularVelocity = Vector3.zero
+		return true
 	end
 
 	function view.update(
