@@ -16,6 +16,7 @@
 local CrowdMath = require("./CrowdMath")
 local Config = require("./Config")
 local Emergence = require("./Emergence")
+local Encounters = require("./Encounters")
 local LaneGeometry = require("./LaneGeometry")
 local Level = require("./Level")
 local LayoutWitness = require("./LayoutWitness")
@@ -187,6 +188,11 @@ local function structure(layout: any, cfg: any, errs: { string })
 		if p.lane ~= "left" and p.lane ~= "center" and p.lane ~= "right" then
 			bad(`pickup {p.id} has an invalid lane`)
 		end
+	end
+	-- ADR 0010 item 5: encounter spans may not overlap, so at most one encounter is ever active.
+	local spansOk, spansMsg = Encounters.validateSpans(layout)
+	if not spansOk then
+		bad(spansMsg :: string)
 	end
 
 	local seenCluster: { [number]: boolean } = {}

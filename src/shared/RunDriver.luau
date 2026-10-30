@@ -15,6 +15,7 @@
 -- A defeat is recorded in RunState's log (event "defeated"), so runLog() shows the outcome.
 local Crossing = require("./Crossing")
 local Config = require("./Config")
+local Encounters = require("./Encounters")
 local Hazards = require("./Hazards")
 local Level = require("./Level")
 local Remotes = require("./Remotes")
@@ -216,6 +217,10 @@ function RunDriver.new(opts: Options): RunDriver
 	local bound = Steering.bound(layout.halfWidth, layout.leadLimit)
 
 	local time, z, x, target = 0, 0, 0, 0
+	-- Issue #156: how each pickup of the current level was resolved (pickup id -> outcome). Set at its
+	-- plane: "collected" when it awarded, "missed" when the lead passed the plane in another lane.
+	-- Cleared with the level and on replay; it only feeds the snapshot's encounter.
+	local pickupOutcome: { [number]: string } = {}
 
 	-- Moves the run to level `index` (issue #128): the lead, the clock and the level's hazards start
 	-- over; the crowd total, x, the steer target and the run log carry on. Gifts never block across.
@@ -228,6 +233,7 @@ function RunDriver.new(opts: Options): RunDriver
 		state:enterLevel(RunDriver.toRunLayout(authored, hazards), `level{index}`)
 		time, z = 0, 0
 		hazardWarned, hazardDone, gifts = {}, {}, {}
+		pickupOutcome = {}
 	end
 	local ended = false
 	local finalOutcome: string? = nil
@@ -317,10 +323,16 @@ function RunDriver.new(opts: Options): RunDriver
 		for _, p in Crossing.pickupsAwarded(layout, z0, z1, x0, x1) do
 			local r = state:addPickup(`p{p.id}`)
 			if r.ok then
+				pickupOutcome[p.id] = "collected"
 				table.insert(
 					events,
 					{ kind = "pickup", id = p.id, before = r.before, after = r.after }
 				)
+			end
+		end
+		for _, p in Crossing.pickupsCrossed(layout, z0, z1) do
+			if pickupOutcome[p.id] == nil then
+				pickupOutcome[p.id] = "missed" -- passed its plane outside its lane: no reward, no loss
 			end
 		end
 		for _, o in Crossing.obstaclesHit(layout, z0, z1, x0, x1) do
@@ -460,6 +472,7 @@ function RunDriver.new(opts: Options): RunDriver
 		time, z, x, target = 0, 0, 0, 0
 		ended, finalOutcome, finalScore = false, nil, nil
 		hazardWarned, hazardDone, gifts = {}, {}, {}
+		pickupOutcome = {}
 		return true
 	end
 
@@ -495,6 +508,7 @@ function RunDriver.new(opts: Options): RunDriver
 			outcome = finalOutcome,
 			score = finalScore,
 			level = levelIndex,
+			encounter = Encounters.current(layout, z, pickupOutcome),
 		}
 	end
 

@@ -72,6 +72,27 @@ function Crossing.obstaclesHit(
 	return out
 end
 
+-- Every pickup plane the lead passed this tick, in any lane, in (z, id) order. The driver uses it
+-- to resolve a pickup as "missed" when the lead passed its plane outside the pickup's lane.
+function Crossing.pickupsCrossed(layout: Level.Layout, z0: any, z1: any): { Level.Pickup }
+	local out: { Level.Pickup } = {}
+	if not (isFinite(z0) and isFinite(z1)) then
+		return out
+	end
+	for _, p in layout.pickups or {} do
+		if z0 < p.z and p.z <= z1 then
+			table.insert(out, p)
+		end
+	end
+	table.sort(out, function(a, b)
+		if a.z ~= b.z then
+			return a.z < b.z
+		end
+		return a.id < b.id
+	end)
+	return out
+end
+
 -- Pickups whose distance plane the lead crossed this tick and whose lane the lead occupied there
 -- (ADR 0010, Amendment 9). The plane is crossed when z0 < pickup.z <= z1, which also requires forward
 -- progress, so stationary lateral movement cannot collect one. The lead's x at the crossing is
