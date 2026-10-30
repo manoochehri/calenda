@@ -65,7 +65,10 @@ function View.new(onSkip: () -> ()): View
 		if generation ~= avatarGeneration or not gui.Enabled then
 			return
 		end
-		character:WaitForChild("HumanoidRootPart", 2)
+		local root = character:WaitForChild("HumanoidRootPart", 2)
+		if root == nil then
+			return
+		end
 		if generation ~= avatarGeneration or not gui.Enabled then
 			return
 		end
