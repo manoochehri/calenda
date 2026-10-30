@@ -124,9 +124,10 @@ function FollowerLook.raisesDust(id: number, footfallCount: number): boolean
 	return FollowerSlots.unit(id * 131 + footfallCount, 68) < FollowerLook.DUST_CHANCE
 end
 
--- Crowd-wide breathing scale, pulsing on the beat (Config.music.bpm); 1 on average.
-function FollowerLook.breath(time: number): number
-	local beats = time * Config.music.bpm / 60
+-- Breathing scale, pulsing on the beat (Config.music.bpm); 1 on average. `phaseBeats` shifts one
+-- follower's pulse (CrowdFeel.breathPhase, issue #178) so the crowd does not breathe in lockstep.
+function FollowerLook.breath(time: number, phaseBeats: number?): number
+	local beats = time * Config.music.bpm / 60 + (phaseBeats or 0)
 	local pop = (0.5 + 0.5 * math.cos(2 * math.pi * beats)) ^ FollowerLook.BREATH_POWER
 	return 1 + FollowerLook.BREATH * (2 * pop - 1)
 end
