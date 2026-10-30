@@ -23,6 +23,10 @@ In `src/shared/Config.luau`:
 - `music.trackSoundId`: ONE looping music track (single-track mode). The prototype selects asset
   `1838904620`. It gets bigger as the parade
   grows (reverb, chorus, equalizer, compressor on a SoundGroup).
+- `music.playbackSpeed` (issue #172): `Sound.PlaybackSpeed` for the music, 0.5 to 2. The prototype
+  uses 1.1 so the track plays faster and brighter (upbeat). Roblox changes tempo and pitch together,
+  so the recording's key and mode are unchanged. The upbeat result is UNVERIFIED until heard in
+  Studio.
 - `music.stemSoundIds`: four stems in the order percussion, brass, ensemble, crowd accents. If any
   stem id is set, stem mode is used and `trackSoundId` is ignored. Stems grow with the parade too.
 - `sfx.<slot>`: `gatePop`, `convert`, `sparkle`, `shotLaunch`, `shotImpact`, `obstacleThud`,
