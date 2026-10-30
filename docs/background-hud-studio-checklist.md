@@ -9,6 +9,9 @@ Roblox Studio are **UNVERIFIED** until this checklist is completed on the target
       fills the view around the route; there are no empty checkerboard edges or visible seams.
 - [ ] Distant tree rows and hills frame the street and continue behind the distant buildings and
       plaza. They read as depth, not as obstacles or another playable lane.
+- [ ] Low-rise town rows fill the wide ground band between the street façades and the distant
+      hills on both sides, from the opening plaza through the finale, without entering the play
+      corridor or leaving obvious gaps at phone landscape width.
 - [ ] The scenery stays subdued. The road, gates, lead, parade and warnings remain the clearest
       elements throughout the run.
 - [ ] Check the view at 16:9, 4:3 and 19.5:9 landscape. No background geometry enters the road or

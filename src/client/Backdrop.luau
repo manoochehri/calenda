@@ -14,6 +14,7 @@ local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local LevelTheme = require(Shared:WaitForChild("LevelTheme"))
 local StreetSurface = require(Shared:WaitForChild("StreetSurface"))
+local BackdropLayout = require(Shared:WaitForChild("BackdropLayout"))
 local OaxacaStreet = require(script.Parent:WaitForChild("OaxacaStreet"))
 
 local FOLDER_NAME = "CalendaBackdrop"
@@ -128,6 +129,22 @@ local function buildScenery(parent: Instance, length: number)
 	end
 end
 
+-- Repeated low facades fill the wide phone view between the street frontage and the hills.
+-- They use the existing facade palette and remain outside the gameplay corridor.
+local function buildTownBackdrop(parent: Instance, length: number)
+	local earth = LayerHeights.EARTH
+	for _, building in BackdropLayout.generate(length, LevelTheme.level1) do
+		sceneryPart(
+			parent,
+			building.name,
+			Enum.PartType.Block,
+			Vector3.new(building.depth, building.height, building.z1 - building.z0),
+			Vector3.new(building.x, earth + building.height / 2, (building.z0 + building.z1) / 2),
+			toColor(building.color)
+		)
+	end
+end
+
 -- `onProgress(fraction)` reports the street dressing (0..1) for the loading screen (#72).
 function Backdrop.build(onProgress: ((number) -> ())?)
 	local old = Workspace:FindFirstChild(FOLDER_NAME)
@@ -158,6 +175,7 @@ function Backdrop.build(onProgress: ((number) -> ())?)
 		toColor(palette.road)
 	)
 	buildScenery(folder, length)
+	buildTownBackdrop(folder, length)
 
 	OaxacaStreet.applyTheme(Lighting)
 	Lighting.FogColor = toColor(LevelTheme.level1.lighting.atmosphere.color)
