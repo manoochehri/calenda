@@ -1,6 +1,7 @@
 --!strict
 -- Issue #48: the server emits one display-only "cluster" Event per landed shot (spec Amendment 1).
 local ClusterFeed = require("../src/shared/ClusterFeed")
+local Config = require("../src/shared/Config")
 local Level = require("../src/shared/Level")
 local RunDriver = require("../src/shared/RunDriver")
 local RunHooks = require("../src/shared/RunHooks")
@@ -37,7 +38,12 @@ local function layoutWith(spawnZ: number): Level.Layout
 end
 
 -- Runs the production shots hook for one step and returns the emitted events.
-local function shotsFor(layout: Level.Layout, startingTotal: number, t1: number): { any }
+local function shotsFor(
+	layout: Level.Layout,
+	startingTotal: number,
+	t1: number,
+	config: any?
+): { any }
 	local state = RunState.new({
 		seed = 1,
 		automated = true,
@@ -48,7 +54,7 @@ local function shotsFor(layout: Level.Layout, startingTotal: number, t1: number)
 		end,
 	})
 	local out: { any } = {}
-	local hooks = RunHooks.new(layout)
+	local hooks = RunHooks.new(layout, config)
 	hooks.shots({
 		t0 = 0,
 		t1 = t1,
@@ -96,7 +102,10 @@ return {
 	{
 		name = "with a dancer section present every 4th shot is a gift",
 		run = function()
-			local events = shotsFor(layoutWith(30), 150, 0.8)
+			-- A 4-shot cadence keeps the sample short; the default cadence is pinned elsewhere.
+			local cfg = table.clone(Config)
+			cfg.giftEveryNthShot = 4
+			local events = shotsFor(layoutWith(30), 150, 0.8, cfg)
 			assert(#events >= 5, `need at least 5 shots, got {#events}`)
 			for i, e in events do
 				eq(e.shot, if i % 4 == 0 then "gift" else "note", `shot {i}`)

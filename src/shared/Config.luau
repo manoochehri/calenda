@@ -458,7 +458,10 @@ local config: ConfigType = {
 	finaleThresholds = { 50, 150, 300 }, -- [spec s9, provisional]
 	-- [default] issue #128: the play order. One entry today; a level's finale advances to the next.
 	levelPlayOrder = { "oaxacan-street" },
-	giftEveryNthShot = 4, -- [spec s4] every fourth shot once a dancer section exists
+	-- The gift share: every Nth shot is a gift once a dancer section exists, so 1 / N of shots.
+	-- Owner report (#93 tuning): gifts were far too frequent at 4 (one in four); 100 gives one in
+	-- a hundred. Was 4 [spec s4, every fourth shot]. One number to retune.
+	giftEveryNthShot = 100, -- [owner-tuned, one gift per 100 shots once a dancer section exists]
 	durations = {
 		assemblySeconds = 0.8, -- [spec s7]
 		dispersalSeconds = 0.5, -- [default] spec says only "brief animation" (s5)

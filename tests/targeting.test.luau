@@ -341,29 +341,28 @@ return {
 		end,
 	},
 	{
-		name = "gift cadence: every 4th shot once a dancer section exists",
+		name = "gift cadence: every Nth shot (Config.giftEveryNthShot) once a dancer section exists",
 		run = function()
+			local N = Config.giftEveryNthShot
 			-- dancers is section 3 of the puppet/globo/dancers sequence
-			for n = 1, 12 do
+			for n = 1, 2 * N do
 				assert(Targeting.shotKind(n, 0) == "note", "no sections")
 				assert(Targeting.shotKind(n, 2) == "note", "no dancer section yet")
+				local expected = if n % N == 0 then "gift" else "note"
+				assert(Targeting.shotKind(n, 3) == expected, `shot {n} with dancers`)
 			end
-			local kinds = {}
-			for n = 1, 8 do
-				table.insert(kinds, Targeting.shotKind(n, 3))
-			end
-			assert(
-				table.concat(kinds, ",") == "note,note,note,gift,note,note,note,gift",
-				table.concat(kinds, ",")
-			)
-			assert(Targeting.shotKind(4, 100) == "gift", "stays with many sections")
+			assert(Targeting.shotKind(N, 100) == "gift", "stays with many sections")
 		end,
 	},
 	{
 		name = "scheduler stamps shots with the gift kind, still one hit each",
 		run = function()
+			-- A 4-shot cadence keeps the cluster short; the default cadence is pinned elsewhere.
+			local cfg = table.clone(Config)
+			cfg.giftEveryNthShot = 4
 			local layout = layoutOf({ cluster(1, 10, 30, "large") })
-			local session = newSession(layout)
+			local rs = runStateFor(layout)
+			local session = Targeting.new({ layout = layout, runState = rs, config = cfg })
 			local shots = drive(session, 0, 5, 1 / 60, 3, "right")
 			assert(#shots == Config.clusterTypes.large.hits, "gifts count as one hit each")
 			assert(shots[4].kind == "gift" and shots[8].kind == "gift", "4th and 8th are gifts")
