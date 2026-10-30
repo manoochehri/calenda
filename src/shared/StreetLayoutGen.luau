@@ -13,6 +13,7 @@
 -- LevelTheme.level1 and the debug layout the measured total is about 380 parts (tests print it).
 local LayerHeights = require("./LayerHeights")
 local LevelTheme = require("./LevelTheme")
+local StreetSurface = require("./StreetSurface")
 
 local StreetLayoutGen = {}
 
@@ -362,7 +363,7 @@ local function makeGround(
 ): { Prim }
 	local p, l, m = theme.palette, theme.layout, theme.materials
 	local ground: { Prim } = {}
-	local roadHalf = info.halfWidth - 6
+	local roadHalf = StreetSurface.roadHalfWidth(info.halfWidth)
 	local streetEnd = info.plazaStart
 	local roadStart = info.startPlazaEnd or z0
 	local len = streetEnd - roadStart

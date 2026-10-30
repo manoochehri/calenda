@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local LevelTheme = require(Shared:WaitForChild("LevelTheme"))
+local StreetSurface = require(Shared:WaitForChild("StreetSurface"))
 local OaxacaStreet = require(script.Parent:WaitForChild("OaxacaStreet"))
 
 local FOLDER_NAME = "CalendaBackdrop"
@@ -140,17 +141,19 @@ function Backdrop.build(onProgress: ((number) -> ())?)
 	local palette = LevelTheme.level1.palette
 	local length = DebugLayout.streetLength
 	-- Top of the plate is just below the street slabs (their bottom is y = -1).
+	-- The plate covers every ground point the high camera can see (StreetSurface, issue #54).
+	local plate = StreetSurface.groundPlate(length)
 	slab(
 		folder,
 		"Ground",
-		Vector3.new(3000, 1, length + 3000),
-		Vector3.new(0, LayerHeights.EARTH - 0.5, length / 2),
+		Vector3.new(plate.x1 - plate.x0, 1, plate.z1 - plate.z0),
+		Vector3.new((plate.x0 + plate.x1) / 2, LayerHeights.EARTH - 0.5, (plate.z0 + plate.z1) / 2),
 		toColor(palette.ground)
 	)
 	slab(
 		folder,
 		"RunIn",
-		Vector3.new((DebugLayout.halfWidth - 6) * 2, 1, RUN_IN),
+		Vector3.new(StreetSurface.roadHalfWidth(DebugLayout.halfWidth) * 2, 1, RUN_IN),
 		Vector3.new(0, LayerHeights.ROAD_BASE - 0.5, -RUN_IN / 2),
 		toColor(palette.road)
 	)

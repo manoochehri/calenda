@@ -102,7 +102,7 @@ export type Theme = {
 		flagStripLength: number,
 		lampX: number,
 		lampSpacing: number,
-		curbX: number, -- |x| of the curb stripe centre, just inside the road edge (halfWidth - 6)
+		curbX: number, -- |x| of the curb stripe centre, just inside the road edge (roadHalfWidth - 0.4)
 		courses: number, -- lengthwise flagstone courses across the road
 	},
 }
@@ -256,7 +256,7 @@ LevelTheme.level1 = {
 		flagStripLength = 160,
 		lampX = 21.5,
 		lampSpacing = 96,
-		curbX = 13.6,
+		curbX = 14.6, -- road edge 15 (StreetSurface, issue #54 Amendment 9) less 0.4
 		courses = 6,
 	},
 } :: Theme
