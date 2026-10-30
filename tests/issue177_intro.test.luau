@@ -40,6 +40,20 @@ return {
 		end,
 	},
 	{
+		name = "the move starts on the title pose at a nonzero lead position too",
+		run = function()
+			local x, z = 7.5, 40
+			local start = IntroCamera.pose(x, z, 0)
+			local title = IntroCamera.titlePose(x, z)
+			near(start.px, title.px, "px")
+			near(start.py, title.py, "py")
+			near(start.pz, title.pz, "pz")
+			near(start.lx, title.lx, "lx")
+			near(start.ly, title.ly, "ly")
+			near(start.lz, title.lz, "lz")
+		end,
+	},
+	{
 		name = "the intro ends behind the player (the avatar faces +z, the camera is at -z)",
 		run = function()
 			local end_ = IntroCamera.pose(LEAD_X, LEAD_Z, 1)
