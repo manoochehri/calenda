@@ -46,10 +46,22 @@ return {
 					assert(spec.roleText ~= "", `{spec.lane} role text is empty`)
 				end
 			end
-			assert(seen.left ~= nil and seen.center ~= nil and seen.right ~= nil, "labels do not cover all lanes")
-			assert(string.find(seen.left.roleText, "HORDAS", 1, true), "left label hides its horde role")
-			assert(string.find(seen.center.roleText, "+1", 1, true), "center label hides its +1 role")
-			assert(string.find(seen.right.roleText, "HORDAS", 1, true), "right label hides its horde role")
+			assert(
+				seen.left ~= nil and seen.center ~= nil and seen.right ~= nil,
+				"labels do not cover all lanes"
+			)
+			assert(
+				string.find(seen.left.roleText, "HORDAS", 1, true),
+				"left label hides its horde role"
+			)
+			assert(
+				string.find(seen.center.roleText, "+1", 1, true),
+				"center label hides its +1 role"
+			)
+			assert(
+				string.find(seen.right.roleText, "HORDAS", 1, true),
+				"right label hides its horde role"
+			)
 		end,
 	},
 	{
@@ -57,10 +69,16 @@ return {
 		run = function()
 			local view = fs.readFile("src/client/LaneView.luau")
 			assert(string.find(view, "labelSpecs", 1, true), "LaneView does not render role labels")
-			assert(string.find(view, "directionText", 1, true), "LaneView omits lane direction text")
+			assert(
+				string.find(view, "directionText", 1, true),
+				"LaneView omits lane direction text"
+			)
 			assert(string.find(view, "roleText", 1, true), "LaneView omits lane role text")
 			assert(string.find(view, "TextLabel", 1, true), "lane labels have no readable text")
-			assert(string.find(view, "AlwaysOnTop", 1, true), "lane text can disappear behind figures")
+			assert(
+				string.find(view, "AlwaysOnTop", 1, true),
+				"lane text can disappear behind figures"
+			)
 		end,
 	},
 	{

@@ -35,4 +35,24 @@ function LaneGeometry.centerOf(lane: Lane): number
 	return 0
 end
 
+-- Bounds follow the same half-open ownership as laneOf; visual footprints stay inside them.
+function LaneGeometry.bounds(lane: Lane): (number, number)
+	if lane == "left" then
+		return LaneGeometry.MIN_X, LaneGeometry.LEFT_EDGE
+	elseif lane == "right" then
+		return LaneGeometry.RIGHT_EDGE, LaneGeometry.MAX_X
+	end
+	return LaneGeometry.LEFT_EDGE, LaneGeometry.RIGHT_EDGE
+end
+
+function LaneGeometry.fit(lane: Lane, x: number, halfSize: number): number
+	local lo, hi = LaneGeometry.bounds(lane)
+	return math.clamp(x, lo + halfSize, hi - halfSize)
+end
+
+function LaneGeometry.maxScatterHalfWidth(lane: Lane, halfSize: number): number
+	local lo, hi = LaneGeometry.bounds(lane)
+	return math.max(0, (hi - lo) / 2 - halfSize)
+end
+
 return LaneGeometry

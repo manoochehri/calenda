@@ -28,6 +28,7 @@ local Pool = require(Shared:WaitForChild("Pool"))
 local QualityConfig = require(Shared:WaitForChild("QualityConfig"))
 local SpectatorScatter = require(Shared:WaitForChild("SpectatorScatter"))
 local SpectatorMotion = require(Shared:WaitForChild("SpectatorMotion"))
+local LaneGeometry = require(Shared:WaitForChild("LaneGeometry"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 local FIGURE_HEIGHT = Config.spectators.scatter.bodyHeight + Config.spectators.scatter.headDiameter
@@ -65,6 +66,7 @@ export type Desc = {
 	spawnX: number,
 	spawnZ: number,
 	spawnLeadZ: number,
+	lane: LaneGeometry.Lane,
 }
 
 export type MobView = {
@@ -202,7 +204,9 @@ function MobView.new(parent: Instance, quality: string): MobView
 		local id = m.id
 		local s = spots[id]
 		if s == nil or s.n ~= n then
-			local offsets = SpectatorScatter.place(n, m.layoutSeed + id * 1009, scatter)
+			local figureHalf = math.max(scatter.armsWidth, scatter.bodyWidth) * scatter.maxScale / 2
+			local maxWidth = LaneGeometry.maxScatterHalfWidth(m.lane, figureHalf)
+			local offsets = SpectatorScatter.place(n, m.layoutSeed + id * 1009, scatter, maxWidth)
 			local paths: { SpectatorMotion.Path } = {}
 			for k = 1, n do
 				paths[k] = SpectatorMotion.plan(
@@ -215,7 +219,9 @@ function MobView.new(parent: Instance, quality: string): MobView
 					Config.speed,
 					Config.spectators.approachSpeed,
 					offsets[k],
-					scatter
+					scatter,
+					m.lane,
+					figureHalf
 				)
 			end
 			s = { n = n, offsets = offsets, paths = paths }

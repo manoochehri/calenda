@@ -17,6 +17,7 @@ local Level = require("./Level")
 local MobCharge = require("./MobCharge")
 local QualityConfig = require("./QualityConfig")
 local SpectatorMotion = require("./SpectatorMotion")
+local LaneGeometry = require("./LaneGeometry")
 
 export type Runner = { x: number, z: number, y: number }
 export type View = {
@@ -32,6 +33,7 @@ export type View = {
 	layoutSeed: number,
 	spawnX: number,
 	spawnZ: number,
+	lane: LaneGeometry.Lane,
 	spawnLeadZ: number,
 	hits: number,
 	needed: number,
@@ -108,7 +110,11 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 			Level.leadZ(c.spawnTime, cfg),
 			cfg.speed,
 			cfg.spectators.approachSpeed,
-			cfg.spectators.scatter
+			cfg.spectators.scatter,
+			c.lane,
+			math.max(cfg.spectators.scatter.armsWidth, cfg.spectators.scatter.bodyWidth)
+				* cfg.spectators.scatter.maxScale
+				/ 2
 		)
 		latestArrivalById[c.id] = age
 		return age
@@ -182,6 +188,7 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 					layoutSeed = layout.seed,
 					spawnX = c.spawn.x,
 					spawnZ = c.spawn.z,
+					lane = c.lane,
 					spawnLeadZ = Level.leadZ(c.spawnTime, cfg),
 					hits = h,
 					needed = need,

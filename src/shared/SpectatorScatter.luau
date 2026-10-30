@@ -42,12 +42,20 @@ end
 -- mob charges toward -z). A jittered grid across the lane: column spacing is at least colSpacing
 -- and rows are rowSpacing apart, each individual moves at most `jitter` of a spacing from its
 -- grid point, so neighbours never come closer than (1 - 2 * jitter) of a spacing.
-function SpectatorScatter.place(count: number, seed: number, p: Scatter): { Offset }
+function SpectatorScatter.place(
+	count: number,
+	seed: number,
+	p: Scatter,
+	maxHalfWidth: number?
+): { Offset }
 	local out: { Offset } = {}
 	if count <= 0 then
 		return out
 	end
-	local width = 2 * p.spreadHalfWidth
+	local halfWidth = if maxHalfWidth ~= nil
+		then math.min(p.spreadHalfWidth, maxHalfWidth)
+		else p.spreadHalfWidth
+	local width = 2 * halfWidth
 	local cols = math.clamp(math.floor(width / p.colSpacing), 1, count)
 	local spacingX = width / cols
 	local spacingZ = p.rowSpacing
@@ -57,7 +65,7 @@ function SpectatorScatter.place(count: number, seed: number, p: Scatter): { Offs
 		local key = i + seed * 1009
 		local jx = (noise(key, 1) - 0.5) * 2 * p.jitter * spacingX
 		local jz = (noise(key, 2) - 0.5) * 2 * p.jitter * spacingZ
-		local dx = -p.spreadHalfWidth + (col + 0.5) * spacingX + jx
+		local dx = -halfWidth + (col + 0.5) * spacingX + jx
 		out[i] = { dx = dx, dz = row * spacingZ + jz }
 	end
 	return out

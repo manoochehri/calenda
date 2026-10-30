@@ -43,6 +43,33 @@ local function place(p: Part, x: number, z: number, top: number, yawDegrees: num
 		* CFrame.Angles(0, math.rad(yawDegrees), 0)
 end
 
+local function buildLabel(parent: Instance, spec: LaneMarkings.LabelSpec)
+	local plate = flat(
+		parent,
+		`LaneLabel_{spec.lane}_{math.floor(spec.z)}`,
+		4.4,
+		8,
+		Color3.fromRGB(30, 32, 36)
+	)
+	place(plate, spec.x, spec.z, spec.top, 0)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "LaneRoleText"
+	gui.Face = Enum.NormalId.Top
+	gui.AlwaysOnTop = true
+	gui.CanvasSize = Vector2.new(440, 800)
+	gui.Parent = plate
+	local label = Instance.new("TextLabel")
+	label.Name = "LaneRole"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(30, 32, 36)
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.TextWrapped = true
+	label.Text = `{spec.glyph} {spec.directionText}\n{spec.roleText}`
+	label.Parent = gui
+end
+
 -- A forward arrow, one Part per LaneMarkings.arrowParts entry (no two overlap).
 local function buildArrow(parent: Instance, s: LaneMarkings.Spec)
 	for _, part in LaneMarkings.arrowParts(s) do
@@ -66,6 +93,9 @@ function LaneView.new(layout: LaneMarkings.LayoutInfo): LaneView
 		else
 			buildArrow(model, s)
 		end
+	end
+	for _, labelSpec in LaneMarkings.labelSpecs(layout) do
+		buildLabel(model, labelSpec)
 	end
 	local bars: { Part } = {}
 	for i = 1, 2 do

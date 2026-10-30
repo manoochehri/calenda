@@ -45,10 +45,76 @@ export type LayoutInfo = {
 	startPlazaEnd: number?,
 	gates: { { z: number } }?,
 	obstacles: { { z: number } }?,
+	clusters: { { lane: string } }?,
+	pickups: { { lane: string } }?,
+	checkpoints: { { lane: string } }?,
 }
 
 local LANES = { "left", "center", "right" }
 LaneMarkings.lanes = table.freeze(table.clone(LANES))
+
+export type LabelSpec = {
+	lane: LaneGeometry.Lane,
+	x: number,
+	z: number,
+	top: number,
+	directionText: string,
+	glyph: string,
+	roleText: string,
+}
+
+local nearLine: (number, LayoutInfo) -> boolean
+
+-- Repeated static wayfinding labels; roles are projected from authored layout data only.
+function LaneMarkings.labelSpecs(layout: LayoutInfo): { LabelSpec }
+	local roles: { [string]: { [string]: boolean } } = { left = {}, center = {}, right = {} }
+	for _, c in layout.clusters or {} do
+		if roles[c.lane] then
+			roles[c.lane].HORDAS = true
+		end
+	end
+	for _, pickup in layout.pickups or {} do
+		if roles[pickup.lane] then
+			roles[pickup.lane]["RECLUTA +1"] = true
+		end
+	end
+	for _, checkpoint in layout.checkpoints or {} do
+		if roles[checkpoint.lane] then
+			roles[checkpoint.lane].JEFE = true
+		end
+	end
+	local labels: { LabelSpec } = {}
+	local z0 = layout.startPlazaEnd or 0
+	local z = z0 + 72
+	while z < layout.plazaStart - 36 do
+		if not nearLine(z, layout) then
+			for _, lane in LANES do
+				local laneRoles = roles[lane]
+				local roleText = "LIBRE"
+				local names = {}
+				for _, name in { "RECLUTA +1", "HORDAS", "JEFE" } do
+					if laneRoles[name] then
+						table.insert(names, name)
+					end
+				end
+				if #names > 0 then
+					roleText = table.concat(names, " · ")
+				end
+				table.insert(labels, {
+					lane = lane :: LaneGeometry.Lane,
+					x = LaneGeometry.centerOf(lane :: LaneGeometry.Lane),
+					z = z,
+					top = LayerHeights.MARKING,
+					directionText = "ADELANTE",
+					glyph = "↓",
+					roleText = roleText,
+				})
+			end
+		end
+		z += 192
+	end
+	return labels
+end
 
 -- WorldBuilder's centre-line dashes: 24 long, every 96 from z = 48. The centre-lane arrows skip them.
 local function onDash(z: number, layout: LayoutInfo): boolean
@@ -60,7 +126,7 @@ local function onDash(z: number, layout: LayoutInfo): boolean
 	return false
 end
 
-local function nearLine(z: number, layout: LayoutInfo): boolean
+nearLine = function(z: number, layout: LayoutInfo): boolean
 	local clear = LaneMarkings.CLEARANCE + LaneMarkings.ARROW_LENGTH / 2
 	for _, g in layout.gates or {} do
 		if math.abs(z - g.z) < clear then
