@@ -2,6 +2,7 @@
 local Config = require("../src/shared/Config")
 local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
+local FeedbackMath = require("../src/shared/FeedbackMath")
 local Level = require("../src/shared/Level")
 local LayoutValidator = require("../src/shared/LayoutValidator")
 local RunDriver = require("../src/shared/RunDriver")
@@ -154,8 +155,11 @@ return {
 	{
 		name = "march pace is modestly slower while the fixed route still fits the spec timeline",
 		run = function()
-			assert(Config.speed < 16, `forward pace still {Config.speed} studs/s`)
-			assert(Config.speed >= 13.6, `forward pace is more than 15% slower: {Config.speed}`)
+			assert(
+				math.abs(Config.speed - 7.2) < 1e-9,
+				`forward pace is not half the current 14.4 studs/s: {Config.speed}`
+			)
+			assert(FeedbackMath.FLIGHT_SPEED == 67.5, "projectile speed remains unchanged")
 			local r = LayoutValidator.check(DebugLayout)
 			assert(r.ok, `slower-pace layout rejected: {table.concat(r.errors, " | ")}`)
 			assert(math.abs(r.plazaTime - 90) <= 2, `plaza at {r.plazaTime} s`)
