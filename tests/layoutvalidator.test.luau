@@ -182,11 +182,11 @@ return {
 				`final gate at {r.finalGateTime} s`
 			)
 			-- Issue #65: every group meets the lead no earlier than the calm opening allows and no
-			-- later than the last pair's shifted arrival (the spawn is far upstream, not the arrival).
+			-- later than the plaza (issue #192: waves continue to it; the spawn is far upstream, not the arrival).
 			local closing = Config.speed + Config.spectators.approachSpeed
 			for _, c in DebugLayout.clusters do
 				local arrive = (c.spawn.z + Config.spectators.approachSpeed * c.spawnTime) / closing
-				assert(arrive >= 10 and arrive <= 36, `cluster {c.id} arrives at {arrive} s`)
+				assert(arrive >= 10 and arrive <= 90, `cluster {c.id} arrives at {arrive} s`)
 			end
 		end,
 	},
@@ -468,7 +468,7 @@ return {
 		-- ten large clusters arriving together: base rate cannot clear them
 		for i = 1, 10 do
 			table.insert(l.clusters, {
-				id = 100 + i,
+				id = 1000 + i,
 				wave = 2,
 				type = "large",
 				spawnTime = 14,

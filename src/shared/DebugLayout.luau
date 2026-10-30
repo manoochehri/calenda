@@ -38,6 +38,8 @@ end
 --    the old geometry on, positions are unchanged.
 local WAVE_DELAY = 9 -- seconds [default]
 local SOAKS = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 } -- [default] extra small groups per pair
+local PLAZA_SECONDS = 90 -- run seconds at which the plaza starts (paceDistance(1440) at Config.speed)
+local LAST_ARRIVAL_MARGIN = 2 -- seconds: the last wave arrives at least this long before the plaza
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
 
 local needOffset = Emergence.requiredSpawnOffset()
@@ -63,12 +65,20 @@ local function add(
 		lane = lane,
 	})
 end
-for pair = 1, 10 do
+-- Issue #192: the wave rhythm continues to the plaza, as it does in Layouts (issue #142). The loop
+-- once stopped at pair 10 (32.5 s), so the played level had no hordes for the last 60 s of a 90 s
+-- run. Pairs past the authored soak list repeat its last count.
+local pair = 0
+while true do
+	pair += 1
 	local arrive = 1 + (pair - 1) * 2.5 + WAVE_DELAY -- the old spawn time, shifted
+	if arrive > PLAZA_SECONDS - LAST_ARRIVAL_MARGIN then
+		break
+	end
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
 	add(pair * 2 - 1, "small", -LANE_CENTER, "left", arrive, base)
 	add(pair * 2, "large", LANE_CENTER, "right", arrive, base)
-	for soak = 1, SOAKS[pair] do
+	for soak = 1, SOAKS[math.min(pair, #SOAKS)] do
 		add(pair * 2 - 1, "small", -LANE_CENTER, "left", arrive, base - SOAK_STEP * soak)
 	end
 end
