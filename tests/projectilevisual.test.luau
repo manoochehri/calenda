@@ -25,7 +25,7 @@ end
 
 return {
 	{
-		name = "visual per shot number: every fourth shot is a gift, the rest alternate note and heart",
+		name = "visual per shot number: every giftEveryNthShot-th shot is a gift, the rest alternate note and heart",
 		run = function()
 			local sections = dancerSections()
 			for n = 1, 2 * Config.giftEveryNthShot do

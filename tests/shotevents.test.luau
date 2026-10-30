@@ -100,7 +100,7 @@ return {
 		end,
 	},
 	{
-		name = "with a dancer section present every 4th shot is a gift",
+		name = "with a dancer section present the Config.giftEveryNthShot-th shot is a gift",
 		run = function()
 			-- A 4-shot cadence keeps the sample short; the default cadence is pinned elsewhere.
 			local cfg = table.clone(Config)
