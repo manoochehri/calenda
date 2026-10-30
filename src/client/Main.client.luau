@@ -31,7 +31,7 @@ local RunView = timedRequire("Shared", Shared, "RunView")
 local CrowdMath = timedRequire("Shared", Shared, "CrowdMath")
 local ServerClock = timedRequire("Shared", Shared, "ServerClock")
 local StartFlow = timedRequire("Shared", Shared, "StartFlow")
-local IntroCamera = timedRequire("Shared", Shared, "IntroCamera")
+local StartSequence = timedRequire("Shared", Shared, "StartSequence")
 local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
@@ -51,6 +51,7 @@ local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
 local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
 local StartupScreen = timedRequire("Client", script.Parent, "StartupScreen")
+local CountdownView = timedRequire("Client", script.Parent, "CountdownView")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
 
@@ -73,12 +74,15 @@ local function updateProgress()
 		startupScreen:showTitle()
 	end
 end
-local intro: IntroCamera.Intro? = nil -- the opening camera move, while it plays (issue #177)
+-- Jugar -> camera move (#177) -> tres, dos, uno (#203) -> one Start request, while it plays.
+local sequence: StartSequence.Sequence? = nil
+local countdownView: CountdownView.View? = nil
 local function onPlay()
 	if StartFlow.play(startupFlow) then
 		music:start(os.clock()) -- start the selected loop on Jugar, before the server's first running State
 		startupScreen:finishIntro()
-		intro = IntroCamera.begin(os.clock())
+		sequence = StartSequence.begin(os.clock())
+		countdownView = CountdownView.new()
 	end
 end
 startupScreen = StartupScreen.new(onPlay)
@@ -297,22 +301,29 @@ RunService:BindToRenderStep(
 			startupTrace:mark("first CalendaFrame render-step callback")
 			StartupTrace.finishIfReady()
 		end
-		if intro ~= nil then
-			-- Opening move (issue #177): the run is still paused, so input and the server clock wait.
-			-- The lead stands at its start (x 0, z 0) while the camera settles on the game view.
+		if sequence ~= nil then
+			-- Opening move (#177), then tres, dos, uno (#203): the run is still paused, so input and
+			-- the server clock wait. The lead stands at its start (x 0, z 0) while the camera settles.
 			local now = os.clock()
 			-- The move waits for the avatar to exist (IntroCamera.AVATAR_WAIT at most).
 			local hasAvatar = leadAvatar:update(0, 0, dt)
-			local introPose, startDue = IntroCamera.step(intro, now, ViewMap.x(0), 0, hasAvatar)
-			placeCamera(introPose, 0, 0)
+			local frame = StartSequence.step(sequence, now, ViewMap.x(0), 0, hasAvatar)
+			placeCamera(frame.pose, 0, 0)
+			if countdownView ~= nil then
+				countdownView:show(frame.word, frame.look)
+			end
 			local introState = latest
 			if introState ~= nil and StartFlow.shouldUpdateMusic(startupFlow) then
 				-- Music keeps moving through the opening move, as the count-in did.
 				music:update(RunView.wholeTotal(introState.total), now)
 			end
-			if startDue then
-				intro = nil
-				startRemote:FireServer()
+			if frame.startDue then
+				sequence = nil
+				if countdownView ~= nil then
+					countdownView:destroy()
+					countdownView = nil
+				end
+				startRemote:FireServer() -- the single payload-free Start, after the countdown
 			end
 			return
 		end
