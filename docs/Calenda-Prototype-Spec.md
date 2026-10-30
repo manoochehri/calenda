@@ -288,7 +288,7 @@ Supersedes, where they conflict, the 10% value of `attackSharePercent` in Amendm
 
 **Checks.** A horde that reaches the parade removes `max(1, floor(7% × total / 100))` followers. Example: a total of 100 becomes 93, and 93 becomes 87 on a second hit in the same batch. The tomato share stays at `hazards.tomatoSharePercent` = 10.
 
-## Amendment 6 — Clear the gameplay screen (owner request, issue #160, 2026-10-29)
+## Amendment 8 — Clear the gameplay screen (owner request, issue #160, 2026-10-29)
 
 During active play, show no screen crowd counter, loose/section count, next-section meter,
 steering hint or section-gain toast. Do not replace them with a bar, banner or tutorial overlay.
