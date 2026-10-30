@@ -3,6 +3,7 @@
 -- the rule and the arc are Lune-tested; ClusterView only turns the answers into Parts.
 -- Visual only: nothing here decides a hit, a credit, a firing rate or the gift cadence. The
 -- cadence is Targeting.shotKind (every Config.giftEveryNthShot-th shot, spec s4 / ADR 0004).
+local CameraRig = require("./CameraRig")
 local FeedbackMath = require("./FeedbackMath")
 
 local ProjectileVisual = {}
@@ -27,6 +28,11 @@ ProjectileVisual.GIFT_FLIGHT_SCALE = 1.6 -- [default] x the note flight time
 ProjectileVisual.GIFT_APEX = 14 -- [default] studs above the straight line at the top (notes: 7)
 ProjectileVisual.GIFT_LOOPS = 2 -- [default] full loops of the arc in flight
 ProjectileVisual.GIFT_LOOP_RADIUS = 2.5 -- [default] studs; the loop's largest sideways and up reach
+
+-- The silhouette faces the gameplay camera: tilted by the camera's downward pitch (about 52 degrees
+-- at pullback 1, where CameraRig holds the pitch constant). Unfaced, the high camera would squash
+-- every vertical detail to about 0.62 of its size.
+ProjectileVisual.TILT = math.rad(CameraRig.pitchDegrees(CameraRig.pose(0, 0, 1)))
 
 -- The look of a shot. A gift is always a gift. A regular shot alternates note and heart by the
 -- index: odd is a heart, even is a note. The index is the shot number for a miss, and the cluster's
@@ -73,12 +79,12 @@ end
 local GEOMETRY: { [Kind]: { Piece } } = {
 	note = {
 		{ shape = "ball", x = 0, y = -0.5, w = 0.8, h = 0.6, roll = 0, ribbon = false },
-		{ shape = "block", x = 0.35, y = 0.1, w = 0.14, h = 0.9, roll = 0, ribbon = false },
-		{ shape = "block", x = 0.6, y = 0.66, w = 0.5, h = 0.22, roll = 0, ribbon = false },
+		{ shape = "block", x = 0.35, y = 0.1, w = 0.4, h = 0.9, roll = 0, ribbon = false },
+		{ shape = "block", x = 0.6, y = 0.68, w = 0.5, h = 0.36, roll = 0, ribbon = false },
 	},
 	heart = {
-		{ shape = "ball", x = -0.3, y = 0.43, w = 0.5, h = 0.5, roll = 0, ribbon = false },
-		{ shape = "ball", x = 0.3, y = 0.43, w = 0.5, h = 0.5, roll = 0, ribbon = false },
+		{ shape = "ball", x = -0.36, y = 0.43, w = 0.44, h = 0.44, roll = 0, ribbon = false },
+		{ shape = "ball", x = 0.36, y = 0.43, w = 0.44, h = 0.44, roll = 0, ribbon = false },
 		-- A square turned 45 degrees: its top stays below the cleft and its point reaches down.
 		{
 			shape = "block",
@@ -92,9 +98,9 @@ local GEOMETRY: { [Kind]: { Piece } } = {
 	},
 	gift = {
 		{ shape = "block", x = 0, y = -0.2, w = 1.3, h = 1.0, roll = 0, ribbon = false }, -- box
-		{ shape = "block", x = 0, y = 0.45, w = 1.6, h = 0.3, roll = 0, ribbon = false }, -- lid
-		{ shape = "block", x = 0, y = 0, w = 0.16, h = 1.6, roll = 0, ribbon = true }, -- ribbon
-		{ shape = "block", x = 0, y = 0.45, w = 1.6, h = 0.14, roll = 0, ribbon = true }, -- ribbon
+		{ shape = "block", x = 0, y = 0.45, w = 1.6, h = 0.38, roll = 0, ribbon = false }, -- lid
+		{ shape = "block", x = 0, y = 0, w = 0.4, h = 1.6, roll = 0, ribbon = true }, -- ribbon
+		{ shape = "block", x = 0, y = 0.45, w = 1.6, h = 0.4, roll = 0, ribbon = true }, -- ribbon
 	},
 }
 
