@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiLayout = require(script.Parent:WaitForChild("GuiLayout"))
 local TypeStyle = require(script.Parent:WaitForChild("TypeStyle"))
 local ScreenLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ScreenLayout"))
+local TitleLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TitleLayout"))
 
 export type Screen = {
 	setProgress: (self: Screen, fraction: number) -> (),
@@ -59,6 +60,21 @@ local function label(parent: Instance, name: string, text: string, font: Enum.Fo
 	item.Font = font
 	item.Parent = parent
 	return item
+end
+
+-- Issue #176: anchor, position, size and text limits of a title element from TitleLayout.
+local function place(obj: GuiObject, name: string)
+	local e = TitleLayout.element(name)
+	assert(e, `no TitleLayout element {name}`)
+	obj.AnchorPoint = Vector2.new(e.ax, e.ay)
+	obj.Position = UDim2.fromScale(e.x, e.y)
+	obj.Size = UDim2.fromScale(e.w, e.h)
+	if e.text and obj:IsA("TextLabel") then
+		local limit = Instance.new("UITextSizeConstraint")
+		limit.MinTextSize = e.text.minSize
+		limit.MaxTextSize = e.text.maxSize
+		limit.Parent = obj
+	end
 end
 
 local function addFlagString(parent: Instance)
@@ -227,9 +243,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 
 	local logo = label(card, "Logo", "CALENDA", TypeStyle.font("title"))
 	TypeStyle.gradient(logo)
-	logo.AnchorPoint = Vector2.new(0.5, 0)
-	logo.Position = UDim2.fromScale(0.5, 0.17)
-	logo.Size = UDim2.fromScale(0.9, 0.19)
+	place(logo, "Logo")
 	logo.TextColor3 = Color3.fromRGB(255, 222, 164)
 	logo.TextStrokeColor3 = INK
 	logo.TextStrokeTransparency = 0
@@ -253,16 +267,12 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 
 	local subtitle =
 		label(card, "Subtitle", "Música, fiesta y una gran calenda", Enum.Font.GothamBold)
-	subtitle.AnchorPoint = Vector2.new(0.5, 0)
-	subtitle.Position = UDim2.fromScale(0.5, 0.37)
-	subtitle.Size = UDim2.fromScale(0.86, 0.08)
+	place(subtitle, "Subtitle")
 	subtitle.TextColor3 = Color3.fromRGB(255, 242, 210)
 
 	local loading = Instance.new("Frame")
 	loading.Name = "Loading"
-	loading.AnchorPoint = Vector2.new(0.5, 0)
-	loading.Position = UDim2.fromScale(0.5, 0.53)
-	loading.Size = UDim2.fromScale(0.72, 0.17)
+	place(loading, "Loading")
 	loading.BackgroundTransparency = 1
 	loading.Parent = card
 	local message = label(loading, "Message", "Preparando la calle...", Enum.Font.GothamBold)
@@ -335,9 +345,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	play.Activated:Connect(onPlay)
 
 	local footer = label(card, "Version", VERSION_LABEL, Enum.Font.GothamBold)
-	footer.AnchorPoint = Vector2.new(0.5, 1)
-	footer.Position = UDim2.fromScale(0.5, 0.91)
-	footer.Size = UDim2.fromScale(0.36, 0.06)
+	place(footer, "Version")
 	footer.TextColor3 = Color3.fromRGB(222, 204, 197)
 	footer.TextTransparency = 0.1
 	footer.TextSize = 12
