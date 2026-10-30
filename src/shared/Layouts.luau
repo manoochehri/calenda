@@ -9,6 +9,7 @@
 local Config = require("./Config")
 local Emergence = require("./Emergence")
 local Level = require("./Level")
+local StreetGeometry = require("./StreetGeometry")
 
 local Layouts = {}
 
@@ -22,9 +23,9 @@ local PLAZA_SECONDS = 90 -- run seconds at which the plaza starts (every layout'
 -- 2.5 s spacing until the last arrival is at or before PLAZA_SECONDS - LAST_ARRIVAL_MARGIN.
 local LAST_ARRIVAL_MARGIN = 2
 -- ADR 0011: outer-lane spawns sit at the lane centers, x = +-10 (was +-16, which no lane covers).
-local LANE_CENTER = 10
+local LANE_CENTER = StreetGeometry.LANE_CENTER
 -- ADR 0010 item 3: the furthest |x| the lead may stand at, per layout (effective limit 15).
-local LEAD_LIMIT = 15
+local LEAD_LIMIT = StreetGeometry.LEAD_LIMIT
 
 local function at(seconds: number): number
 	return seconds * Config.speed
@@ -122,7 +123,7 @@ local function make(
 		startPlazaEnd = at(5),
 		streetLength = at(100),
 		plazaStart = at(PLAZA_SECONDS),
-		halfWidth = 20,
+		halfWidth = StreetGeometry.HALF_WIDTH,
 		leadLimit = LEAD_LIMIT,
 		maxTotal = Config.layout.maxTotal,
 		intendedRecruitTotal = 30,

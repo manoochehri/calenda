@@ -7,9 +7,10 @@
 local Config = require("./Config")
 local Emergence = require("./Emergence")
 local Level = require("./Level")
+local StreetGeometry = require("./StreetGeometry")
 
 local BASE_SPEED = 16
-local LANE_CENTER = 10 -- ADR 0011: outer-lane spawns at the lane centers
+local LANE_CENTER = StreetGeometry.LANE_CENTER -- ADR 0011: outer-lane spawns at the lane centers
 local START_PLAZA_BASE_LENGTH = 80
 local START_PLAZA_LENGTH = START_PLAZA_BASE_LENGTH * Config.speed / BASE_SPEED
 local function paceDistance(baseZ: number): number
@@ -105,8 +106,8 @@ local layout: Level.Layout = {
 	startPlazaEnd = START_PLAZA_LENGTH,
 	streetLength = paceDistance(1600),
 	plazaStart = paceDistance(1440),
-	halfWidth = 20,
-	leadLimit = 15, -- ADR 0010 item 3: the one per-layout lead clamp
+	halfWidth = StreetGeometry.HALF_WIDTH,
+	leadLimit = StreetGeometry.LEAD_LIMIT, -- ADR 0010 item 3: the one per-layout lead clamp
 	-- The bound lives in Config.layout.maxTotal (issue #142 owner decision, 2026-10-26).
 	maxTotal = Config.layout.maxTotal,
 	intendedRecruitTotal = 30,
