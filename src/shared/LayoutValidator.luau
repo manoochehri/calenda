@@ -189,6 +189,25 @@ local function structure(layout: any, cfg: any, errs: { string })
 			bad(`pickup {p.id} has an invalid lane`)
 		end
 	end
+	-- Issue #162: route stops. Ids unique, z strictly ascending and inside the street, a known kind.
+	local seenCheckpoint: { [number]: boolean } = {}
+	local prevCheckpointZ = 0
+	for _, cp in layout.checkpoints or {} do
+		if seenCheckpoint[cp.id] then
+			bad(`duplicate checkpoint id {cp.id}`)
+		end
+		seenCheckpoint[cp.id] = true
+		if cp.kind ~= "mini-boss" then
+			bad(`checkpoint {cp.id} has an unknown kind`)
+		end
+		if not isNum(cp.z) or cp.z <= 0 or cp.z >= layout.plazaStart then
+			bad(`checkpoint {cp.id} z must be between 0 and plazaStart`)
+		elseif cp.z <= prevCheckpointZ then
+			bad(`checkpoint {cp.id} must be after the previous checkpoint (z strictly ascending)`)
+		else
+			prevCheckpointZ = cp.z
+		end
+	end
 	-- ADR 0010 item 5: encounter spans may not overlap, so at most one encounter is ever active.
 	local spansOk, spansMsg = Encounters.validateSpans(layout)
 	if not spansOk then

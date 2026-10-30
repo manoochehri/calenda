@@ -51,7 +51,16 @@ function RunView.leadPosition(
 		return state.x, state.z, state.t
 	end
 	local dt = math.clamp(secondsSinceState, 0, RunView.MAX_EXTRAPOLATION)
-	return state.x, math.min(maxZ, state.z + speed * dt), state.t + dt
+	-- Issue #162: a fight stops forward travel; time and lateral motion go on. The hold plane stops
+	-- the extrapolation before a stop the client has not been told about yet.
+	if Remotes.isStage(state.stage) and state.stage ~= "traveling" then
+		return state.x, state.z, state.t + dt
+	end
+	local z = math.min(maxZ, state.z + speed * dt)
+	if type(state.holdZ) == "number" then
+		z = math.min(z, math.max(state.holdZ, state.z))
+	end
+	return state.x, z, state.t + dt
 end
 
 -- Run time only goes forward inside a run; going backwards means the server replayed.

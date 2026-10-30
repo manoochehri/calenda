@@ -25,6 +25,9 @@ export type Cluster = {
 -- An optional +1 pickup (issue #156, Amendment 9): awarded once, only when the lead crosses its
 -- distance plane inside its lane. Passing elsewhere expires it with no reward or loss.
 export type Pickup = { id: number, z: number, lane: "left" | "center" | "right" }
+-- A stop in the route (issue #162): the lead halts exactly at `z` until the server resolves the
+-- checkpoint. `id` is level-local. This slice has no boss content; "mini-boss" is the only kind.
+export type Checkpoint = { id: number, z: number, kind: "mini-boss" }
 -- Level hazard set (issue #96): which hazard kinds this level uses and when they can land.
 export type HazardSet = {
 	kinds: { string },
@@ -47,6 +50,7 @@ export type Layout = {
 	clusters: { Cluster },
 	obstacles: { Obstacle },
 	pickups: { Pickup }?, -- optional +1 pickups (issue #156); absent means none
+	checkpoints: { Checkpoint }?, -- optional route stops (issue #162), ascending z, all below plazaStart
 	hazardSet: HazardSet?, -- nil: the level has no hazards (issue #96)
 }
 export type Side = "left" | "right" | "center"
