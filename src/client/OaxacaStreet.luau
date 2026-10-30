@@ -10,9 +10,9 @@
 -- Everything is Anchored, CanCollide false, CanQuery false, CanTouch false. Windows, doors, arches,
 -- balcony railings and papel picado flags are Frames inside SurfaceGuis (a few GUIs, not a Part per
 -- detail): flags are colored Frames on ~44 strip Parts, never one Part per flag. Buildings and
--- balconies have real depth. Rey is drawn by CrowdView as part of the moving parade. Generator x is
--- WORLD x; ViewMap.x is applied here, to every Part position. Reset-safe: build() destroys the
--- previous model first, and a destroy() during a build stops it at the next batch.
+-- balconies have real depth. Generator x is WORLD x; ViewMap.x is applied here to every Part
+-- position. Reset-safe: build() destroys the previous model first, and a destroy() during a build
+-- stops it at the next batch.
 -- IN-ENGINE BEHAVIOUR IS UNVERIFIED (see the PR checklist).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")

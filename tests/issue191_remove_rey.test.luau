@@ -14,4 +14,13 @@ return {
 			)
 		end,
 	},
+	{
+		name = "issue 191: Rey-specific formation module is removed",
+		run = function()
+			local exists = pcall(function()
+				fs.readFile("src/shared/ReyFormation.luau")
+			end)
+			assert(not exists, "ReyFormation is still present")
+		end,
+	},
 }

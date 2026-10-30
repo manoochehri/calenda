@@ -267,15 +267,10 @@ function LevelTheme.facadeTopMax(theme: Theme): number
 	return theme.heights.facadeMax + theme.heights.roofExtra
 end
 
--- Upper bound of Parts the street and its nine-part moving Rey model may emit under the budgets.
+-- Upper bound of Parts the generated street may emit under the budgets.
 function LevelTheme.maxTotalParts(theme: Theme): number
 	local b = theme.budgets
-	return b.maxFacadeParts
-		+ b.maxFlagStrips
-		+ b.maxLamps * 2
-		+ b.maxPlazaParts
-		+ b.maxGroundParts
-		+ 9
+	return b.maxFacadeParts + b.maxFlagStrips + b.maxLamps * 2 + b.maxPlazaParts + b.maxGroundParts
 end
 
 -- Structural rules tying the theme to CameraRig. The camera sight lines to the lead, the next gate
