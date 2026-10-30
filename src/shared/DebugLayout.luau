@@ -25,8 +25,8 @@ end
 --    checks true (no-input run defeated, competent run completed with followers left, ADR 0006) the data changes:
 --    1. spectators.approachSpeed 6 -> 20 (Config): the mob CHARGES; this originally gave 34.4
 --       studs/s relative closing speed, a 3.7 s visible approach (tested) and a 1.7 s range window.
---       Issue #174 lowers the lead pace by half and raises approachSpeed to 27.2 to preserve that
---       relative closing speed and the tested attack window.
+--       Issue #174 lowers the lead pace by half and raises approachSpeed to 27.2 to preserve the
+--       center-relative closing rate algebraically. This is not a player-balance claim.
 --    2. WAVE_DELAY: every pair arrives 9 s later than before (a calm opening: the first wave is
 --       first in view after 5 s).
 --    3. SOAKS: each pair grows a line of extra small groups on the left, a little nearer the lead
