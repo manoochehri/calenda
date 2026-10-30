@@ -14,7 +14,7 @@ local FPS = 60
 local SPEED = Config.speed
 local MAX_Z = 1440
 local CLIENT_OFFSET = 1000.123
-local GATE_Z = 300 -- a gate row the lead passes during the simulated window
+local GATE_Z = SPEED * 20 -- the same 20-second pass at any configured forward pace
 local TAIL = 4 -- stands in for ParadeTail.depth(total): a small parade behind the lead
 
 local seed = 4242

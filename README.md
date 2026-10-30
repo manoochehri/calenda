@@ -102,7 +102,7 @@ Speeds are studs per second, distances are studs, times are seconds, counts are 
 | `sectionSize` | 50 | followers | [spec s5] | Followers per section. Positive integer. |
 | `startingTotal` | 10 | followers | [spec s5] | Followers at the start of a run. Non-negative integer. |
 | `obstacleLoss` | 10 | followers | [spec s9] | Followers lost when the parade hits an obstacle. |
-| `speed` | 14.4 | studs/s | [default] | Forward speed of the parade. Must be positive. |
+| `speed` | 7.2 | studs/s | [default] | Forward speed of the parade (about half the prior pace). Must be positive. |
 | `giftEveryNthShot` | 4 | shots | [spec s4] | Every Nth shot is a gift once a dancer section exists. |
 | `finaleThresholds` | 50, 150, 300 | followers | [spec s9, provisional] | Strictly ascending. Totals that trigger finale stages. |
 | `musicLayerSections` | 0, 1, 3, 6 | sections | [spec s10] | Strictly ascending. Section counts that gate each music stem. |
@@ -141,7 +141,7 @@ Firing is continuous: one shot every `1 / rate` seconds, hit or miss (ADR 0004).
 
 | Key | Default | Unit | Tag | Meaning |
 |---|---|---|---|---|
-| `spectators.approachSpeed` | 20 | studs/s | [default] | Speed at which a spectator mob charges toward the parade. Was 6 before issue #65. |
+| `spectators.approachSpeed` | 27.2 | studs/s | [default] | Speed at which a spectator mob charges toward the parade; preserves the 34.4 studs/s relative closing speed at the half-speed march pace. |
 | `spectators.centerTolerance` | 3 | studs | [default] | Horizontal offset at or below which a spectator counts as centered. Non-negative. |
 
 ### Visual budget (`visualBudget`)

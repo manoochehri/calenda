@@ -17,6 +17,7 @@ local function hitsToEmpty(total: number): number
 end
 
 local DT = 1 / 30
+local FIXTURE_SCALE = Config.speed / 14.4
 
 local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {tostring(expected)}, got {tostring(actual)}`)
@@ -70,8 +71,8 @@ local function driverFixture(): Level.Layout
 	return {
 		name = "scripted_run_fixture",
 		seed = 1234,
-		streetLength = 400,
-		plazaStart = 200,
+		streetLength = 400 * FIXTURE_SCALE,
+		plazaStart = 200 * FIXTURE_SCALE,
 		halfWidth = 20,
 		leadLimit = 15,
 		maxTotal = 1000,
@@ -79,19 +80,19 @@ local function driverFixture(): Level.Layout
 		gates = {
 			{
 				id = 1,
-				z = 40,
+				z = 40 * FIXTURE_SCALE,
 				left = { kind = "add", value = 15 },
 				right = { kind = "multiply", value = 2 },
 			},
 			{
 				id = 2,
-				z = 80,
+				z = 80 * FIXTURE_SCALE,
 				left = { kind = "add", value = 30 },
 				right = { kind = "multiply", value = 2 },
 			},
 		},
 		obstacles = {
-			{ id = 1, z = 120, side = "left" },
+			{ id = 1, z = 120 * FIXTURE_SCALE, side = "left" },
 		},
 		clusters = {
 			{
@@ -99,7 +100,7 @@ local function driverFixture(): Level.Layout
 				wave = 1,
 				type = "small",
 				spawnTime = 0,
-				spawn = { x = -10, z = 20 },
+				spawn = { x = -10, z = 20 * FIXTURE_SCALE },
 				path = {},
 				lane = "left",
 			},
