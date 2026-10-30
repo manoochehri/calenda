@@ -2,6 +2,7 @@
 -- StreetLayoutGen (issue #54 phase 1): deterministic, bounded, and clear of the camera sight lines.
 local CameraRig = require("../src/shared/CameraRig")
 local DebugLayout = require("../src/shared/DebugLayout")
+local Config = require("../src/shared/Config")
 local LevelTheme = require("../src/shared/LevelTheme")
 local StreetLayoutGen = require("../src/shared/StreetLayoutGen")
 local ViewMap = require("../src/shared/ViewMap")
@@ -209,7 +210,7 @@ return {
 				(kinds.stone or 0) >= 4 and (kinds.shop or 0) >= 4 and (kinds.portal or 0) >= 2,
 				"types"
 			)
-			assert((kinds.colonial or 0) > 40, "colonial dominates")
+			assert((kinds.colonial or 0) > 20, "colonial dominates along the half-length route")
 		end,
 	},
 	{
@@ -292,13 +293,13 @@ return {
 					for _, leadZ in
 						{
 							0,
-							150,
-							400,
-							700,
-							1000,
-							1300,
+							150 * Config.speed / 14.4,
+							400 * Config.speed / 14.4,
+							700 * Config.speed / 14.4,
+							1000 * Config.speed / 14.4,
+							1300 * Config.speed / 14.4,
 							DebugLayout.plazaStart - 10,
-							DebugLayout.plazaStart + 60,
+							DebugLayout.plazaStart,
 						}
 					do
 						local n = blockedCount(boxes, leadX, leadZ, pullback)

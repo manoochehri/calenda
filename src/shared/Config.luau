@@ -408,7 +408,7 @@ local config: ConfigType = {
 	-- validator's optimiser (perfect steering and foresight), not a total any bot or player reaches.
 	-- Not a balance claim: the balance evidence is UNVERIFIED until the skeptic holds it.
 	layout = { maxTotal = 4000 },
-	speed = 14.4, -- [default] studs/second; 10% slower than the first playable pace (owner feedback, issue #88)
+	speed = 7.2, -- [default] studs/second; half the first playable pace (owner feedback, issue #174)
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
 		-- rate = min(cap, base + perSection * sectionCount) shots/s. One line each to retune.
@@ -418,7 +418,7 @@ local config: ConfigType = {
 		range = 60, -- [default] studs along the street from the lead; spec (Amendment 1) names the key only
 	},
 	spectators = {
-		approachSpeed = 20, -- [default] studs/second a mob CHARGES toward the parade (was 6; issue #65, see DebugLayout); spec names the key only
+		approachSpeed = 27.2, -- [default] studs/second; keeps the former 34.4 relative closing speed when the parade pace halves (issue #174)
 		centerTolerance = 3, -- [default] studs; |x| at or below this counts as "center" (Amendment 1)
 		scatter = {
 			perReward = 2, -- [default] individuals per reward point (a +5 cluster stands 10 spectators)

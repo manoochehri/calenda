@@ -23,7 +23,7 @@ local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {tostring(expected)}, got {tostring(actual)}`)
 end
 
--- Short street: gate at z 64 (4 s), obstacle on the left at z 160 (10 s), plaza at z 320 (20 s).
+-- Short street: gate at z 64, obstacle on the left at z 160, plaza at z 320.
 local function fixture(): Level.Layout
 	return {
 		name = "fixture",
@@ -387,7 +387,7 @@ return {
 			})
 			-- run to the first tick that crosses the gate (z 64 -> tick 120)
 			local gateTick = 0
-			for i = 1, 200 do
+			for i = 1, math.ceil(64 / (Config.speed * DT)) + 1 do
 				table.clear(order)
 				table.clear(totals)
 				local events = d:tick(DT)

@@ -153,13 +153,17 @@ end
 
 return {
 	{
-		name = "march pace is modestly slower while the fixed route still fits the spec timeline",
+		name = "march pace is half speed while the fixed route still fits the spec timeline",
 		run = function()
 			assert(
 				math.abs(Config.speed - 7.2) < 1e-9,
 				`forward pace is not half the current 14.4 studs/s: {Config.speed}`
 			)
 			assert(FeedbackMath.FLIGHT_SPEED == 67.5, "projectile speed remains unchanged")
+			assert(
+				math.abs(Config.speed + Config.spectators.approachSpeed - 34.4) < 1e-9,
+				"mob and parade relative closing speed stays unchanged"
+			)
 			local r = LayoutValidator.check(DebugLayout)
 			assert(r.ok, `slower-pace layout rejected: {table.concat(r.errors, " | ")}`)
 			assert(math.abs(r.plazaTime - 90) <= 2, `plaza at {r.plazaTime} s`)
@@ -368,7 +372,7 @@ return {
 		l.plazaStart = 800
 	end),
 	rejects("street shorter than plaza", "streetLength", function(l)
-		l.streetLength = 1000
+		l.streetLength = l.plazaStart - 1
 	end),
 	rejects("first cluster too late", "first cluster", function(l)
 		for _, c in l.clusters do
@@ -376,7 +380,7 @@ return {
 		end
 	end),
 	rejects("gate before 10 s", "before 10", function(l)
-		gate(l, 1).z = 100
+		gate(l, 1).z = 9 * Config.speed
 	end),
 	rejects("fewer than two early gates", "early gates", function(l)
 		gate(l, 2).z = 28 * Config.speed
