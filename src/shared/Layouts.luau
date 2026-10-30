@@ -162,7 +162,7 @@ local portalDelSur = make("portal-del-sur", 1, {
 	obstacle(3, 86, "right"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3 },
+	soaks = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 2 }, -- #183: tail 3 -> 2 (witness 4458 -> 3893, n=45)
 	bigOnLeft = true,
 })
 
