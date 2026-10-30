@@ -147,7 +147,7 @@ local calleMercado = make("calle-del-mercado", 0, {
 	obstacle(3, 88, "left"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: one horde lane doubles what a shot lane converts
+	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: no soak waves; hordes come only from the single horde lane
 	bigOnLeft = false,
 })
 
@@ -166,7 +166,7 @@ local portalDelSur = make("portal-del-sur", 1, {
 	obstacle(3, 86, "right"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: one horde lane doubles what a shot lane converts
+	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: no soak waves; hordes come only from the single horde lane
 	bigOnLeft = true,
 })
 
