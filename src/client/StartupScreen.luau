@@ -15,8 +15,7 @@ export type Screen = {
 	setProgress: (self: Screen, fraction: number) -> (),
 	setMessage: (self: Screen, message: string) -> (),
 	showTitle: (self: Screen) -> (),
-	showCountIn: (self: Screen, cue: string) -> (),
-	finishCountIn: (self: Screen) -> (),
+	finishIntro: (self: Screen) -> (),
 	hide: (self: Screen) -> (),
 }
 
@@ -207,16 +206,6 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	backgroundGradient.Rotation = 30
 	backgroundGradient.Parent = veil
 
-	local countIn = label(veil, "CountIn", "", Enum.Font.FredokaOne)
-	countIn.AnchorPoint = Vector2.new(0.5, 0.5)
-	countIn.Position = UDim2.fromScale(0.5, 0.44)
-	countIn.Size = UDim2.fromScale(0.84, 0.22)
-	countIn.TextColor3 = Color3.fromRGB(255, 222, 164)
-	countIn.TextStrokeColor3 = INK
-	countIn.TextStrokeTransparency = 0
-	countIn.TextSize = 86
-	countIn.Visible = false
-
 	local card = Instance.new("Frame")
 	card.Name = "Card"
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -377,18 +366,8 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 		play.Visible = true
 		GuiService.SelectedObject = play
 	end
-	function screen.showCountIn(_, cue: string)
-		if not active then
-			return
-		end
-		loading.Visible = false
-		play.Visible = false
-		card.Visible = false
-		veil.BackgroundTransparency = 0.45
-		countIn.Text = cue
-		countIn.Visible = true
-	end
-	function screen.finishCountIn(_)
+	-- Play has been pressed: the title UI gives way to the opening camera move (issue #177).
+	function screen.finishIntro(_)
 		if active then
 			active = false
 			if inputConnection then
