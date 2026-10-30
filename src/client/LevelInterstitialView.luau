@@ -59,6 +59,48 @@ function View.new(onSkip: () -> ()): View
 	camera.FieldOfView = 35
 	camera.Parent = avatar
 	avatar.CurrentCamera = camera
+	local avatarGeneration = 0
+	local function populateAvatar(generation: number)
+		local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+		if generation ~= avatarGeneration or not gui.Enabled then
+			return
+		end
+		character:WaitForChild("HumanoidRootPart", 2)
+		if generation ~= avatarGeneration or not gui.Enabled then
+			return
+		end
+		-- Character models may opt out of cloning. This is a local presentation copy, so explicitly
+		-- enable cloning and leave the live character untouched if the property cannot be changed.
+		local archivable = character.Archivable
+		local setArchivable = pcall(function()
+			character.Archivable = true
+		end)
+		local ok, clone =
+			if setArchivable
+				then pcall(function()
+					return character:Clone()
+				end)
+				else false, nil
+		pcall(function()
+			character.Archivable = archivable
+		end)
+		if not ok or clone == nil then
+			return
+		end
+		for _, descendant in world:GetChildren() do
+			descendant:Destroy()
+		end
+		for _, descendant in clone:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				descendant.Anchored = true
+				descendant.CanCollide = false
+				descendant.CanTouch = false
+				descendant.CanQuery = false
+			end
+		end
+		clone:PivotTo(CFrame.new())
+		clone.Parent = world
+	end
 
 	local title = Instance.new("TextLabel")
 	title.Name = "NextLevel"
@@ -83,31 +125,16 @@ function View.new(onSkip: () -> ()): View
 
 	local view = {} :: View
 	function view.show(_, level: number, levelName: string)
+		avatarGeneration += 1
 		for _, child in world:GetChildren() do
 			child:Destroy()
 		end
-		local character = Players.LocalPlayer.Character
-		if character then
-			local ok, clone = pcall(function()
-				return character:Clone()
-			end)
-			if ok and clone then
-				for _, descendant in clone:GetDescendants() do
-					if descendant:IsA("BasePart") then
-						descendant.Anchored = true
-						descendant.CanCollide = false
-						descendant.CanTouch = false
-						descendant.CanQuery = false
-					end
-				end
-				clone:PivotTo(CFrame.new())
-				clone.Parent = world
-			end
-		end
 		title.Text = if levelName ~= "" then `Nivel {level}\n{levelName}` else `Nivel {level}`
 		gui.Enabled = true
+		task.spawn(populateAvatar, avatarGeneration)
 	end
 	function view.hide(_)
+		avatarGeneration += 1
 		gui.Enabled = false
 	end
 	return view
