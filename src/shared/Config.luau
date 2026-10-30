@@ -53,6 +53,12 @@ export type ConfigType = {
 	hazards: { tomatoSharePercent: number },
 	layout: { maxTotal: number },
 	speed: number,
+	hitVignette: {
+		peakAlpha: number,
+		riseSeconds: number,
+		fallSeconds: number,
+		minGapSeconds: number,
+	},
 	firing: { base: number, cap: number, perSection: number, range: number },
 	spectators: { approachSpeed: number, centerTolerance: number, scatter: ScatterConfig },
 	visualBudget: {
@@ -307,6 +313,22 @@ local function validate(c: any): (boolean, string?)
 			"musicLayerSections must be a strictly ascending list of non-negative integers"
 	end
 
+	local hv = c.hitVignette
+	if
+		type(hv) ~= "table"
+		or not isPositive(hv.riseSeconds)
+		or not isPositive(hv.fallSeconds)
+		or not isPositive(hv.minGapSeconds)
+		or type(hv.peakAlpha) ~= "number"
+		or not (hv.peakAlpha > 0 and hv.peakAlpha <= 0.5)
+	then
+		return false,
+			"hitVignette needs peakAlpha in (0, 0.5] and positive rise/fall/minGap seconds"
+	end
+	if hv.minGapSeconds < hv.riseSeconds + hv.fallSeconds then
+		return false, "hitVignette.minGapSeconds must be at least riseSeconds + fallSeconds"
+	end
+
 	local m = c.music
 	if type(m) ~= "table" then
 		return false, "music must be a table"
@@ -409,6 +431,10 @@ local config: ConfigType = {
 	-- Not a balance claim: the balance evidence is UNVERIFIED until the skeptic holds it.
 	layout = { maxTotal = 4000 },
 	speed = 7.2, -- [default] studs/second; half the first playable pace (owner feedback, issue #174)
+	-- Issue #171: the hit cue is a low-intensity red edge vignette that eases in and out. No white and
+	-- no full-screen pulse. peakAlpha caps opacity; minGapSeconds rate-limits it so overlapping hits
+	-- cannot stack into a strobe (validate() requires minGapSeconds >= rise + fall). [default]
+	hitVignette = { peakAlpha = 0.3, riseSeconds = 0.12, fallSeconds = 0.38, minGapSeconds = 0.6 },
 	firing = {
 		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
 		-- rate = min(cap, base + perSection * sectionCount) shots/s. One line each to retune.

@@ -80,7 +80,7 @@ function Hud.new(onReplay: () -> ()): Hud
 	GuiLayout.fullScreen(fx)
 	fx.Parent = playerGui
 
-	-- Hit flash: a vignette of four edge gradients plus a faint full-screen wash, white then red.
+	-- Hit cue (issue #171): a red vignette of four edge gradients. No white, no full-screen wash.
 	local flashParts: { Frame } = {}
 	local function flashEdge(position: UDim2, size: UDim2, rotation: number)
 		local f = Instance.new("Frame")
@@ -101,13 +101,6 @@ function Hud.new(onReplay: () -> ()): Hud
 	flashEdge(UDim2.fromScale(0, 0.75), UDim2.fromScale(1, 0.25), 270)
 	flashEdge(UDim2.fromScale(0, 0), UDim2.fromScale(0.15, 1), 0)
 	flashEdge(UDim2.fromScale(0.85, 0), UDim2.fromScale(0.15, 1), 180)
-	local wash = Instance.new("Frame")
-	wash.Name = "HitWash"
-	wash.Size = UDim2.fromScale(1, 1)
-	wash.BorderSizePixel = 0
-	wash.BackgroundTransparency = 1
-	wash.Visible = false
-	wash.Parent = fx
 
 	-- End of run panel. Shown purely from State (over/outcome); hidden again on replay. The dim
 	-- is full screen (fx gui); the texts and the replay button sit in the safe area.
@@ -171,17 +164,14 @@ function Hud.new(onReplay: () -> ()): Hud
 		end
 	end
 
+	local HIT_RED = Color3.fromRGB(200, 30, 40)
 	function hud.applyHit(_, s: HitFeedback.Sample)
 		local on = s.flash > 0.005
-		local color = Color3.fromRGB(255, 255, 255):Lerp(Color3.fromRGB(235, 40, 50), s.redMix)
 		for _, f in flashParts do
 			f.Visible = on
-			f.BackgroundColor3 = color
+			f.BackgroundColor3 = HIT_RED
 			f.BackgroundTransparency = 1 - s.flash
 		end
-		wash.Visible = on
-		wash.BackgroundColor3 = color
-		wash.BackgroundTransparency = 1 - s.flash * 0.25
 	end
 
 	-- Replay: no flash left over from the last run.

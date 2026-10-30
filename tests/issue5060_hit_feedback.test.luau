@@ -32,7 +32,7 @@ return {
 	{
 		name = "envelopes start at full, decay monotonically and are zero after their duration",
 		run = function()
-			for _, e in { HitFeedback.jolt, HitFeedback.shakeScale, HitFeedback.flashAlpha } do
+			for _, e in { HitFeedback.jolt, HitFeedback.shakeScale } do
 				local prev = math.huge
 				for i = 0, 40 do
 					local v = e(i * 0.02)
@@ -62,7 +62,10 @@ return {
 				fx:step(0.01)
 			end
 			assert(worstShake <= HitFeedback.MAX_SHAKE_STUDS + 1e-9, "shake capped")
-			assert(worstFlash <= HitFeedback.MAX_FLASH_ALPHA + 1e-9, "flash capped")
+			assert(
+				worstFlash <= require("../src/shared/Config").hitVignette.peakAlpha + 1e-9,
+				"flash capped"
+			)
 			assert(worstJolt <= HitFeedback.MAX_JOLT_SCALE + 1e-9, "jolt capped")
 			assert(worstShake > 0.05 and worstFlash > 0.05 and worstJolt > 0.05, "visible")
 		end,
