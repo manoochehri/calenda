@@ -18,14 +18,15 @@ local timedRequire = StartupTrace.timedRequire
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
 local LayerHeights = timedRequire("Shared", Shared, "LayerHeights")
+local StreetSurface = timedRequire("Shared", Shared, "StreetSurface")
 local LevelTheme = timedRequire("Shared", Shared, "LevelTheme")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local StrayBaseplate = timedRequire("Shared", Shared, "StrayBaseplate")
 local GateView = timedRequire("Client", script.Parent, "GateView")
 
 local WORLD_NAME = "CalendaWorld"
-local ROAD_HALF_WIDTH = DebugLayout.halfWidth - 6
-local SIDEWALK_WIDTH = 6
+local ROAD_HALF_WIDTH = StreetSurface.roadHalfWidth(DebugLayout.halfWidth)
+local SIDEWALK_WIDTH = StreetSurface.sidewalkWidth(DebugLayout.halfWidth)
 
 local function makePart(
 	parent: Instance,

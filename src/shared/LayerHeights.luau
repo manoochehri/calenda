@@ -4,6 +4,8 @@
 -- within a few hundredths of each other z-fight (the owner's "strobe on the road"). Every flat
 -- thing drawn on or just above the ground takes its TOP height from here, and any two that overlap
 -- differ by at least MIN_STEP studs. Pure: no Roblox APIs. Values are tuning defaults.
+local StreetSurface = require("./StreetSurface")
+
 local LayerHeights = {}
 
 LayerHeights.MIN_STEP = 0.2 -- studs; the least separation between two overlapping flat tops
@@ -58,12 +60,14 @@ export type LayoutInfo = {
 -- Bits (confetti), with their extents. OaxacaStreet's own surfaces come from StreetLayoutGen.
 function LayerHeights.surfaces(layout: LayoutInfo): { Surface }
 	local runIn = layout.runIn or 80
-	local half, road = layout.halfWidth, layout.halfWidth - 6
+	local half = layout.halfWidth
+	local road = StreetSurface.roadHalfWidth(half)
 	local list: { Surface } = {}
 	local function add(s: Surface)
 		table.insert(list, s)
 	end
-	add(surface("EarthPlate", LayerHeights.EARTH, -1500, 1500, -1500, layout.streetLength + 1500))
+	local plate = StreetSurface.groundPlate(layout.streetLength)
+	add(surface("EarthPlate", LayerHeights.EARTH, plate.x0, plate.x1, plate.z0, plate.z1))
 	add(surface("RunIn", LayerHeights.ROAD_BASE, -road, road, -runIn, 0))
 	if layout.startPlazaEnd then
 		add(
