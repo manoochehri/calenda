@@ -18,6 +18,7 @@ local Effects = require(Shared:WaitForChild("Effects"))
 local Dance = require(Shared:WaitForChild("Dance"))
 local DanceConfig = require(Shared:WaitForChild("DanceConfig"))
 local Config = require(Shared:WaitForChild("Config"))
+local CrowdFeel = require(Shared:WaitForChild("CrowdFeel"))
 local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
 local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
@@ -51,6 +52,8 @@ type Avatar = {
 	lastClock: number,
 	steps: number,
 	seen: boolean,
+	member: boolean, -- issue #178: drawn as a crowd member this frame
+	joinedAt: number, -- issue #178: clock time it last became a member (join bounce)
 }
 type ReyPiece = { part: Part, offset: Vector3 }
 type Rey = { pieces: { ReyPiece } }
@@ -262,6 +265,8 @@ local function buildFollower(parent: Instance): Avatar
 		lastClock = 0,
 		steps = 0,
 		seen = false,
+		member = false,
+		joinedAt = -math.huge,
 	}
 end
 
@@ -335,10 +340,9 @@ function CrowdView.new(): CrowdView
 	local danceAmplitude, danceTempo = 1, 1
 	local reactionKind = ""
 	local reactionAt = -math.huge
+	local cheerAt, flinchAt = -math.huge, -math.huge -- issue #178: total went up / down at this clock
 
 	local view = {} :: CrowdView
-
-	local breathNow = 1 -- crowd breathing scale of the frame being drawn
 
 	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
 		local avatar = live[id]
@@ -351,6 +355,10 @@ function CrowdView.new(): CrowdView
 			live[id] = avatar
 		end
 		avatar.seen = true
+		if marching and not avatar.member then
+			avatar.joinedAt = clock -- issue #178: a new member starts its join bounce
+		end
+		avatar.member = marching
 		local look = avatar.look
 		local isFar = lastLeadZ ~= nil and math.abs(z - lastLeadZ) > DanceConfig.farDistance
 		local beat = clock * Config.music.bpm / 60 * danceTempo + look.phase / (2 * math.pi)
@@ -377,8 +385,15 @@ function CrowdView.new(): CrowdView
 		else
 			hop += DanceConfig.runnerMarchHopScale * marchY -- runners and leavers keep their own hop
 		end
+		-- Issue #178: join bounce (members only), and the cheer or flinch shared by everyone drawn.
+		local joinAge = if marching then clock - avatar.joinedAt else math.huge
+		local feelHop, feelY, feelXZ = CrowdFeel.combine(joinAge, clock - cheerAt, clock - flinchAt)
+		hop += feelHop
+		sy *= feelY
+		sxz *= feelXZ
 		avatar.lastClock = clock
-		local k = look.scale * breathNow
+		-- Each follower breathes at its own offset, so the crowd does not pulse in lockstep.
+		local k = look.scale * FollowerLook.breath(clock, CrowdFeel.breathPhase(id))
 		local base = CFrame.new(ViewMap.x(x), hop, z)
 			* CFrame.Angles(
 				eventRoll,
@@ -433,8 +448,15 @@ function CrowdView.new(): CrowdView
 		if total ~= cachedTotal then
 			if cachedTotal < 0 then
 				flow:reset(total)
+				cheerAt, flinchAt = -math.huge, -math.huge
 			else
 				flow:setTotal(total)
+				-- Issue #178: the server's total went up (cheer) or down (flinch). Display only.
+				if total > cachedTotal then
+					cheerAt = clock
+				else
+					flinchAt = clock
+				end
 			end
 			cachedTotal = total
 		end
@@ -451,10 +473,10 @@ function CrowdView.new(): CrowdView
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
 		danceAmplitude, danceTempo = Dance.intensity(total, total // Config.sectionSize)
-		breathNow = FollowerLook.breath(clock)
 		-- Avatars are keyed by follower id: one follower leaving never restyles the others.
 		for _, avatar in live do
 			avatar.seen = false
+			avatar.member = false
 		end
 		for _, m in frame.members do
 			draw(m.id, m.x, m.z, m.vx, m.y, true)
