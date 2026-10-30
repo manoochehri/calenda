@@ -13,10 +13,13 @@ IntroCamera.DURATION = 3.2 -- [default] seconds for the whole move, Play to sett
 IntroCamera.FACE_HEIGHT = 4.9 -- [default] studs above the ground: the avatar's face (UNVERIFIED)
 IntroCamera.FACE_DISTANCE = 7 -- [default] studs in front of the face where the close view starts
 IntroCamera.FACE_CAMERA_HEIGHT = 5.4 -- [default] studs: the close view's camera sits at face level
+IntroCamera.AVATAR_WAIT = 1.5 -- [default] seconds Play waits for the avatar before the move starts without it
 
 export type Pose = CameraRig.Pose
 
-export type Intro = { startedAt: number, startDue: boolean }
+-- `playedAt` is when Play was pressed; `moveAt` is when the move starts (nil while it waits for
+-- the avatar). The run's Start request is due DURATION seconds after `moveAt`.
+export type Intro = { playedAt: number, moveAt: number?, startDue: boolean }
 
 -- Share of the move done, 0..1, for `elapsed` seconds since Play.
 function IntroCamera.progress(elapsed: number): number
@@ -59,15 +62,30 @@ function IntroCamera.pose(leadX: number, leadZ: number, t: number): Pose
 	}
 end
 
--- Starts the move at `now` (the moment Play is pressed).
+-- Starts the intro at `now` (the moment Play is pressed). The move itself waits for the avatar.
 function IntroCamera.begin(now: number): Intro
-	return { startedAt = now, startDue = false }
+	return { playedAt = now, moveAt = nil, startDue = false }
 end
 
--- One frame of the move. Returns this frame's pose and `startDue`: true exactly once, on the first
--- frame at or after the move has settled. The caller sends the run's Start request on that frame.
-function IntroCamera.step(intro: Intro, now: number, leadX: number, leadZ: number): (Pose, boolean)
-	local elapsed = now - intro.startedAt
+-- One frame of the intro. `avatarReady` says the lead's avatar part exists. Until it does, the
+-- camera holds the close view and the move does not start; after AVATAR_WAIT seconds it starts
+-- anyway, and the existing stand-in grace path covers the lead. Returns this frame's pose and
+-- `startDue`: true exactly once, on the first frame at or after DURATION past the move's start.
+-- The caller sends the run's Start request on that frame.
+function IntroCamera.step(
+	intro: Intro,
+	now: number,
+	leadX: number,
+	leadZ: number,
+	avatarReady: boolean
+): (Pose, boolean)
+	if intro.moveAt == nil and (avatarReady or now - intro.playedAt >= IntroCamera.AVATAR_WAIT) then
+		intro.moveAt = now
+	end
+	if intro.moveAt == nil then
+		return IntroCamera.pose(leadX, leadZ, 0), false
+	end
+	local elapsed = now - intro.moveAt
 	local pose = IntroCamera.pose(leadX, leadZ, IntroCamera.progress(elapsed))
 	local startDue = false
 	if elapsed >= IntroCamera.DURATION and not intro.startDue then

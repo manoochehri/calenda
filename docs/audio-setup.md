@@ -65,7 +65,7 @@ Source: github.com/Roblox/creator-docs, `content/en-us/reference/engine/classes/
 ## Studio checklist (UNVERIFIED in engine)
 
 - Selected track: start the experience, press **Jugar**, and confirm the loop begins during the
-  opening/count-in and continues through street play and the completed-run finale. It fades in and
+  opening camera move (issue #177, about 3.2 s) and continues through street play and the completed-run finale. It fades in and
   loops. Grow the crowd with
   gates: the track gets fuller (more reverb, brighter) without clicks or clipping.
 - Confirm device volume and the phone's silent switch can mute the sound, and gameplay remains

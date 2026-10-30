@@ -73,7 +73,11 @@ return {
 			eq(StartFlow.shouldUpdateMusic(f), false, "title stays silent")
 			StartFlow.play(f)
 			eq(f.phase, "playing", "local Play accepted")
-			eq(StartFlow.shouldUpdateMusic(f), true, "ready State can update music during count-in")
+			eq(
+				StartFlow.shouldUpdateMusic(f),
+				true,
+				"ready State can update music during the opening move"
+			)
 			StartFlow.serverPhase(f, "ready")
 			eq(
 				StartFlow.shouldUpdateMusic(f),

@@ -298,9 +298,15 @@ RunService:BindToRenderStep(
 			-- Opening move (issue #177): the run is still paused, so input and the server clock wait.
 			-- The lead stands at its start (x 0, z 0) while the camera settles on the game view.
 			local now = os.clock()
-			local introPose, startDue = IntroCamera.step(intro, now, ViewMap.x(0), 0)
-			leadAvatar:update(0, 0, dt)
+			-- The move waits for the avatar to exist (IntroCamera.AVATAR_WAIT at most).
+			local hasAvatar = leadAvatar:update(0, 0, dt)
+			local introPose, startDue = IntroCamera.step(intro, now, ViewMap.x(0), 0, hasAvatar)
 			placeCamera(introPose, 0, 0)
+			local introState = latest
+			if introState ~= nil and StartFlow.shouldUpdateMusic(startupFlow) then
+				-- Music keeps moving through the opening move, as the count-in did.
+				music:update(RunView.wholeTotal(introState.total), now)
+			end
 			if startDue then
 				intro = nil
 				startRemote:FireServer()

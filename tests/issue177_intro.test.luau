@@ -81,26 +81,113 @@ return {
 		run = function()
 			local intro = IntroCamera.begin(100)
 			local d = IntroCamera.DURATION
-			local _, due = IntroCamera.step(intro, 100, LEAD_X, LEAD_Z)
+			local _, due = IntroCamera.step(intro, 100, LEAD_X, LEAD_Z, true)
 			eq(due, false, "not due at Play")
-			_, due = IntroCamera.step(intro, 100 + d / 2, LEAD_X, LEAD_Z)
+			_, due = IntroCamera.step(intro, 100 + d / 2, LEAD_X, LEAD_Z, true)
 			eq(due, false, "not due halfway through the move")
-			_, due = IntroCamera.step(intro, 100 + d - 0.001, LEAD_X, LEAD_Z)
+			_, due = IntroCamera.step(intro, 100 + d - 0.001, LEAD_X, LEAD_Z, true)
 			eq(due, false, "not due just before the move settles")
-			_, due = IntroCamera.step(intro, 100 + d, LEAD_X, LEAD_Z)
+			_, due = IntroCamera.step(intro, 100 + d, LEAD_X, LEAD_Z, true)
 			eq(due, true, "due once the move has settled")
-			_, due = IntroCamera.step(intro, 100 + d + 5, LEAD_X, LEAD_Z)
+			_, due = IntroCamera.step(intro, 100 + d + 5, LEAD_X, LEAD_Z, true)
 			eq(due, false, "never due a second time")
+		end,
+	},
+	{
+		name = "the Start request is not due before DURATION, on every frame of the move",
+		run = function()
+			local d = IntroCamera.DURATION
+			local intro = IntroCamera.begin(0)
+			local frames = 0
+			for i = 0, 400 do
+				local now = i * (d / 200) -- samples up to and past DURATION
+				local _, due = IntroCamera.step(intro, now, LEAD_X, LEAD_Z, true)
+				if now < d - 1e-9 then
+					eq(due, false, `not due at {now} before DURATION {d}`)
+				end
+				if due then
+					frames += 1
+					assert(now >= d - 1e-9, `due only at or after DURATION, got {now}`)
+				end
+			end
+			eq(frames, 1, "due exactly once")
+			-- A frame half a second before the end is still not due.
+			local late = IntroCamera.begin(0)
+			local _, earlyDue = IntroCamera.step(late, d - 0.5, LEAD_X, LEAD_Z, true)
+			eq(earlyDue, false, "half a second short is not due")
 		end,
 	},
 	{
 		name = "the intro's camera pose is the one the step returns, settling on the game camera",
 		run = function()
 			local intro = IntroCamera.begin(0)
-			local pose = IntroCamera.step(intro, IntroCamera.DURATION, LEAD_X, LEAD_Z)
+			IntroCamera.step(intro, 0, LEAD_X, LEAD_Z, true) -- the move starts at 0
+			local pose = IntroCamera.step(intro, IntroCamera.DURATION, LEAD_X, LEAD_Z, true)
 			local game = CameraRig.pose(LEAD_X, LEAD_Z, 1)
 			near(pose.pz, game.pz, "settled pz")
 			near(pose.py, game.py, "settled py")
+		end,
+	},
+	{
+		name = "with no avatar yet, the move does not start: the camera holds the close view",
+		run = function()
+			local intro = IntroCamera.begin(0)
+			local start = IntroCamera.pose(LEAD_X, LEAD_Z, 0)
+			for i = 0, 10 do
+				local now = i * 0.1
+				local pose, due = IntroCamera.step(intro, now, LEAD_X, LEAD_Z, false)
+				eq(due, false, `no start while the avatar is missing at {now}`)
+				near(pose.pz, start.pz, `held pz at {now}`)
+				near(pose.py, start.py, `held py at {now}`)
+				near(pose.ly, start.ly, `held look height at {now}`)
+			end
+			eq(intro.moveAt, nil, "the move has not started")
+		end,
+	},
+	{
+		name = "the move starts on the frame the avatar appears, and Start is due DURATION later",
+		run = function()
+			local intro = IntroCamera.begin(0)
+			local _, due = IntroCamera.step(intro, 0.4, LEAD_X, LEAD_Z, false)
+			eq(due, false, "waiting")
+			local pose = IntroCamera.step(intro, 0.6, LEAD_X, LEAD_Z, true)
+			near(
+				pose.pz,
+				IntroCamera.pose(LEAD_X, LEAD_Z, 0).pz,
+				"first frame of the move is the close view"
+			)
+			eq(intro.moveAt, 0.6, "move starts when the avatar appears")
+			_, due =
+				IntroCamera.step(intro, 0.6 + IntroCamera.DURATION - 0.001, LEAD_X, LEAD_Z, true)
+			eq(due, false, "not due before DURATION after the move starts")
+			_, due = IntroCamera.step(intro, 0.6 + IntroCamera.DURATION, LEAD_X, LEAD_Z, true)
+			eq(due, true, "due DURATION after the move starts")
+		end,
+	},
+	{
+		name = "a missing avatar falls back to the move after AVATAR_WAIT (stand-in grace path)",
+		run = function()
+			local wait = IntroCamera.AVATAR_WAIT
+			assert(wait > 0 and wait < 3, "a short timeout")
+			local intro = IntroCamera.begin(0)
+			local _, due = IntroCamera.step(intro, wait - 0.01, LEAD_X, LEAD_Z, false)
+			eq(due, false, "still waiting just before the timeout")
+			eq(intro.moveAt, nil, "not started just before the timeout")
+			local pose = IntroCamera.step(intro, wait, LEAD_X, LEAD_Z, false)
+			eq(intro.moveAt, wait, "move starts at the timeout without an avatar")
+			near(
+				pose.pz,
+				IntroCamera.pose(LEAD_X, LEAD_Z, 0).pz,
+				"timeout frame is still the close view"
+			)
+			local mid =
+				IntroCamera.step(intro, wait + IntroCamera.DURATION / 2, LEAD_X, LEAD_Z, false)
+			assert(mid.pz < pose.pz, "the move has begun after the timeout")
+			_, due =
+				IntroCamera.step(intro, wait + IntroCamera.DURATION - 0.001, LEAD_X, LEAD_Z, false)
+			eq(due, false, "Start not due before DURATION after the timeout")
+			_, due = IntroCamera.step(intro, wait + IntroCamera.DURATION, LEAD_X, LEAD_Z, false)
+			eq(due, true, "Start due DURATION after the timeout")
 		end,
 	},
 }
