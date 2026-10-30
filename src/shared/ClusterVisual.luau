@@ -161,7 +161,12 @@ function ClusterVisual.new(layout: Level.Layout, config: any?): Tracker
 		local out: { View } = {}
 		local cull = cullAhead
 		for _, c in order do
-			if t >= c.spawnTime and #out < ClusterVisual.MAX_VISIBLE_CLUSTERS then
+			-- Once the visible cap is full every later cluster would be skipped by the test below,
+			-- so stop scanning: no per-frame View tables for the rest of the level's clusters.
+			if #out >= ClusterVisual.MAX_VISIBLE_CLUSTERS then
+				break
+			end
+			if t >= c.spawnTime then
 				local need = needed(c)
 				local h = hits[c.id] or 0
 				local view: View = {
