@@ -26,6 +26,20 @@ return {
 		end,
 	},
 	{
+		name = "the hand-off holds away from the origin too (lead at a nonzero x and z)",
+		run = function()
+			local x, z = 7.5, 40
+			local end_ = IntroCamera.pose(x, z, 1)
+			local game = CameraRig.pose(x, z, 1)
+			near(end_.px, game.px, "px")
+			near(end_.py, game.py, "py")
+			near(end_.pz, game.pz, "pz")
+			near(end_.lx, game.lx, "lx")
+			near(end_.ly, game.ly, "ly")
+			near(end_.lz, game.lz, "lz")
+		end,
+	},
+	{
 		name = "the intro ends behind the player (the avatar faces +z, the camera is at -z)",
 		run = function()
 			local end_ = IntroCamera.pose(LEAD_X, LEAD_Z, 1)
