@@ -315,39 +315,14 @@ local function addAvatarSlot(parent: Instance): () -> ()
 	local center = Vector3.zero
 	local size = Vector3.new(2, 5, 1)
 	local sincePoll = CHARACTER_POLL -- look at once
+	local partial: ViewportFrame? = nil -- a viewport mid-build, so a failed build can remove it
 	local alive = true
 
-	-- Builds the viewport from the local character; false while it is not ready or cloning fails.
-	local function attach(): boolean
-		local character = player.Character
-		if character == nil then
-			return false
-		end
-		local okLoaded, loaded = pcall(function()
-			return player:HasAppearanceLoaded()
-		end)
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		local hrp = character:FindFirstChild("HumanoidRootPart")
-		if not (okLoaded and loaded) or humanoid == nil or hrp == nil then
-			return false
-		end
-		-- The shipped walk Animation of the standard "Animate" script, when present (UNVERIFIED).
-		local walk: Animation? = nil
-		local animate = character:FindFirstChild("Animate")
-		local walkFolder = animate and animate:FindFirstChild("walk")
-		if walkFolder then
-			walk = walkFolder:FindFirstChildWhichIsA("Animation")
-		end
-		local wasArchivable = character.Archivable
-		character.Archivable = true
-		local okClone, copy = pcall(function()
-			return character:Clone()
-		end)
-		character.Archivable = wasArchivable
-		if not okClone or copy == nil then
-			return false
-		end
-		local model = copy :: Model
+	local status: AvatarSlot.AttachStatus = "pending"
+
+	-- Everything after the clone: viewport, world, pose, camera, walk animation. Runs under pcall
+	-- (see attach), because a throw here would otherwise repeat inside RenderStepped.
+	local function build(model: Model, walk: Animation?)
 		for _, d in model:GetDescendants() do
 			if d:IsA("BaseScript") then
 				d:Destroy()
@@ -357,6 +332,7 @@ local function addAvatarSlot(parent: Instance): () -> ()
 			end
 		end
 		local view = Instance.new("ViewportFrame")
+		partial = view
 		view.Name = "Avatar"
 		view.Size = UDim2.fromScale(1, 1)
 		view.BackgroundTransparency = 1
@@ -373,10 +349,9 @@ local function addAvatarSlot(parent: Instance): () -> ()
 			clonedHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		end
 		-- Face the camera (a Roblox front is -z) in a slight three-quarter view.
-		base = CFrame.new(0, 3, 0) * CFrame.Angles(0, math.rad(-20), 0)
-		model:PivotTo(base)
+		local newBase = CFrame.new(0, 3, 0) * CFrame.Angles(0, math.rad(-20), 0)
+		model:PivotTo(newBase)
 		local boxCF, boxSize = model:GetBoundingBox()
-		center, size = boxCF.Position, boxSize
 		local cam = Instance.new("Camera")
 		cam.FieldOfView = AvatarSlot.FOV
 		cam.Parent = view
@@ -390,9 +365,58 @@ local function addAvatarSlot(parent: Instance): () -> ()
 				track:Play()
 			end)
 		end
+		-- Commit only once nothing above threw.
+		base, center, size = newBase, boxCF.Position, boxSize
 		viewport, clone, camera = view, model, cam
 		puppet.Visible = false
-		return true
+	end
+
+	-- Tries to build the viewport from the local character. Returns "notready" while the character
+	-- is not ready or cloning fails, "built" on success, and "threw" if the setup errored (the
+	-- half-built pieces are destroyed and the caller latches to the puppet).
+	local function attach(): AvatarSlot.AttachOutcome
+		local character = player.Character
+		if character == nil then
+			return "notready"
+		end
+		local okLoaded, loaded = pcall(function()
+			return player:HasAppearanceLoaded()
+		end)
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if not (okLoaded and loaded) or humanoid == nil or hrp == nil then
+			return "notready"
+		end
+		-- The shipped walk Animation of the standard "Animate" script, when present (UNVERIFIED).
+		local walk: Animation? = nil
+		local animate = character:FindFirstChild("Animate")
+		local walkFolder = animate and animate:FindFirstChild("walk")
+		if walkFolder then
+			walk = walkFolder:FindFirstChildWhichIsA("Animation")
+		end
+		local wasArchivable = character.Archivable
+		character.Archivable = true
+		local okClone, copy = pcall(function()
+			return character:Clone()
+		end)
+		character.Archivable = wasArchivable
+		if not okClone or copy == nil then
+			return "notready"
+		end
+		local model = copy :: Model
+		partial = nil
+		local okBuild = pcall(build, model, walk)
+		if okBuild then
+			return "built"
+		end
+		-- Fall back to the puppet: drop the clone and any half-built viewport.
+		model:Destroy()
+		if partial then
+			(partial :: ViewportFrame):Destroy()
+			partial = nil
+		end
+		puppet.Visible = true
+		return "threw"
 	end
 
 	local connection: RBXScriptConnection
@@ -401,10 +425,12 @@ local function addAvatarSlot(parent: Instance): () -> ()
 			return
 		end
 		if clone == nil then
-			sincePoll += dt
-			if sincePoll >= CHARACTER_POLL then
-				sincePoll = 0
-				attach()
+			if AvatarSlot.shouldPoll(status) then
+				sincePoll += dt
+				if sincePoll >= CHARACTER_POLL then
+					sincePoll = 0
+					status = AvatarSlot.attachNext(status, attach())
+				end
 			end
 			return
 		end

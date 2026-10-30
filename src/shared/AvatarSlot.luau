@@ -32,4 +32,28 @@ function AvatarSlot.march(clock: number): March
 	}
 end
 
+-- The attach fallback (reviewer suggestion on PR #205). The title screen tries to attach the
+-- player's avatar while `pending`. An attempt reports "notready" (character or appearance not
+-- there yet: keep polling), "built" (the viewport works) or "threw" (the setup errored). A throw
+-- latches to the "puppet" cutout for good, so a failing setup is not repeated every poll.
+export type AttachStatus = "pending" | "attached" | "puppet"
+export type AttachOutcome = "notready" | "built" | "threw"
+
+function AvatarSlot.attachNext(status: AttachStatus, outcome: AttachOutcome): AttachStatus
+	if status ~= "pending" then
+		return status -- attached and puppet are final
+	end
+	if outcome == "built" then
+		return "attached"
+	elseif outcome == "threw" then
+		return "puppet"
+	end
+	return "pending"
+end
+
+-- Whether the next poll should look for the character at all.
+function AvatarSlot.shouldPoll(status: AttachStatus): boolean
+	return status == "pending"
+end
+
 return AvatarSlot

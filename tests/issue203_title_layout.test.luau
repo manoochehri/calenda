@@ -60,7 +60,10 @@ return {
 					local r = rect(n, a)
 					assert(r.x >= safe.x - EPS, `{a.name}: {n} left of the safe area`)
 					assert(r.x + r.w <= safe.x + safe.w + EPS, `{a.name}: {n} right of safe`)
-					assert(r.y + r.h <= 390 + EPS, `{a.name}: {n} below the screen`)
+					assert(
+						r.y + r.h <= ScreenLayout.screenRect(a).h + EPS,
+						`{a.name}: {n} below the screen`
+					)
 				end
 				local slot = rect("AvatarSlot", a)
 				assert(slot.y + slot.h <= play.y + EPS, `{a.name}: slot runs into Play`)
