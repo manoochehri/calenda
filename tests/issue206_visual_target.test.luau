@@ -8,6 +8,7 @@ local FeedbackMath = require("../src/shared/FeedbackMath")
 local FollowerLook = require("../src/shared/FollowerLook")
 local MobCharge = require("../src/shared/MobCharge")
 local Layouts = require("../src/shared/Layouts")
+local DebugLayout = require("../src/shared/DebugLayout")
 
 local function isRed(c: { number }): boolean
 	return c[1] >= 190 and c[2] <= 80 and c[3] <= 80
@@ -18,6 +19,37 @@ local function isBlue(c: { number }): boolean
 end
 
 return {
+	{
+		-- The level the server and client actually play is DebugLayout ("oaxacan-street" in
+		-- RunServer), not Layouts.all. #213 changed only Layouts.all, so the owner still saw two lanes.
+		name = "issue 206: the PLAYED level (DebugLayout) sends all its hordes down one side lane",
+		run = function()
+			local lane = DebugLayout.clusters[1].lane
+			assert(lane ~= "center", "horde lane must be a side lane")
+			for _, c in DebugLayout.clusters do
+				assert(c.lane == lane, `cluster {c.id} is in {c.lane}, expected {lane}`)
+				assert(
+					(c.spawn.x < 0) == (lane == "left"),
+					`cluster {c.id} spawns at x={c.spawn.x}, not in the {lane} lane`
+				)
+			end
+		end,
+	},
+	{
+		-- Owner: "flashing red stuff and flashing ground". The hordes' alert colour, the red screen-edge
+		-- strips and the orange ground chevrons all oscillated their brightness over time (#85, #171:
+		-- nothing may flash). ClusterView needs Roblox, so this checks its source for the oscillators.
+		name = "issue 206: ClusterView does not oscillate brightness (no pulse phase, no sine blink)",
+		run = function()
+			local source = fs.readFile("src/client/ClusterView.luau")
+			assert(not source:find("Emergence.pulse(", 1, true), "alert pulse oscillates")
+			assert(not source:find("Emergence.pulseRate(", 1, true), "pulse rate drives a phase")
+			assert(
+				not source:find("math.sin(clock", 1, true),
+				"chevrons blink on a sine of the clock"
+			)
+		end,
+	},
 	{
 		name = "issue 206: every authored layout sends all its hordes down one lane",
 		run = function()

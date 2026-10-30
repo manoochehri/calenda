@@ -577,13 +577,13 @@ function ClusterView.new(layout: any): ClusterView
 			local hitAt = impactAt[v.id]
 			local sq = ShotLook.squash(if hitAt ~= nil then clock - hitAt else -1)
 			local dip = math.clamp((1 - sq.y) / ShotLook.SQUASH_AMOUNT, 0, 1)
-			-- Alert pulse: an unconverted mob flashes faster as it closes in on the parade.
+			-- Alert: an unconverted mob reddens as it closes in on the parade. Issue #85/#171/#206:
+			-- STEADY, ramping with the threat only. It used to oscillate with a running phase, which
+			-- read as flashing red on the hordes and on the screen edges.
 			local pulse = 0
 			if v.phase == "walking" then
 				local threat = Emergence.threat(v.ahead)
-				local phase = (pulsePhase[v.id] or 0) + dt * Emergence.pulseRate(threat)
-				pulsePhase[v.id] = phase
-				pulse = Emergence.pulse(threat, phase) * fade
+				pulse = threat * fade
 				worstThreat = math.max(worstThreat, pulse)
 				approachThreat = math.max(approachThreat, threat * fade)
 				table.insert(
@@ -666,10 +666,9 @@ function ClusterView.new(layout: any): ClusterView
 		local cs = chevronPool:setCount(#shownChevrons)
 		for i, c in cs do
 			local sc = shownChevrons[i]
-			local blink = 0.55 + 0.45 * math.sin(clock * 9)
 			local z = leadZ + depth * CHEVRON_ROW
 			local y = LayerHeights.TELEGRAPH - 0.1
-			local tr = 1 - sc.alpha * blink
+			local tr = 1 - sc.alpha * 0.8 -- steady (#206): the fade-in with distance is the only change
 			-- two bars forming a "v" whose apex points down the lane (Emergence.chevronBars, tested);
 			-- the lateral position goes through ViewMap.x once, the shape is symmetric
 			local bars = Emergence.chevronBars(ViewMap.x(sc.x), z)

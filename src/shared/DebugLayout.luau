@@ -37,7 +37,8 @@ end
 --    away, rounded up to quarter seconds) until it spawns beyond the visible depth + margin. From
 --    the old geometry on, positions are unchanged.
 local WAVE_DELAY = 9 -- seconds [default]
-local SOAKS = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 } -- [default] extra small groups per pair
+local SOAKS = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } -- [default] extra small groups per pair (#206: none; one horde lane, as Layouts)
+local LARGE_TRAIL = 14 -- studs the large group of a pair sits behind its small group (one lane)
 local PLAZA_SECONDS = 90 -- run seconds at which the plaza starts (paceDistance(1440) at Config.speed)
 local LAST_ARRIVAL_MARGIN = 2 -- seconds: the last wave arrives at least this long before the plaza
 local SOAK_STEP = 1.5 -- [default] studs each soak sits nearer the lead than the one before
@@ -76,10 +77,15 @@ while true do
 		break
 	end
 	local base = Config.speed * arrive + 20 -- z of the small group, as before
-	add(pair * 2 - 1, "small", -LANE_CENTER, "left", arrive, base)
-	add(pair * 2, "large", LANE_CENTER, "right", arrive, base)
+	-- Issue #206 (Amendment 12): every horde comes down ONE lane (the right), as in Layouts. #213
+	-- changed Layouts only, but THIS is the level that is played (RunServer "oaxacan-street").
+	-- The large group comes every second pair and trails its pair's small group by LARGE_TRAIL.
+	add(pair * 2 - 1, "small", LANE_CENTER, "right", arrive, base)
+	if pair % 2 == 0 then
+		add(pair * 2, "large", LANE_CENTER, "right", arrive, base + LARGE_TRAIL)
+	end
 	for soak = 1, SOAKS[math.min(pair, #SOAKS)] do
-		add(pair * 2 - 1, "small", -LANE_CENTER, "left", arrive, base - SOAK_STEP * soak)
+		add(pair * 2 - 1, "small", LANE_CENTER, "right", arrive, base - SOAK_STEP * soak)
 	end
 end
 
