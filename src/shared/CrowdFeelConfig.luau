@@ -19,5 +19,7 @@ return table.freeze({
 	-- Clamps applied to the sum of every active feel term, so stacked events stay bounded.
 	MAX_SQUASH = 0.35,
 	MAX_HOP = 1.6,
-	MIN_HOP = -0.6,
+	-- Floor for the summed hop: the base never goes below its rest height. A flinch alone then reads
+	-- as a squash near the ground, and it only lowers a cheer that is still rising.
+	MIN_HOP = 0,
 })

@@ -153,6 +153,58 @@ return {
 		end,
 	},
 	{
+		name = "a retrigger during a running bump keeps its start and never snaps it to rest",
+		run = function()
+			local start = CrowdFeel.startBump(-math.huge, 0, C.CHEER_SECONDS)
+			near(start, 0, "the first trigger starts the bump at its own time")
+			-- Rapid conversions retrigger many times inside one cheer: the start must not move.
+			local startAt = start
+			local t = 0
+			local prev = CrowdFeel.cheer(0)
+			-- Retriggers every 0.02s while the bump is still running (strictly before its end).
+			while t + 0.02 < C.CHEER_SECONDS do
+				t += 0.02
+				startAt = CrowdFeel.startBump(startAt, t, C.CHEER_SECONDS)
+				near(startAt, start, `retrigger at {t} reset the bump`)
+				local hop = CrowdFeel.cheer(t - startAt)
+				assert(hop > 0, `bump returned to rest early at {t}`)
+				-- No snap: between two samples 0.02s apart the hop moves only a little.
+				assert(
+					math.abs(hop - prev) < 0.2 * C.CHEER_HOP,
+					`hop jumped {prev} to {hop} at {t}`
+				)
+				prev = hop
+			end
+			local later = CrowdFeel.startBump(start, C.CHEER_SECONDS + 0.1, C.CHEER_SECONDS)
+			near(
+				later,
+				C.CHEER_SECONDS + 0.1,
+				"after the bump ends a new trigger starts a new bump"
+			)
+		end,
+	},
+	{
+		name = "combined offset never sinks the base below its rest height",
+		run = function()
+			-- Overlapping join, cheer and flinch at every time in a sweep.
+			local t = 0
+			while t <= 2 do
+				local hop = CrowdFeel.combine(t, t - 0.1, t - 0.05)
+				assertFinite(hop, "combined hop")
+				assert(hop >= 0 - EPS, `base sank below rest at {t}: hop {hop}`)
+				assert(hop >= C.MIN_HOP - EPS, `hop {hop} below MIN_HOP at {t}`)
+				t += 0.005
+			end
+			-- The flinch dip alone (join and cheer at rest) is the case that used to sink the base.
+			local f = 0
+			while f <= C.FLINCH_SECONDS + 0.1 do
+				local dip = CrowdFeel.combine(math.huge, math.huge, f)
+				assert(dip >= 0 - EPS, `flinch alone sank the base to {dip} at age {f}`)
+				f += 0.001
+			end
+		end,
+	},
+	{
 		name = "tunables are sane and every peak fits inside its clamp",
 		run = function()
 			for _, key in
@@ -162,7 +214,8 @@ return {
 			end
 			assert(C.JOIN_HOP <= C.MAX_HOP, "a join bounce fits inside MAX_HOP")
 			assert(C.CHEER_HOP <= C.MAX_HOP, "a cheer fits inside MAX_HOP")
-			assert(C.FLINCH_DIP <= -C.MIN_HOP, "a flinch fits inside MIN_HOP")
+			assert(C.MIN_HOP == 0, "the hop floor is the rest height, so the base never sinks")
+			assert(C.FLINCH_DIP > 0, "a flinch dips (the dip is clamped at the floor when alone)")
 			assert(C.JOIN_SQUASH <= C.MAX_SQUASH and C.FLINCH_SQUASH <= C.MAX_SQUASH, "squash caps")
 			assert(C.BREATH_SPREAD_BEATS <= 1, "breath spread is at most one beat")
 			assert(C.JOIN_SECONDS < 1 and C.CHEER_SECONDS < 1.5, "feedback is short")

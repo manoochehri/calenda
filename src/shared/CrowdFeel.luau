@@ -48,6 +48,16 @@ function CrowdFeel.flinch(age: number): (number, number)
 	return -C.FLINCH_DIP * s, C.FLINCH_SQUASH * s
 end
 
+-- The clock time a cheer or flinch bump starts at. A total change while that bump is still running
+-- keeps its start, so rapid conversions never snap it back to rest and rise again (issue #178).
+-- Once the bump has ended, a new change starts a new one.
+function CrowdFeel.startBump(startAt: number, now: number, seconds: number): number
+	if finite(startAt) and now >= startAt and now - startAt < seconds then
+		return startAt
+	end
+	return now
+end
+
 local function clamp(x: number, lo: number, hi: number): number
 	return math.max(lo, math.min(hi, x))
 end

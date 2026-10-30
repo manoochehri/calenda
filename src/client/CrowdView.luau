@@ -19,6 +19,7 @@ local Dance = require(Shared:WaitForChild("Dance"))
 local DanceConfig = require(Shared:WaitForChild("DanceConfig"))
 local Config = require(Shared:WaitForChild("Config"))
 local CrowdFeel = require(Shared:WaitForChild("CrowdFeel"))
+local CrowdFeelConfig = require(Shared:WaitForChild("CrowdFeelConfig"))
 local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
 local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
@@ -452,10 +453,11 @@ function CrowdView.new(): CrowdView
 			else
 				flow:setTotal(total)
 				-- Issue #178: the server's total went up (cheer) or down (flinch). Display only.
+				-- A change during a running bump keeps that bump (no snap back to rest).
 				if total > cachedTotal then
-					cheerAt = clock
+					cheerAt = CrowdFeel.startBump(cheerAt, clock, CrowdFeelConfig.CHEER_SECONDS)
 				else
-					flinchAt = clock
+					flinchAt = CrowdFeel.startBump(flinchAt, clock, CrowdFeelConfig.FLINCH_SECONDS)
 				end
 			end
 			cachedTotal = total
