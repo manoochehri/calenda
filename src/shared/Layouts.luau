@@ -15,6 +15,7 @@ local Layouts = {}
 type Gate = Level.Gate
 type Obstacle = Level.Obstacle
 
+local LARGE_TRAIL = 14 -- studs the large group of a pair sits behind its small group (one lane)
 local SOAK_STEP = 1.5 -- studs each soak sits nearer the lead than the one before
 local PLAZA_SECONDS = 90 -- run seconds at which the plaza starts (every layout's plazaStart)
 -- Issue #142: the wave rhythm continues through the late route. Pairs keep arriving on the same
@@ -73,10 +74,11 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 			lane = lane,
 		})
 	end
-	local smallX = if spec.bigOnLeft then LANE_CENTER else -LANE_CENTER
-	local bigX = -smallX
-	local smallLane = if spec.bigOnLeft then "right" else "left"
-	local bigLane = if spec.bigOnLeft then "left" else "right"
+	-- Issue #206 (Amendment 12): every horde of a layout comes down ONE lane, so the player can see
+	-- and shoot them; the other lanes are for pickups, gates and power-ups. `bigOnLeft` now picks
+	-- that lane (left when true), and the large group trails its pair's small group by LARGE_TRAIL.
+	local hordeX = if spec.bigOnLeft then -LANE_CENTER else LANE_CENTER
+	local hordeLane = if spec.bigOnLeft then "left" else "right"
 	local pair = 0
 	while true do
 		pair += 1
@@ -85,11 +87,13 @@ local function buildClusters(spec: WaveSpec): { Level.Cluster }
 			break
 		end
 		local base = Config.speed * arrive + 20
-		add(pair * 2 - 1, "small", smallX, smallLane, arrive, base)
-		add(pair * 2, "large", bigX, bigLane, arrive, base)
+		add(pair * 2 - 1, "small", hordeX, hordeLane, arrive, base)
+		if pair % 2 == 0 then -- one lane carries everything, so the large group comes every second pair
+			add(pair * 2, "large", hordeX, hordeLane, arrive, base + LARGE_TRAIL)
+		end
 		local soaks = spec.soaks[math.min(pair, #spec.soaks)]
 		for soak = 1, soaks do
-			add(pair * 2 - 1, "small", smallX, smallLane, arrive, base - SOAK_STEP * soak)
+			add(pair * 2 - 1, "small", hordeX, hordeLane, arrive, base - SOAK_STEP * soak)
 		end
 	end
 	return clusters
@@ -143,7 +147,7 @@ local calleMercado = make("calle-del-mercado", 0, {
 	obstacle(3, 88, "left"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4 },
+	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: one horde lane doubles what a shot lane converts
 	bigOnLeft = false,
 })
 
@@ -162,7 +166,7 @@ local portalDelSur = make("portal-del-sur", 1, {
 	obstacle(3, 86, "right"),
 }, {
 	waveDelay = 9,
-	soaks = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 2 }, -- #183: tail 3 -> 2 (witness 4458 -> 3893, n=45)
+	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: one horde lane doubles what a shot lane converts
 	bigOnLeft = true,
 })
 

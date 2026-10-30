@@ -28,7 +28,7 @@ return {
 			for _ in scales do
 				ns += 1
 			end
-			eq(nc, #FollowerLook.PALETTE, "every palette tone is used (not one flat blue)")
+			eq(nc, #FollowerLook.PALETTE, "every palette tone is used (a blue family, issue 206)")
 			assert(ns >= 60, "sizes vary")
 			assert(toppers.hat and toppers.flower and toppers.none, "hats, flowers and bare heads")
 		end,

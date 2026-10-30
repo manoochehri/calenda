@@ -352,8 +352,8 @@ function ClusterView.new(layout: any): ClusterView
 		local p = newPart(folder, Enum.PartType.Block, Vector3.new(1, 1, 1), SPECTATOR_COLOR)
 		p.Transparency = 1
 		local gui = Instance.new("BillboardGui")
-		gui.Size = UDim2.fromOffset(160, 70)
-		gui.AlwaysOnTop = true
+		gui.Size = UDim2.fromOffset(FeedbackMath.FLOAT_GUI_SIZE.x, FeedbackMath.FLOAT_GUI_SIZE.y)
+		gui.AlwaysOnTop = FeedbackMath.FLOAT_ALWAYS_ON_TOP
 		gui.Parent = p
 		return {
 			part = p,
