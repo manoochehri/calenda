@@ -164,6 +164,14 @@ return {
 				math.abs(Config.speed + Config.spectators.approachSpeed - 34.4) < 1e-9,
 				"mob and parade relative closing speed stays unchanged"
 			)
+			assert(
+				math.abs(DebugLayout.plazaStart - 90 * Config.speed) < 1e-9,
+				"plaza distance preserves its 90-second timing"
+			)
+			assert(
+				math.abs(DebugLayout.streetLength - 100 * Config.speed) < 1e-9,
+				"street length scales with the march pace"
+			)
 			local r = LayoutValidator.check(DebugLayout)
 			assert(r.ok, `slower-pace layout rejected: {table.concat(r.errors, " | ")}`)
 			assert(math.abs(r.plazaTime - 90) <= 2, `plaza at {r.plazaTime} s`)
