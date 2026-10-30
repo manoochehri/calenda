@@ -415,7 +415,13 @@ return {
 		l.obstacles[1].z = 15 * Config.speed
 	end),
 	rejects("wave mixes lanes", "mixes lanes", function(l)
-		cluster(l, 2).wave = cluster(l, 1).wave
+		-- Issue #206: the played level has one horde lane, so put cluster 2 in the other lane and
+		-- in the same wave as cluster 1 (lane and spawn x agree, so only the mix is wrong).
+		local other = cluster(l, 1)
+		local second = cluster(l, 2)
+		second.wave = other.wave
+		second.lane = "left"
+		second.spawn = { x = -10, z = second.spawn.z }
 	end),
 	rejects("gates too close to read", "too close", function(l)
 		gate(l, 4).z = gate(l, 3).z + Config.speed
