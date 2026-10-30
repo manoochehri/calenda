@@ -48,3 +48,8 @@ scan:
 # Full policy-ladder report (issue #17): ~5,000 headless runs, prints to stdout. Not part of `make test`.
 ladder:
 	$(TOOLS) lune run tests/ladder
+
+# Headless frame-cost profile of the pure Lua per-frame work (issue #147). Not part of `make test`.
+# Mode is one of views, low, medium, high, mixed. Engine costs (BulkMoveTo, rendering) are NOT measured.
+bench:
+	$(TOOLS) lune run tools/bench/frame_cost.luau medium 600 5
