@@ -4,10 +4,12 @@
 Accepted: 2026-10-29 by architect decision on issue #156
 
 ## Context
-ADR 0010 Decision 1 kept authored spawn x values unchanged, so spectator placement would not change. Spec Amendment 9 (Rendering) instead says to move outer-lane spawn x positions to lane centers without deleting mobs. Production layouts spawn every outer group at x = ±16 (`buildClusters`, `smallX` in `src/shared/Layouts.luau`). The lane bands in `LaneGeometry` are [-15,-5), [-5,5) and [5,15], with centers -10, 0 and 10. x = ±16 falls in no band, so `LayoutValidator` cannot assign a lane to those spawns under `lane == LaneGeometry.laneOf(spawn.x)` (ADR 0010 Decision 2). Issue #156 was blocked on this conflict.
+ADR 0010 Decision 1 kept authored spawn x values unchanged, so spectator placement would not change. Spec Amendment 9 (Rendering) instead says to move outer-lane spawn x positions to lane centers without deleting mobs. Production layouts spawn each outer pair's groups at x = ±16 (`buildClusters` in `src/shared/Layouts.luau`: `smallX` and `bigX`, where `bigX = -smallX`). The lane bands in `LaneGeometry` are [-15,-5), [-5,5) and [5,15], with centers -10, 0 and 10. x = ±16 falls in no band, so `LayoutValidator` cannot assign a lane to those spawns under `lane == LaneGeometry.laneOf(spawn.x)` (ADR 0010 Decision 2). Issue #156 was blocked on this conflict.
 
 ## Decision
-This supersedes ADR 0010 Decision 1, only the clause "Authored spawn x values do not change", and only for outer-lane clusters. Their spawn x moves from ±16 to the lane centers ±10, as Amendment 9 states. Spawn z, `spawnTime`, group counts and soaks do not change. Every other clause of ADR 0010 Decision 1 stands, and so does the rest of ADR 0010.
+This supersedes ADR 0010 Decision 1, only the clause "Authored spawn x values do not change", and only for outer-lane clusters. Both groups in each outer pair move: `smallX` and `bigX` (`bigX = -smallX`), so the outer-pair groups go from ±16 to ±10, the lane centers, as Amendment 9 states.
+
+**Dependency note:** `LaneGeometry` is not yet on `main`. The lane-band citation in Context (bands [-15,-5), [-5,5), [5,15] and their centers) rests on ADR 0010 alone until #156 lands and provides the module. Spawn z, `spawnTime`, group counts and soaks do not change. Every other clause of ADR 0010 Decision 1 stands, and so does the rest of ADR 0010.
 
 ## Alternatives considered
 - Keep x = ±16 and define `laneOf(|x| > 15)` as the outer lane: keeps placement, but adds a rule the spec does not state.
