@@ -47,7 +47,7 @@ return {
 		end,
 	},
 	{
-		name = "sampled feedback is capped: shake studs, flash alpha, jolt scale",
+		name = "sampled feedback is capped and contains no screen flash",
 		run = function()
 			local fx = HitFeedback.new()
 			fx:hit(1)
@@ -62,12 +62,12 @@ return {
 				fx:step(0.01)
 			end
 			assert(worstShake <= HitFeedback.MAX_SHAKE_STUDS + 1e-9, "shake capped")
-			assert(
-				worstFlash <= require("../src/shared/Config").hitVignette.peakAlpha + 1e-9,
-				"flash capped"
-			)
+			eq(worstFlash, 0, "screen flash removed")
 			assert(worstJolt <= HitFeedback.MAX_JOLT_SCALE + 1e-9, "jolt capped")
-			assert(worstShake > 0.05 and worstFlash > 0.05 and worstJolt > 0.05, "visible")
+			assert(
+				worstShake > 0.05 and worstJolt > 0.05,
+				"non-flashing hit feedback remains visible"
+			)
 		end,
 	},
 	{
@@ -93,10 +93,8 @@ return {
 			local fx = HitFeedback.new()
 			fx:hit(1)
 			fx:step(0.05)
-			local before = fx:sample().flash
 			fx:hit(0.35)
-			assert(fx:sample().flash >= before - 1e-9 or fx:sample().flash > 0, "kept")
-			assert(fx:sample().flash > 0, "still flashing")
+			eq(fx:sample().flash, 0, "weaker hit does not create a screen flash")
 		end,
 	},
 	{

@@ -165,7 +165,7 @@ return {
 				assert(seen[v] == nil, `{k} ties with {seen[v]}`)
 				seen[v] = k
 			end
-			assert(D.hudFx < D.hud, "hit flash and results dim under the HUD text and Replay")
+			assert(D.hudFx < D.hud, "results dim under the HUD text and Replay")
 			assert(D.hud < D.runHud, "ending banner above the base HUD")
 			assert(D.runHud < D.startup, "title above the HUD")
 			assert(D.startup < D.startupControls, "Play above the title backdrop")

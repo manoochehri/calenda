@@ -2,7 +2,7 @@
 -- Issue #78: the one ScreenGui inset convention and the helpers that apply ScreenLayout's data.
 -- Every HUD ScreenGui (text, meters, buttons) is `safe`: its 0..1 space is the safe area (clear of
 -- notches, rounded corners and the Roblox top bar), IgnoreGuiInset = false. Purely decorative
--- full-screen layers (hit flash, dim, title backdrop) are `fullScreen`. Mixing the two for
+-- full-screen layers (dim, title backdrop) are `fullScreen`. Mixing the two for
 -- positions that must line up is the bug this fixes.
 -- Source checked (create.roblox.com/docs/reference/engine/classes/ScreenGui.md): IgnoreGuiInset
 -- only matters while ScreenInsets is CoreUISafeInsets. false (the default) keeps CoreUISafeInsets,
