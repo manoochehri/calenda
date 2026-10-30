@@ -133,7 +133,7 @@ anchored, non-interactive geometry with no asset IDs.
 
 ## Zocalo plaza
 
-At the end (the plaza begins at `layout.plazaStart`, currently 1296 studs, and the street ends at
+At the end (the plaza begins at `layout.plazaStart`, currently 648 studs, and the street ends at
 `layout.streetLength`, currently 720 studs at the slower 7.2 studs/s pace): a checker of two warm
 paving tones, a kiosco (bandstand: round base, six posts, a terracotta roof and dome) just behind
 the end of the street, trees (trunk plus two round crowns) in a row on each side outside the plaza
