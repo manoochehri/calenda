@@ -5,22 +5,24 @@
 -- high camera's visible ground, so no empty or checker ground shows beyond the buildings. Pure: no
 -- Roblox APIs, so the width and the coverage bound are testable under Lune.
 local CameraRig = require("./CameraRig")
+local StreetGeometry = require("./StreetGeometry")
 
 local StreetSurface = {}
 
--- How far the road edge sits inside the corridor edge (halfWidth). 5 gives a 30-stud road.
-StreetSurface.ROAD_INSET = 5
+-- How far the road edge sits inside the corridor edge (halfWidth). 5 gives a 30-stud road. The
+-- value lives in StreetGeometry (issue #220), the one street definition.
+StreetSurface.ROAD_INSET = StreetGeometry.ROAD_INSET
 -- Margin (studs) the earth plate extends beyond the street on every side.
 StreetSurface.GROUND_MARGIN = 1500
 
 -- Half width (studs) of the road surface for a corridor of `halfWidth`.
 function StreetSurface.roadHalfWidth(halfWidth: number): number
-	return halfWidth - StreetSurface.ROAD_INSET
+	return StreetGeometry.roadHalfWidth(halfWidth)
 end
 
 -- Width (studs) of one sidewalk: the corridor edge minus the road edge.
 function StreetSurface.sidewalkWidth(halfWidth: number): number
-	return halfWidth - StreetSurface.roadHalfWidth(halfWidth)
+	return StreetGeometry.sidewalkWidth(halfWidth)
 end
 
 -- The earth plate under everything: x in [x0, x1], z in [z0, z1] (studs, world coordinates).

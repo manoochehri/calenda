@@ -5,6 +5,7 @@
 -- visuals: dust and rubble at the obstacle, and a few followers hop to the sidewalk to cheer.
 -- The new total reaches the HUD through State as before.
 local Level = require("./Level")
+local StreetGeometry = require("./StreetGeometry")
 
 export type Plan = {
 	id: number,
@@ -25,7 +26,8 @@ local ObstacleFeedback = {}
 
 ObstacleFeedback.PUFFS = 12 -- [default] dust/rubble chunks per hit
 ObstacleFeedback.PEEL_MAX = 6 -- [default] followers peeling off per obstacle
-ObstacleFeedback.SIDEWALK_WIDTH = 6 -- [default] matches WorldBuilder's sidewalk
+-- Issue #220: still 6 (WorldBuilder draws 5; see StreetGeometry.FOLLOWER_SIDEWALK_WIDTH).
+ObstacleFeedback.SIDEWALK_WIDTH = StreetGeometry.FOLLOWER_SIDEWALK_WIDTH
 ObstacleFeedback.PEEL_SPACING = 2.4 -- [default] studs between cheering followers along the street
 
 function ObstacleFeedback.new(layout: Level.Layout): Feedback

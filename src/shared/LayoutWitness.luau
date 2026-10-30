@@ -11,6 +11,7 @@ local CrowdMath = require("./CrowdMath")
 local Level = require("./Level")
 local RunDriver = require("./RunDriver")
 local RunHooks = require("./RunHooks")
+local StreetGeometry = require("./StreetGeometry")
 
 local LayoutWitness = {}
 
@@ -28,7 +29,7 @@ export type Result = {
 LayoutWitness.SEEDS = { 1, 2, 3, 4, 5 } -- [default] run seeds; seed drives hazards and random policies
 LayoutWitness.MAX_SECONDS = 100 -- [default] a run is simulated at most this long
 local DT = RunDriver.TICK_DT
-local SIDE = 10 -- [default] lane centre |x| (ADR 0011), where authored outer-lane waves approach
+local SIDE = StreetGeometry.LANE_CENTER -- lane centre |x| (ADR 0011), where outer-lane waves approach
 
 -- Deterministic LCG for seeded policies: floats in [0, 1).
 local function rng(seed: number): () -> number

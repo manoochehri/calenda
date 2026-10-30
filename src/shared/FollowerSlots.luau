@@ -9,6 +9,7 @@
 -- (negative = behind). The client mirrors dx with ViewMap.x when it draws.
 local Config = require("./Config")
 local DebugLayout = require("./DebugLayout")
+local StreetGeometry = require("./StreetGeometry")
 
 export type Slot = { dx: number, dz: number }
 
@@ -20,7 +21,9 @@ FollowerSlots.DEPTH_SCALE = 0.75 -- [default] the cloud is flatter along the str
 FollowerSlots.CANDIDATES = 1200 -- [default] seeded candidates tried per slot
 FollowerSlots.MIN_DZ = -19 -- [default] deepest a follower stands (the camera is 24 behind the lead)
 FollowerSlots.MAX_DZ = -3.5 -- [default] stays out of the lead's hitbox (Crossing.LEAD_HITBOX)
-FollowerSlots.SIDEWALK_WIDTH = 6 -- mirrors WorldBuilder: the road is DebugLayout.halfWidth - 6 wide per side
+-- Issue #220: still 6 (the road is DebugLayout.halfWidth - 6 wide per side), though WorldBuilder draws
+-- 5. The drift is pinned and documented in StreetGeometry; step 2 resolves it deliberately.
+FollowerSlots.SIDEWALK_WIDTH = StreetGeometry.FOLLOWER_SIDEWALK_WIDTH
 FollowerSlots.FOLLOWER_MARGIN = 1.15 -- [default] follower half width (0.83) + idle sway (0.3)
 FollowerSlots.BASE_FOOTPRINT = 3.0 -- [default] widest section footprint (SectionScale.footprint, tested <=)
 FollowerSlots.BASE_HOLES = table.freeze({ 4.4, 3.7, 4.9, 4.4, 3.7, 4.9 }) -- scaled for each section's footprint
