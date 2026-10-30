@@ -1,6 +1,7 @@
 # 0010: Lane encounters and independent travel/combat progression
 
-**Date:** 2026-10-29  **Status:** proposed
+**Date:** 2026-10-29  **Status:** accepted
+Accepted: 2026-10-29 by architect review on issue #120 (comment "approve").
 
 ## Context
 Forced paired gates and left/right targeting cannot express optional +1/unlock lanes. RunDriver, Level and ServerClock couple travel to one elapsed-time line and would jump/extrapolate through a stationary boss fight. The owner requested forward parade, stop/resume bosses and shoot-to-unlock musical attacks, and delegated routine defaults to the architect (issue #120). The architect's must-change review of this record is on issue #120; this revision applies its six answers, checked against origin/main 372dbc6.
