@@ -17,17 +17,17 @@ export type Look = {
 ShotLook.LOOKS = (
 	table.freeze({
 		note = table.freeze({
-			size = 1.9, -- [default]
+			size = 4, -- [default] was 1.9; the note's stem and flag must read at phone size (#151)
 			core = table.freeze({ 255, 235, 60 }),
 			glow = table.freeze({ 255, 190, 40 }),
 		}),
 		heart = table.freeze({
-			size = 2.3, -- [default]
+			size = 3.45, -- [default] was 2.3; 1.5x, as the note (#151)
 			core = table.freeze({ 255, 80, 140 }),
 			glow = table.freeze({ 255, 120, 190 }),
 		}),
 		gift = table.freeze({
-			size = 2.3, -- [default] the wrapped treat's thickness; its colors come from GiftVisual
+			size = 3.8, -- [default] the wrapped treat's width; its colors come from GiftVisual (was 2.3)
 			core = table.freeze({ 200, 30, 200 }),
 			glow = table.freeze({ 90, 220, 255 }),
 		}),

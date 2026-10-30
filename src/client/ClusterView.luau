@@ -772,7 +772,10 @@ function ClusterView.new(layout: any): ClusterView
 				local ball = q.shape == "ball"
 				part.Shape = if ball then Enum.PartType.Ball else Enum.PartType.Block
 				part.Size = Vector3.new(q.w, q.h, if ball then math.min(q.w, q.h) else thickness)
-				part.CFrame = CFrame.new(x + q.x, y + q.y, z) * CFrame.Angles(0, 0, q.roll)
+				-- Tilted to face the high camera (ProjectileVisual.TILT), then rolled in its own plane.
+				part.CFrame = CFrame.new(x + q.x, y + q.y, z)
+					* CFrame.Angles(ProjectileVisual.TILT, 0, 0)
+					* CFrame.Angles(0, 0, q.roll)
 				part.Color = if q.ribbon then Color3.new(1, 1, 1) else coreColor
 				part.Transparency = fade
 				part.Parent = folder
