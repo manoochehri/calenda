@@ -80,14 +80,6 @@ Building height is 13 to 20 studs plus a 1.5 stud roof cap (top at most 21.5). T
 street-facing wall at |x| = 28, beyond the sidewalk edge (|x| = 20), so the wall volume and roof cap
 stay outside the camera corridor to the road, gates, spectators and lead (see "Camera rule").
 
-## Rey the chicken
-
-Rey is a large primitive-Part chicken that marches beside the lead as part of the parade and follows
-it through the street and into the plaza. Keep the full silhouette in the road's outer lane, away
-from the lead and gates. Rey is visual-only: no collision, interaction, recruiting, score, or gameplay
-effect. Her side is deterministic, and camera tests cover the complete silhouette across supported
-seeds and steering positions. Engine appearance remains UNVERIFIED until the owner checks in Studio.
-
 ## Papel picado
 
 Strings of small colored paper flags run along the street (not across it), on two lanes per side
@@ -165,7 +157,7 @@ cannot swap a meaning; a test checks every style appears on both sides.
   line to the lead or the next gate row.
 - Do not make facades pastel-white or the road pale: the dark road is what makes followers, gates
   and the lead readable.
-- Do not add a Part per flag or per window; the generated street, including Rey, stays under the
+- Do not add a Part per flag or per window; the generated street stays under the
   600-Part limit checked by the Lune budget test.
 
 ## Studio checklist (presentation is UNVERIFIED until done)
@@ -175,7 +167,7 @@ cannot swap a meaning; a test checks every style appears on both sides.
 - [ ] No flag string, lamp, facade or tree ever covers the lead, the next gate row or a spectator
       while running the whole street; pullback at maximum too.
 - [ ] Building thickness, overhanging roof caps and projecting balconies read as 3D buildings from
-      the game camera; Rey looks like a chicken on the forecourt and does not cover gameplay.
+      the game camera and do not cover gameplay.
 - [ ] Frames on SurfaceGuis render (windows, arches with rounded corners, flags); the flags face
       inward on both sides and are not mirrored wrongly; the frame order is irrelevant.
 - [ ] Road courses and curb stripes do not z-fight with the road, the center-line dashes or the

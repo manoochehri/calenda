@@ -25,7 +25,6 @@ local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
 local Pool = require(Shared:WaitForChild("Pool"))
-local ReyFormation = require(Shared:WaitForChild("ReyFormation"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
 -- Flat, saturated colors: the lead is the brightest thing on screen, followers share one color.
@@ -56,9 +55,6 @@ type Avatar = {
 	member: boolean, -- issue #178: drawn as a crowd member this frame
 	joinedAt: number, -- issue #178: clock time it last became a member (join bounce)
 }
-type ReyPiece = { part: Part, offset: Vector3 }
-type Rey = { pieces: { ReyPiece } }
-
 export type CrowdView = {
 	-- swirl 0..1 (issue #14): pulls the loose followers inward during a section celebration.
 	-- A server Event (gate, filled cluster, obstacle): where new followers should come from.
@@ -100,100 +96,6 @@ local function part(
 	p.CastShadow = false
 	p.Parent = parent
 	return p
-end
-
-local function buildRey(parent: Instance): Rey
-	local s = ReyFormation.SCALE
-	local pieces: { ReyPiece } = {}
-	local function add(
-		name: string,
-		shape: Enum.PartType,
-		size: Vector3,
-		offset: Vector3,
-		color: Color3
-	)
-		local piecePart = part(parent, name, shape, size * s, offset * s, color)
-		piecePart.CanTouch = false
-		table.insert(pieces, {
-			part = piecePart,
-			offset = offset * s,
-		})
-	end
-	add(
-		"ReyBody",
-		Enum.PartType.Ball,
-		Vector3.new(1.5, 1.1, 1.65),
-		Vector3.new(0, ReyFormation.BODY_CENTER_Y, 0),
-		Color3.fromRGB(250, 242, 226)
-	)
-	add(
-		"ReyHead",
-		Enum.PartType.Ball,
-		Vector3.new(0.72, 0.72, 0.72),
-		Vector3.new(0, 1.28, -0.56),
-		Color3.fromRGB(232, 172, 58)
-	)
-	add(
-		"ReyBeak",
-		Enum.PartType.Ball,
-		Vector3.new(0.36, 0.26, 0.42),
-		Vector3.new(0, 1.2, -0.92),
-		Color3.fromRGB(244, 130, 40)
-	)
-	add(
-		"ReyComb",
-		Enum.PartType.Ball,
-		Vector3.new(0.24, 0.34, 0.22),
-		Vector3.new(0, 1.77, -0.52),
-		Color3.fromRGB(204, 65, 56)
-	)
-	add(
-		"ReyLeftEye",
-		Enum.PartType.Ball,
-		Vector3.new(0.12, 0.12, 0.12),
-		Vector3.new(-0.23, 1.34, -0.82),
-		Color3.fromRGB(30, 28, 30)
-	)
-	add(
-		"ReyRightEye",
-		Enum.PartType.Ball,
-		Vector3.new(0.12, 0.12, 0.12),
-		Vector3.new(0.23, 1.34, -0.82),
-		Color3.fromRGB(30, 28, 30)
-	)
-	add(
-		"ReyLeftWing",
-		Enum.PartType.Ball,
-		Vector3.new(0.68, 0.7, 0.9),
-		Vector3.new(-0.45, 0.76, 0.05),
-		Color3.fromRGB(232, 172, 58)
-	)
-	add(
-		"ReyRightWing",
-		Enum.PartType.Ball,
-		Vector3.new(0.68, 0.7, 0.9),
-		Vector3.new(0.45, 0.76, 0.05),
-		Color3.fromRGB(232, 172, 58)
-	)
-	add(
-		"ReyFeet",
-		Enum.PartType.Block,
-		Vector3.new(1, 0.16, 0.22),
-		Vector3.new(0, 0.12, 0.12),
-		Color3.fromRGB(244, 130, 40)
-	)
-	return { pieces = pieces }
-end
-
-local function drawRey(rey: Rey, leadX: number, leadZ: number, seed: number)
-	local pose = ReyFormation.pose(leadX, leadZ, seed, DebugLayout.halfWidth - 6)
-	for _, piece in rey.pieces do
-		piece.part.CFrame = CFrame.new(
-			ViewMap.x(pose.x) + ViewMap.x(piece.offset.X),
-			piece.offset.Y + pose.bob,
-			pose.z + piece.offset.Z
-		)
-	end
 end
 
 local function buildLead(parent: Instance): Model
@@ -312,7 +214,6 @@ function CrowdView.new(): CrowdView
 	local folder = Instance.new("Folder")
 	folder.Name = "CalendaCrowd"
 	folder.Parent = Workspace
-	local rey = buildRey(folder)
 
 	local lead = buildLead(folder) -- stand-in only; the avatar is the lead (spec s3, issue #55)
 	lead.Parent = nil
@@ -445,7 +346,6 @@ function CrowdView.new(): CrowdView
 			cachedTotal = -1 -- a new run: the field starts settled again
 		end
 		lastLeadZ = leadZ
-		drawRey(rey, leadX, leadZ, DebugLayout.seed)
 		if total ~= cachedTotal then
 			if cachedTotal < 0 then
 				flow:reset(total)

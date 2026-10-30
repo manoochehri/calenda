@@ -110,10 +110,7 @@ return {
 				+ b.maxLamps * 2
 				+ b.maxPlazaParts
 				+ b.maxGroundParts
-			assert(
-				LevelTheme.maxTotalParts(theme) >= componentCaps + 7,
-				"includes Rey's nine moving parade Parts"
-			)
+			near(LevelTheme.maxTotalParts(theme), componentCaps, 1e-9, "street part budget")
 			assert(
 				LevelTheme.maxTotalParts(theme) <= 600,
 				`total {LevelTheme.maxTotalParts(theme)}`
