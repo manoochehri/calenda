@@ -35,6 +35,14 @@ return {
 		end,
 	},
 	{
+		name = "projectiles travel 25 percent slower than the 90 studs/s they used (owner request)",
+		run = function()
+			-- Was 90 studs/s. 25% slower is 67.5 studs/s, so the same 30-stud shot takes 4/3 as long.
+			near(FeedbackMath.FLIGHT_SPEED, 67.5, "flight speed")
+			near(FeedbackMath.flightSeconds(30), 30 / 67.5, "30 studs flies in 30 / 67.5 s")
+		end,
+	},
+	{
 		name = "meter fraction is hits over needed, clamped to 0..1",
 		run = function()
 			near(FeedbackMath.meterFraction(0, 3), 0, "empty")
