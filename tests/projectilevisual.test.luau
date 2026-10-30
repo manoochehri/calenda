@@ -28,7 +28,7 @@ return {
 		name = "visual per shot number: every fourth shot is a gift, the rest alternate note and heart",
 		run = function()
 			local sections = dancerSections()
-			for n = 1, 40 do
+			for n = 1, 2 * Config.giftEveryNthShot do
 				local kind = Targeting.shotKind(n, sections)
 				local visual = ProjectileVisual.kind(kind, n)
 				if n % Config.giftEveryNthShot == 0 then

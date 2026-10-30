@@ -63,10 +63,11 @@ end
 local function run(
 	layout: Level.Layout,
 	seconds: number,
-	sections: number
+	sections: number,
+	config: any?
 ): ({ any }, RunState.RunState)
 	local rs = stateFor(layout)
-	local session = Targeting.new({ layout = layout, runState = rs })
+	local session = Targeting.new({ layout = layout, runState = rs, config = config })
 	local out: { any } = {}
 	local t = 0.0
 	while t <= seconds do
@@ -147,11 +148,14 @@ return {
 	{
 		name = "gift cadence is unchanged: every 4th shot number is a gift, hit or miss",
 		run = function()
-			local shots = run(layoutOf({ cluster(1, 40, "large") }), 2.05, 3)
+			-- A 4-shot cadence keeps the sample short; the default cadence is pinned elsewhere.
+			local cfg = table.clone(Config)
+			cfg.giftEveryNthShot = 4
+			local shots = run(layoutOf({ cluster(1, 40, "large") }), 2.05, 3, cfg)
 			assert(#shots >= 12, "enough shots")
 			local sawMissGift, sawHitGift = false, false
 			for i, s in shots do
-				eq(s.kind, if i % Config.giftEveryNthShot == 0 then "gift" else "note", `shot {i}`)
+				eq(s.kind, if i % cfg.giftEveryNthShot == 0 then "gift" else "note", `shot {i}`)
 				if s.kind == "gift" then
 					if s.miss then
 						sawMissGift = true

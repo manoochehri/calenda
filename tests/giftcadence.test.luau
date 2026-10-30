@@ -2,7 +2,9 @@
 -- Issue #20: the gift cadence (spec s4, s7). The pure rule is Targeting.shotKind; these tests pin it
 -- to how the game derives "a dancer section is present" (CrowdMath/VisualBudget/SectionTypes),
 -- including more than three logical sections and a dancer present only from the third section, and
--- show a gift is exactly one hit, never an extra reward.
+-- show a gift is exactly one hit, never an extra reward. The mechanism is checked at a 4-shot
+-- cadence (CADENCE) so the samples stay short; the shipped default (Config.giftEveryNthShot, one in
+-- 100) is pinned by tests/issue_gift_share.test.luau.
 local Config = require("../src/shared/Config")
 local CrowdMath = require("../src/shared/CrowdMath")
 local Level = require("../src/shared/Level")
@@ -11,6 +13,11 @@ local SectionTypes = require("../src/shared/SectionTypes")
 local Targeting = require("../src/shared/Targeting")
 local VisualBudget = require("../src/shared/VisualBudget")
 
+-- The mechanism under test runs at a 4-shot cadence; see the header.
+local CADENCE = 4
+local cfg = table.clone(Config)
+cfg.giftEveryNthShot = CADENCE
+
 local function eq(actual: any, expected: any, name: string)
 	assert(actual == expected, `{name}: expected {tostring(expected)}, got {tostring(actual)}`)
 end
@@ -18,7 +25,7 @@ end
 local function kinds(sectionCount: number, from: number, to: number): string
 	local out = {}
 	for n = from, to do
-		table.insert(out, Targeting.shotKind(n, sectionCount))
+		table.insert(out, Targeting.shotKind(n, sectionCount, cfg))
 	end
 	return table.concat(out, ",")
 end
@@ -99,9 +106,9 @@ return {
 			eq(kinds(3, 1, 8), "note,note,note,gift,note,note,note,gift", "first eight")
 			local gifts = 0
 			for n = 1, 24 do
-				if Targeting.shotKind(n, 3) == "gift" then
+				if Targeting.shotKind(n, 3, cfg) == "gift" then
 					gifts += 1
-					eq(n % Config.giftEveryNthShot, 0, "only multiples of the cadence")
+					eq(n % CADENCE, 0, "only multiples of the cadence")
 				end
 			end
 			eq(gifts, 6, "six gifts in 24")
@@ -132,11 +139,19 @@ return {
 			end
 			for _, total in { 0, 49, 50, 99, 100, 149 } do
 				eq(hasDancerRep(total), false, `no dancer rep at {total}`)
-				eq(Targeting.shotKind(4, CrowdMath.sectionCount(total)), "note", `note at {total}`)
+				eq(
+					Targeting.shotKind(4, CrowdMath.sectionCount(total), cfg),
+					"note",
+					`note at {total}`
+				)
 			end
 			for _, total in { 150, 151, 199, 200, 2000 } do
 				eq(hasDancerRep(total), true, `dancer rep at {total}`)
-				eq(Targeting.shotKind(4, CrowdMath.sectionCount(total)), "gift", `gift at {total}`)
+				eq(
+					Targeting.shotKind(4, CrowdMath.sectionCount(total), cfg),
+					"gift",
+					`gift at {total}`
+				)
 			end
 			eq(
 				VisualBudget.allocate(150).representatives[3].sectionType,
@@ -157,7 +172,7 @@ return {
 					end
 				end
 				eq(
-					Targeting.shotKind(4, sections) == "gift",
+					Targeting.shotKind(4, sections, cfg) == "gift",
 					present,
 					`{sections} sections: tossing section present`
 				)
@@ -170,27 +185,27 @@ return {
 			local plan = VisualBudget.allocate(2000)
 			eq(plan.logicalSections, 40, "logical sections")
 			eq(#plan.representatives, 6, "six representatives")
-			eq(Targeting.shotKind(4, plan.logicalSections), "gift", "gift")
-			eq(Targeting.shotKind(5, plan.logicalSections), "note", "note")
+			eq(Targeting.shotKind(4, plan.logicalSections, cfg), "gift", "gift")
+			eq(Targeting.shotKind(5, plan.logicalSections, cfg), "note", "note")
 			eq(Targeting.fireRate(plan.logicalSections), 20, "rate capped by logical sections")
 		end,
 	},
 	{
 		name = "the cadence follows the session shot number, and a lost dancer section stops gifts at once",
 		run = function()
-			eq(Targeting.shotKind(4, 3), "gift", "4th with dancers")
-			eq(Targeting.shotKind(8, 2), "note", "8th after the crowd fell below 150")
-			eq(Targeting.shotKind(12, 3), "gift", "12th after it came back")
-			eq(Targeting.shotKind(5, 3), "note", "no catch-up gifts")
+			eq(Targeting.shotKind(4, 3, cfg), "gift", "4th with dancers")
+			eq(Targeting.shotKind(8, 2, cfg), "note", "8th after the crowd fell below 150")
+			eq(Targeting.shotKind(12, 3, cfg), "gift", "12th after it came back")
+			eq(Targeting.shotKind(5, 3, cfg), "note", "no catch-up gifts")
 		end,
 	},
 	{
 		name = "a gift is one hit like a note: same shots to fill, same credit once, same reward",
 		run = function()
-			local notesOnly = table.clone(Config)
+			local notesOnly = table.clone(cfg)
 			notesOnly.giftEveryNthShot = 1e9
 			local plain, plainCredits, plainTotal = runLarge(3, notesOnly)
-			local gifty, giftCredits, giftTotal = runLarge(3)
+			local gifty, giftCredits, giftTotal = runLarge(3, cfg)
 			eq(#plain, Config.clusterTypes.large.hits, "notes fill in the cluster's hits")
 			eq(#gifty, Config.clusterTypes.large.hits, "gifts fill in the same hits")
 			eq(plainCredits, 1, "credited once (notes)")

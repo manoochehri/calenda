@@ -65,7 +65,7 @@ return {
 			eq(c.finaleThresholds[1], 50, "finale 1")
 			eq(c.finaleThresholds[2], 150, "finale 2")
 			eq(c.finaleThresholds[3], 300, "finale 3")
-			eq(c.giftEveryNthShot, 4, "giftEveryNthShot")
+			eq(c.giftEveryNthShot, 100, "giftEveryNthShot (owner-tuned: one gift per 100 shots)")
 			eq(c.debug.startupTiming, false, "startup timing default")
 			eq(c.debug.freezeCamera, false, "freezeCamera default")
 			eq(c.debug.noShadows, false, "noShadows default")
