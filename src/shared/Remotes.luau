@@ -22,6 +22,18 @@ Remotes.names = table.freeze({
 -- Client -> server. `x` is the desired lateral position (studs, negative = left).
 export type SteerPayload = { x: number }
 
+-- Issue #156 (ADR 0010 item 5): the one lane encounter the client may show. Display only: it never
+-- awards a follower or consumes a target. `lane` is the pickup's authored lane; `progress` in [0,1]
+-- is how far the lead is through the encounter's approach span; `remaining` is studs to its plane.
+export type Encounter = {
+	id: string, -- "p<pickup id>", e.g. "p1"
+	kind: string, -- "pickup"; see decodeEncounter
+	lane: string, -- "left" | "center" | "right"
+	progress: number, -- 0..1
+	remaining: number, -- 0..ENCOUNTER_MAX_REMAINING studs to the plane
+	active: boolean, -- true once the lead is inside the span
+}
+
 -- Server -> client. Compact and display-only. `over` is true once the run has ended.
 export type StatePayload = {
 	t: number,
@@ -34,6 +46,7 @@ export type StatePayload = {
 	outcome: string?,
 	score: number?,
 	level: number, -- issue #128: 1-based index of the level being played (the server decides it)
+	encounter: Encounter?, -- issue #156: the lane encounter to show; absent when none is pending
 }
 
 -- Server -> client discrete events. ids are layout ids, for animation lookup only.
@@ -64,6 +77,55 @@ function Remotes.isEventKind(kind: any): boolean
 	return type(kind) == "string" and EVENT_KINDS[kind] == true
 end
 
+local function isFinite(v: any): boolean
+	return type(v) == "number" and v == v and v > -math.huge and v < math.huge
+end
+
+-- Upper bound on Encounter.remaining (studs). Any authored distance beyond it is clamped, so the
+-- wire value is always finite and bounded.
+Remotes.ENCOUNTER_MAX_REMAINING = 1000 -- [default] studs
+
+local ENCOUNTER_KINDS: { [string]: boolean } = { pickup = true }
+local ENCOUNTER_LANES: { [string]: boolean } = { left = true, center = true, right = true }
+
+-- The one validation of an encounter, used for the server's encode and the client's decode. Returns
+-- a fresh table holding only the known fields, or nil for anything malformed. Extra fields are
+-- never copied, so no reward or target field can pass through.
+function Remotes.decodeEncounter(e: any): Encounter?
+	if type(e) ~= "table" then
+		return nil
+	end
+	local r = e :: any
+	local id, kind, lane = r.id, r.kind, r.lane
+	if type(id) ~= "string" or #id < 2 or #id > 16 or string.match(id, "^p%d+$") == nil then
+		return nil
+	end
+	if type(kind) ~= "string" or ENCOUNTER_KINDS[kind] ~= true then
+		return nil
+	end
+	if type(lane) ~= "string" or ENCOUNTER_LANES[lane] ~= true then
+		return nil
+	end
+	local progress, remaining, active = r.progress, r.remaining, r.active
+	if not isFinite(progress) or progress < 0 or progress > 1 then
+		return nil
+	end
+	if not isFinite(remaining) or remaining < 0 or remaining > Remotes.ENCOUNTER_MAX_REMAINING then
+		return nil
+	end
+	if type(active) ~= "boolean" then
+		return nil
+	end
+	return {
+		id = id,
+		kind = kind,
+		lane = lane,
+		progress = progress,
+		remaining = remaining,
+		active = active,
+	}
+end
+
 local PHASES: { [string]: boolean } = { ready = true, running = true, over = true }
 
 function Remotes.isPhase(p: any): boolean
@@ -75,10 +137,6 @@ end
 function Remotes.decodeStart(...: any): boolean
 	local _ignored = select("#", ...) -- count only; no argument is ever read
 	return true
-end
-
-local function isFinite(v: any): boolean
-	return type(v) == "number" and v == v and v > -math.huge and v < math.huge
 end
 
 -- Returns the requested lateral position, or nil for any payload that is not exactly a table
@@ -108,6 +166,7 @@ export type Snapshot = {
 	outcome: string?,
 	score: number?,
 	level: number?, -- issue #128: 1-based index of the level being played; absent = 1
+	encounter: Encounter?, -- issue #156: the lane encounter to show, if any
 }
 
 function Remotes.encodeState(s: Snapshot): StatePayload
@@ -127,6 +186,7 @@ function Remotes.encodeState(s: Snapshot): StatePayload
 		outcome = s.outcome,
 		score = s.score,
 		level = if type(s.level) == "number" and s.level >= 1 then math.floor(s.level) else 1,
+		encounter = Remotes.decodeEncounter(s.encounter),
 	}
 end
 
