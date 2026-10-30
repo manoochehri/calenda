@@ -19,6 +19,7 @@ LayerHeights.RING = 0.6 -- the lead's ground ring
 LayerHeights.PASS_RING = 0.8 -- the expanding ring when the parade passes a gate
 LayerHeights.DEBRIS = 1.0 -- confetti that has landed
 LayerHeights.TELEGRAPH = 1.2 -- the warning chevron where a spectator wave is about to appear (issue #65)
+LayerHeights.LANE_LEAD = 1.4 -- the lead's lane bracket (issue #193), over the telegraph chevron
 
 -- Every named layer, for tests ("each flat top is a named layer").
 LayerHeights.all = table.freeze({
@@ -31,6 +32,7 @@ LayerHeights.all = table.freeze({
 	PASS_RING = LayerHeights.PASS_RING,
 	DEBRIS = LayerHeights.DEBRIS,
 	TELEGRAPH = LayerHeights.TELEGRAPH,
+	LANE_LEAD = LayerHeights.LANE_LEAD,
 })
 
 export type Surface = {

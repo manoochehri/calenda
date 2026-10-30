@@ -44,6 +44,7 @@ local CrowdView = timedRequire("Client", script.Parent, "CrowdView")
 local EndFlow = timedRequire("Client", script.Parent, "EndFlow")
 local Hud = timedRequire("Client", script.Parent, "Hud")
 local InputController = timedRequire("Client", script.Parent, "InputController")
+local LaneView = timedRequire("Client", script.Parent, "LaneView")
 local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
 local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
 local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
@@ -137,6 +138,8 @@ local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here
 stepAt = startupTrace:lap("CrowdView.new", stepAt)
 local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
 stepAt = startupTrace:lap("LeadAvatar.new", stepAt)
+local laneView = LaneView.new(DebugLayout) -- visible lanes and the lead's lane marker (issue #193)
+stepAt = startupTrace:lap("LaneView.new", stepAt)
 local sections = SectionsView.new(Config.startingTotal)
 stepAt = startupTrace:lap("SectionsView.new", stepAt)
 local clusters = ClusterView.new(DebugLayout)
@@ -343,6 +346,7 @@ RunService:BindToRenderStep(
 		local swirl = sections:update(drawnX, z, total, dt)
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
 		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift, total)
+		laneView:update(drawnX, z)
 		crowd:update(
 			drawnX,
 			z,
