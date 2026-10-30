@@ -11,6 +11,7 @@ local InputIntent = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 export type Controller = {
 	step: (self: Controller, dt: number, now: number) -> (),
 	reset: (self: Controller, x: number) -> (),
+	setEnabled: (self: Controller, enabled: boolean) -> (),
 }
 
 local InputController = {}
@@ -24,6 +25,7 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 	local dragInput: InputObject? = nil
 	local dragStartPixelX = 0
 	local dragOriginX = 0
+	local enabled = true
 
 	local function viewportWidth(): number
 		local camera = Workspace.CurrentCamera
@@ -32,7 +34,12 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 
 	-- Touch drag: remember where the finger and the intent were, then move the intent by the drag.
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if processed or input.UserInputType ~= Enum.UserInputType.Touch or dragInput then
+		if
+			not enabled
+			or processed
+			or input.UserInputType ~= Enum.UserInputType.Touch
+			or dragInput
+		then
 			return
 		end
 		dragInput = input
@@ -40,7 +47,7 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 		dragOriginX = intentX
 	end)
 	UserInputService.InputChanged:Connect(function(input: InputObject)
-		if input == dragInput then
+		if enabled and input == dragInput then
 			intentX = InputIntent.dragToX(
 				dragOriginX,
 				input.Position.X - dragStartPixelX,
@@ -58,6 +65,9 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 	local controller = {} :: Controller
 
 	function controller.step(_, dt: number, now: number)
+		if not enabled then
+			return
+		end
 		local axis = InputIntent.keyAxis(
 			UserInputService:IsKeyDown(Enum.KeyCode.A)
 				or UserInputService:IsKeyDown(Enum.KeyCode.Left),
@@ -78,6 +88,13 @@ function InputController.new(bound: number, send: (number) -> ()): Controller
 		intentX = math.clamp(x, -bound, bound)
 		dragInput = nil
 		lastSentX = intentX
+	end
+
+	function controller.setEnabled(_, value: boolean)
+		enabled = value
+		if not value then
+			dragInput = nil
+		end
 	end
 
 	return controller

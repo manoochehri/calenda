@@ -595,6 +595,7 @@ function RunDriver.new(opts: Options): RunDriver
 			outcome = finalOutcome,
 			score = finalScore,
 			level = levelIndex,
+			levelName = layout.name,
 			encounter = Encounters.current(layout, z, pickupOutcome),
 			stage = if activeCheckpoint ~= nil
 				then STAGE_OF[activeCheckpoint.kind]

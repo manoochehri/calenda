@@ -35,6 +35,7 @@ local StartSequence = timedRequire("Shared", Shared, "StartSequence")
 local IntroCamera = timedRequire("Shared", Shared, "IntroCamera")
 local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
+local LevelInterstitial = timedRequire("Shared", Shared, "LevelInterstitial")
 local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
 
@@ -45,6 +46,7 @@ local CrowdView = timedRequire("Client", script.Parent, "CrowdView")
 local EndFlow = timedRequire("Client", script.Parent, "EndFlow")
 local Hud = timedRequire("Client", script.Parent, "Hud")
 local InputController = timedRequire("Client", script.Parent, "InputController")
+local LevelInterstitialView = timedRequire("Client", script.Parent, "LevelInterstitialView")
 local LaneView = timedRequire("Client", script.Parent, "LaneView")
 local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
 local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
@@ -130,6 +132,11 @@ local input = InputController.new(
 	end
 )
 stepAt = startupTrace:lap("InputController.new", stepAt)
+local interstitial: LevelInterstitial.Flow? = nil
+local skipInterstitial = false
+local interstitialView = LevelInterstitialView.new(function()
+	skipInterstitial = true
+end)
 music = MusicPlayer.new() -- one selected full-mix loop (issue #21)
 stepAt = startupTrace:lap("MusicPlayer.new", stepAt)
 local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
@@ -163,6 +170,7 @@ local awaitingFirstState = TIMING
 local awaitingFirstFrame = TIMING
 
 local latest: Remotes.StatePayload? = nil
+local lastLevel: number? = nil
 local receivedAt = 0
 local drawnX = 0
 local pullback = 1
@@ -221,7 +229,8 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 		end
 		updateProgress()
 	end
-	if RunView.isNewRun(if latest then latest.t else nil, state.t) then
+	local levelTransition = latest ~= nil and state.level > latest.level
+	if RunView.isNewRun(if latest then latest.t else nil, state.t) and not levelTransition then
 		-- Replay checklist (issue #16): ResetPlan warns (never throws) if an item is missing here.
 		local handlers = endFlow:resetHandlers()
 		handlers.input = function()
@@ -256,6 +265,28 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 			obstacleFeedback:reset()
 		end
 		ResetPlan.apply(handlers, warn)
+		lastLevel = state.level
+		interstitial = nil
+		skipInterstitial = false
+		interstitialView:hide()
+		input:setEnabled(true)
+	elseif lastLevel ~= nil and state.level > (lastLevel :: number) then
+		-- The server has already selected the next level; hold presentation and steering until
+		-- this local card has been shown or skipped. The next State remains authoritative.
+		interstitial = LevelInterstitial.new(os.clock(), state.level)
+		skipInterstitial = false
+		interstitialView:show(state.level, state.levelName)
+		input:setEnabled(false)
+		lastLevel = state.level
+	elseif lastLevel ~= nil and state.level < (lastLevel :: number) then
+		-- Replay can arrive with a lower level after the run clock resets.
+		lastLevel = state.level
+		interstitial = nil
+		skipInterstitial = false
+		interstitialView:hide()
+		input:setEnabled(true)
+	else
+		lastLevel = state.level
 	end
 	latest = state
 	receivedAt = os.clock()
@@ -345,6 +376,16 @@ RunService:BindToRenderStep(
 				music:update(RunView.wholeTotal(state.total), os.clock())
 			end
 			return -- server clock, input and presentation stay paused behind the title screen
+		end
+		if interstitial ~= nil then
+			local frame = LevelInterstitial.step(interstitial, os.clock(), skipInterstitial)
+			if frame.advance then
+				interstitial = nil
+				skipInterstitial = false
+				interstitialView:hide()
+				input:setEnabled(true)
+			end
+			return -- do not steer or update gameplay presentation through the card
 		end
 		local now = os.clock()
 		debug.profilebegin("Calenda/ClockAndInput")
