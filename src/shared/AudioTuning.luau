@@ -22,14 +22,14 @@ return {
 	-- Single-track mode: SoundEffects on the track's SoundGroup (property ranges: docs/audio-setup.md)
 	effects = {
 		reverbDecay = { 1.2, 3.5 }, -- seconds, ReverbSoundEffect.DecayTime (0.1 to 20)
-		reverbWet = { -24, -10 }, -- dB, WetLevel (-80 to 10)
+		reverbWet = { -30, -16 }, -- dB, WetLevel (-80 to 10). [default] issue #172: drier, punchier
 		reverbDry = -6, -- dB, DryLevel (-80 to 10), the documented default
 		chorusMix = { 0, 0.35 }, -- ChorusSoundEffect.Mix (0 to 1)
 		chorusDepth = { 0.05, 0.3 }, -- Depth (0 to 1)
 		chorusRate = 0.5, -- Rate (0 to 20), the documented default
 		eqLow = { 0, 2 }, -- dB, EqualizerSoundEffect.LowGain (-80 to 10)
 		eqMid = { 0, 2 }, -- dB, MidGain
-		eqHigh = { 0, 3 }, -- dB, HighGain
+		eqHigh = { 2, 4 }, -- dB, HighGain. [default] issue #172: brighter floor for an upbeat mix
 		compThreshold = { 0, -16 }, -- dB, CompressorSoundEffect.Threshold (-80 to 0)
 		compMakeup = { 0, 3 }, -- dB, GainMakeup (-30 to 30)
 		compAttack = 0.1, -- seconds, Attack (0.1 to 1)

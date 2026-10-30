@@ -40,6 +40,7 @@ export type MusicConfig = {
 	maxSources: number,
 	stemSoundIds: { string },
 	trackSoundId: string?, -- single-track mode (issue #62): one looped asset, empty = off
+	playbackSpeed: number?, -- issue #172: Sound.PlaybackSpeed for the music (tempo and pitch); nil = 1
 }
 export type ConfigType = {
 	sectionSize: number,
@@ -331,6 +332,17 @@ local function validate(c: any): (boolean, string?)
 	if m.trackSoundId ~= nil and type(m.trackSoundId) ~= "string" then
 		return false, "music.trackSoundId must be a string"
 	end
+	-- Issue #172: a speed outside this range is a mistake, not a mix choice (0 would stop playback).
+	if
+		m.playbackSpeed ~= nil
+		and not (
+			type(m.playbackSpeed) == "number"
+			and m.playbackSpeed >= 0.5
+			and m.playbackSpeed <= 2
+		)
+	then
+		return false, "music.playbackSpeed must be a number from 0.5 to 2"
+	end
 	if c.sfx ~= nil then
 		for slot, id in c.sfx do
 			if type(id) ~= "string" then
@@ -462,6 +474,9 @@ local config: ConfigType = {
 		stemSoundIds = { "", "", "", "" },
 		-- [default] Mexican Nostalgia by APMOfficial; fit is UNVERIFIED until heard in Studio.
 		trackSoundId = "1838904620",
+		-- [default] issue #172 (owner: too dour; make it upbeat). The recording's key and mode cannot
+		-- change in code, so the track plays 10% faster (tempo and pitch up together). UNVERIFIED by ear.
+		playbackSpeed = 1.1,
 	},
 	audio = require("./AudioTuning"),
 	-- [default] UNVERIFIED sound effect asset ids by slot (issue #62). Empty = silent; never invent

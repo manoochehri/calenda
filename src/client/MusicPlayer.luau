@@ -62,6 +62,8 @@ function MusicPlayer.new(): MusicPlayer
 	local mode = if #layers > 0 then "stems" elseif trackId ~= "" then "track" else "silent"
 	local sounds: { [string]: Sound } = {}
 	local group: SoundGroup? = nil
+	-- Issue #172: one tempo/pitch setting for every music Sound (nil = the recording's own speed).
+	local speed = (Config.music :: any).playbackSpeed or 1
 	local effects: { [string]: any } = {}
 
 	if mode ~= "silent" then
@@ -78,6 +80,7 @@ function MusicPlayer.new(): MusicPlayer
 					Config.music.stemSoundIds[table.find(LAYER_NAMES, name) :: number]
 				)
 				sound.Looped = true
+				sound.PlaybackSpeed = speed
 				sound.Volume = 0
 				sound.SoundGroup = g
 				sound.Parent = g
@@ -88,6 +91,7 @@ function MusicPlayer.new(): MusicPlayer
 			sound.Name = "track"
 			sound.SoundId = trackId
 			sound.Looped = true
+			sound.PlaybackSpeed = speed
 			sound.Volume = 0
 			sound.SoundGroup = g
 			sound.Parent = g
