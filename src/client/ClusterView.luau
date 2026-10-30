@@ -606,6 +606,7 @@ function ClusterView.new(layout: any): ClusterView
 				spawnX = v.spawnX,
 				spawnZ = v.spawnZ,
 				spawnLeadZ = v.spawnLeadZ,
+				lane = v.lane,
 				pulse = pulse,
 				dip = dip,
 				hop = catchHop,

@@ -6,6 +6,7 @@
 local MobCharge = require("./MobCharge")
 local MobLod = require("./MobLod")
 local SpectatorScatter = require("./SpectatorScatter")
+local LaneGeometry = require("./LaneGeometry")
 
 local SpectatorMotion = {}
 
@@ -21,6 +22,8 @@ export type Path = {
 	sway: number,
 	arrivalAge: number,
 	arrivalAhead: number,
+	lane: LaneGeometry.Lane?,
+	figureHalfSize: number?,
 }
 
 export type Position = { x: number, z: number, started: boolean, arrived: boolean }
@@ -46,9 +49,17 @@ function SpectatorMotion.plan(
 	leadSpeed: number,
 	approachSpeed: number,
 	offset: SpectatorScatter.Offset,
-	p: any
+	p: any,
+	lane: LaneGeometry.Lane?,
+	figureHalfSize: number?
 ): Path
-	local startX = MobLod.lateralFit(originX + offset.dx, p.armsWidth)
+	local fit = function(x: number): number
+		if lane ~= nil then
+			return LaneGeometry.fit(lane, x, figureHalfSize or p.armsWidth / 2)
+		end
+		return MobLod.lateralFit(x, p.armsWidth)
+	end
+	local startX = fit(originX + offset.dx)
 	local startZ = originZ
 		+ offset.dz
 		+ (noise(seed, clusterId, person, 1) * 2 - 1) * p.longitudinalJitter
@@ -57,10 +68,7 @@ function SpectatorMotion.plan(
 		- p.approachSpeedSpread
 		+ noise(seed, clusterId, person, 3) * 2 * p.approachSpeedSpread
 	local speed = approachSpeed * speedScale
-	local targetX = MobLod.lateralFit(
-		startX + (noise(seed, clusterId, person, 4) * 2 - 1) * p.lateralWander,
-		p.armsWidth
-	)
+	local targetX = fit(startX + (noise(seed, clusterId, person, 4) * 2 - 1) * p.lateralWander)
 	local turnDelay = noise(seed, clusterId, person, 5) * p.turnDelayMax
 	local turnSeconds = p.turnSeconds * (0.6 + noise(seed, clusterId, person, 6) * 0.8)
 	local arrivalAhead = MobCharge.SLAM_GAP
@@ -79,6 +87,8 @@ function SpectatorMotion.plan(
 		sway = (noise(seed, clusterId, person, 9) * 2 - 1) * p.lateralWander * 0.08,
 		arrivalAge = arrivalAge,
 		arrivalAhead = arrivalAhead,
+		lane = lane,
+		figureHalfSize = figureHalfSize,
 	}
 end
 
@@ -87,6 +97,9 @@ function SpectatorMotion.position(path: Path, spawnAge: number, leadZ: number): 
 	local age = math.max(0, spawnAge - path.startDelay)
 	local turn = smooth((age - path.turnDelay) / path.turnSeconds)
 	local x = path.x + (path.targetX - path.x) * turn + math.sin(age * 2.1 + path.phase) * path.sway
+	if path.lane ~= nil then
+		x = LaneGeometry.fit(path.lane, x, path.figureHalfSize or 0)
+	end
 	local z = path.z - path.speed * age
 	local arrived = spawnAge >= path.arrivalAge
 	if arrived then
