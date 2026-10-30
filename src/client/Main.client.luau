@@ -24,7 +24,6 @@ local CameraRig = timedRequire("Shared", Shared, "CameraRig")
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
 local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
-local InputIntent = timedRequire("Shared", Shared, "InputIntent")
 local Remotes = timedRequire("Shared", Shared, "Remotes")
 local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
 local RunView = timedRequire("Shared", Shared, "RunView")
@@ -156,7 +155,6 @@ local obstacleFeedback = ObstacleView.new(DebugLayout)
 stepAt = startupTrace:lap("ObstacleView.new", stepAt)
 local hitFx = HitFeedback.new() -- hit jolt, screen shake and flash (issue #50)
 stepAt = startupTrace:lap("HitFeedback.new", stepAt)
-local hudClock = 0
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
 local endFlow = EndFlow.new() -- finale, breakup, results gating (issue #16)
 startupTrace:lap("EndFlow.new", stepAt)
@@ -244,7 +242,7 @@ stateRemote.OnClientEvent:Connect(function(payload: any)
 	serverClock:observe(state, receivedAt)
 end)
 
--- Gates and the obstacle change the total: pop the counter. (The new total itself arrives in State.)
+-- World reactions and sounds follow server events; crowd totals arrive in State.
 eventRemote.OnClientEvent:Connect(function(payload: any)
 	if type(payload) ~= "table" then
 		return
@@ -253,13 +251,9 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	crowd:onEvent(payload, if latest then latest.t else 0) -- where new followers come from (issue #68)
 	sections:onEvent(payload)
 	leadAvatar:onEvent(payload)
-	if payload.kind == "gate" then
-		hud:pop()
-	elseif payload.kind == "obstacle" then
+	if payload.kind == "obstacle" then
 		-- A repeated event for the same obstacle plays nothing (ObstacleFeedback dedupes).
-		if obstacleFeedback:onObstacle(payload, drawnX, leadZNow) then
-			hud:pop()
-		end
+		obstacleFeedback:onObstacle(payload, drawnX, leadZNow)
 	elseif payload.kind == "cluster" then
 		if clusters:onCluster(payload) then
 			local conversion = { kind = "conversion" }
@@ -356,7 +350,6 @@ RunService:BindToRenderStep(
 			dt,
 			CameraRig.PULLBACK_RATE
 		)
-		hudClock += dt
 		hitFx:step(dt)
 		local hit = hitFx:sample()
 		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
@@ -380,10 +373,7 @@ RunService:BindToRenderStep(
 		end
 
 		hud:applyHit(hit)
-		hud:update(
-			fx.view(RunView.hud(state)),
-			InputIntent.hintVisible(t, input:hasSteered(), state.over)
-		)
+		hud:update(fx.view(RunView.hud(state)))
 		debug.profileend()
 	end
 )

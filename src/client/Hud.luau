@@ -1,10 +1,9 @@
 --!strict
--- Screen text (issues #10, #13): the always-visible crowd counter, the steering hint, and the end
--- of run panel with the replay button. What to show is decided by the pure RunView/InputIntent;
+-- Results text and replay button. Active gameplay has no screen text (issue #160).
+-- What to show is decided by the pure RunView;
 -- this module only owns the Roblox GUI objects. IN-ENGINE BEHAVIOUR IS UNVERIFIED.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ScreenLayout = require(Shared:WaitForChild("ScreenLayout"))
@@ -18,9 +17,8 @@ local WHITE = Color3.fromRGB(255, 255, 255)
 local OUTLINE = Color3.fromRGB(28, 22, 34)
 
 export type Hud = {
-	update: (self: Hud, hud: RunView.Hud, hintVisible: boolean) -> (),
-	pop: (self: Hud) -> (),
-	-- The hit reaction: a wobble on the crowd counter (the life bar, ADR 0006) and the screen edges.
+	update: (self: Hud, hud: RunView.Hud) -> (),
+	-- The hit reaction at the screen edges; camera shake remains in Main.
 	applyHit: (self: Hud, sample: HitFeedback.Sample) -> (),
 	resetHit: (self: Hud) -> (),
 }
@@ -81,16 +79,6 @@ function Hud.new(onReplay: () -> ()): Hud
 	fx.DisplayOrder = ScreenLayout.DISPLAY_ORDER.hudFx
 	GuiLayout.fullScreen(fx)
 	fx.Parent = playerGui
-
-	-- Crowd counter, top center. The big number is the exact total; the line under it is the
-	-- exact loose count and section count. Rects come from ScreenLayout (tested at every aspect).
-	local counter = placed(gui, "Counter", TypeStyle.font("number"))
-	local scale = Instance.new("UIScale")
-	scale.Parent = counter
-	local detail = placed(gui, "Detail", TypeStyle.font("body"))
-	local hint = placed(gui, "Hint", TypeStyle.font("body"))
-	hint.Text = Strings.hint
-	TypeStyle.backing(hint) -- issue #104: a panel behind the floating hint
 
 	-- Hit flash: a vignette of four edge gradients plus a faint full-screen wash, white then red.
 	local flashParts: { Frame } = {}
@@ -160,23 +148,11 @@ function Hud.new(onReplay: () -> ()): Hud
 	replay.Activated:Connect(onReplay)
 
 	-- Assign text only when it changes: State arrives about 10 times a second.
-	local last = { counter = "", detail = "", title = "", score = "", best = "" }
+	local last = { title = "", score = "", best = "" }
 
 	local hud = {} :: Hud
 
-	function hud.update(_, view: RunView.Hud, hintVisible: boolean)
-		local gameplayHudVisible = not view.showEnd
-		counter.Visible = gameplayHudVisible
-		detail.Visible = gameplayHudVisible
-		if view.counter ~= last.counter then
-			last.counter = view.counter
-			counter.Text = view.counter
-		end
-		if view.detail ~= last.detail then
-			last.detail = view.detail
-			detail.Text = view.detail
-		end
-		hint.Visible = hintVisible
+	function hud.update(_, view: RunView.Hud)
 		panel.Visible = view.showEnd
 		dim.Visible = view.showEnd
 		if view.showEnd then
@@ -196,8 +172,6 @@ function Hud.new(onReplay: () -> ()): Hud
 	end
 
 	function hud.applyHit(_, s: HitFeedback.Sample)
-		-- The parade's size is the life bar (ADR 0006): the counter wobbles on a hit.
-		counter.Rotation = s.shakeX * 4
 		local on = s.flash > 0.005
 		local color = Color3.fromRGB(255, 255, 255):Lerp(Color3.fromRGB(235, 40, 50), s.redMix)
 		for _, f in flashParts do
@@ -210,20 +184,9 @@ function Hud.new(onReplay: () -> ()): Hud
 		wash.BackgroundTransparency = 1 - s.flash * 0.25
 	end
 
-	-- Replay: no flash and no wobble left over from the last run.
+	-- Replay: no flash left over from the last run.
 	function hud.resetHit(_)
-		counter.Rotation = 0
 		hud.applyHit(hud, HitFeedback.new():sample())
-	end
-
-	-- The counter jumps big and settles: feedback when a gate or obstacle changes the total.
-	function hud.pop(_)
-		scale.Scale = 1.5
-		TweenService:Create(
-			scale,
-			TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = 1 }
-		):Play()
 	end
 
 	return hud

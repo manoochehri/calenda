@@ -8,7 +8,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DefeatPlan = require(Shared:WaitForChild("DefeatPlan"))
 local FinalePlan = require(Shared:WaitForChild("FinalePlan"))
-local HudMeters = require(Shared:WaitForChild("HudMeters"))
 local Results = require(Shared:WaitForChild("Results"))
 local RunFlow = require(Shared:WaitForChild("RunFlow"))
 local RunView = require(Shared:WaitForChild("RunView"))
@@ -80,8 +79,6 @@ function EndFlow.new(): EndFlow
 			end
 		end
 
-		hud:setMeterVisible(state.over ~= true)
-		hud:setMeter(HudMeters.sectionMeter(total))
 		hud:setBanner(RunFlow.banner(flow))
 
 		return {

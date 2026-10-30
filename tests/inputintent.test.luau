@@ -71,14 +71,4 @@ return {
 			)
 		end,
 	},
-	{
-		name = "hintVisible: shown at the start, hidden once steered, after the window, or at the end",
-		run = function()
-			eq(InputIntent.hintVisible(0, false, false), true, "start")
-			eq(InputIntent.hintVisible(InputIntent.HINT_SECONDS - 0.1, false, false), true, "late")
-			eq(InputIntent.hintVisible(InputIntent.HINT_SECONDS, false, false), false, "expired")
-			eq(InputIntent.hintVisible(1, true, false), false, "steered")
-			eq(InputIntent.hintVisible(1, false, true), false, "run over")
-		end,
-	},
 }

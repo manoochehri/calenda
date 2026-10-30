@@ -18,23 +18,19 @@ return {
 	{
 		name = "the Spanish strings are the spec's",
 		run = function()
-			eq(Strings.hint, "Arrastra para moverte", "hint")
 			eq(Strings.replay, "¡Otra calenda!", "replay")
 			eq(Strings.defeated, "¡Uy, la calenda se dispersó!", "defeated")
 		end,
 	},
 	{
-		name = "hud: exact total, loose count and sections for 10, 120 and 10,000",
+		name = "results retain the exact total for 10, 120 and 10,000",
 		run = function()
 			local a = RunView.hud(state({ total = 10 }))
-			eq(a.counter, "10", "counter at 10")
-			eq(a.detail, "Sueltos 10 · Secciones 0", "detail at 10")
+			eq(a.score, "10", "score at 10")
 			local b = RunView.hud(state({ total = 120 }))
-			eq(b.counter, "120", "counter at 120")
-			eq(b.detail, "Sueltos 20 · Secciones 2", "detail at 120")
+			eq(b.score, "120", "score at 120")
 			local c = RunView.hud(state({ total = 10000 }))
-			eq(c.counter, "10000", "counter at 10,000 is exact")
-			eq(c.detail, "Sueltos 0 · Secciones 200", "detail at 10,000")
+			eq(c.score, "10000", "score at 10,000 is exact")
 		end,
 	},
 	{
@@ -58,8 +54,8 @@ return {
 	{
 		name = "hud tolerates a broken total instead of erroring every frame",
 		run = function()
-			eq(RunView.hud(state({ total = -3 })).counter, "0", "negative")
-			eq(RunView.hud(state({ total = 12.7 })).counter, "12", "fractional")
+			eq(RunView.hud(state({ total = -3 })).score, "0", "negative")
+			eq(RunView.hud(state({ total = 12.7 })).score, "12", "fractional")
 		end,
 	},
 	{
