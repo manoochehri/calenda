@@ -1,8 +1,10 @@
 --!strict
--- Layout validator (issue #7). Pure: no Roblox APIs. Proves, from Config speed and the authored data,
--- that a layout matches the spec s9 timeline, grows by a bounded amount, can be completed with no
--- spending, has safe early gates, and that the intended recruit total is reachable at the BASE fire
--- rate (conservative: sections would only make firing faster).
+-- Layout validator (issue #7). Pure: no Roblox APIs. Checks, from Config speed and the authored data,
+-- that a layout matches the spec s9 timeline, can be completed with no spending, has safe early
+-- gates, and that the intended recruit total is reachable at the BASE fire rate (conservative:
+-- sections would only make firing faster). Growth is checked by a witness search (issue #144,
+-- LayoutWitness): real RunDriver runs under fixed policies and seeds. It finds witnesses above
+-- maxTotal; it does NOT prove that no run exceeds maxTotal.
 --
 -- Extension point (issues #36 / #17): `check(layout, config, extraChecks)` runs each extra check
 -- `(ctx) -> (boolean, string?)` after the base checks, with ctx = { layout, config, report }.
@@ -16,6 +18,7 @@ local Config = require("./Config")
 local Emergence = require("./Emergence")
 local LaneGeometry = require("./LaneGeometry")
 local Level = require("./Level")
+local LayoutWitness = require("./LayoutWitness")
 local RunDriver = require("./RunDriver")
 
 type Layout = Level.Layout
@@ -40,6 +43,7 @@ export type Report = {
 	recruitTotalAvailable: number,
 	clusters: { [number]: ClusterInfo },
 	lifeScenarios: { [string]: LifeScenario }?,
+	witness: LayoutWitness.Result?, -- issue #144: the maxTotal guard's search (runs, policies, seeds, worst)
 }
 export type Context = { layout: any, config: any, report: Report }
 export type ExtraCheck = (ctx: Context) -> (boolean, string?)
@@ -531,12 +535,22 @@ local function check(layout: any, config: any?, extraChecks: { ExtraCheck }?): R
 		table.insert(errs, e)
 	end
 
-	-- growth and completability (no spending exists in the model: only recruits, gates, obstacles)
-	if report.bestFinal > layout.maxTotal then
-		table.insert(
-			errs,
-			`best route reaches {report.bestFinal}, above maxTotal {layout.maxTotal}`
-		)
+	-- growth (issue #144): a WITNESS, not a bound. The enumerated best route above assumes the base
+	-- fire rate and ignores sections, so it can understate real runs; it is kept in the report only.
+	-- Here the production driver plays fixed policies under fixed seeds and the highest final total is
+	-- checked. Passing means no witness above maxTotal was found, nothing more.
+	-- Only layouts that pass the timeline and emergence checks above are simulated: the search is the
+	-- costly part, and a layout already rejected for timing says nothing more about growth.
+	if #errs == 0 then
+		local witness = LayoutWitness.search(layout)
+		report.witness = witness
+		local worst = witness.worst
+		if worst ~= nil and worst.total > layout.maxTotal then
+			table.insert(
+				errs,
+				`witness run above maxTotal {layout.maxTotal}: policy {worst.policy}, seed {worst.seed}, final total {worst.total} ({witness.runs} runs: {witness.policies} policies x {witness.seeds} seeds)`
+			)
+		end
 	end
 	if report.bestFinal < cfg.finaleThresholds[#cfg.finaleThresholds] then
 		table.insert(errs, `best route {report.bestFinal} cannot reach the top finale tier`)

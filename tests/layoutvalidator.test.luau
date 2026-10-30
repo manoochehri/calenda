@@ -235,10 +235,14 @@ return {
 		end,
 	},
 	{
-		name = "report: growth bounded, completable, top tier reachable",
+		name = "report: growth witnessed under the cap (issue #144), completable, top tier reachable",
 		run = function()
 			local r = LayoutValidator.check(DebugLayout)
-			assert(r.bestFinal <= DebugLayout.maxTotal, `best {r.bestFinal} > cap`)
+			assert(r.witness and r.witness.worst, "no witness recorded")
+			assert(
+				r.witness.worst.total <= DebugLayout.maxTotal,
+				`witness {r.witness.worst.total} > cap`
+			)
 			assert(r.worstFinal >= Config.sectionSize, `worst {r.worstFinal}`)
 			assert(r.bestFinal >= Config.finaleThresholds[#Config.finaleThresholds], "top tier")
 			assert(r.routeCount == 2 ^ #DebugLayout.gates, "all routes enumerated")
