@@ -13,6 +13,7 @@ local function layout(): Level.Layout
 		streetLength = 1600,
 		plazaStart = 1440,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {},
@@ -35,6 +36,7 @@ local function layout(): Level.Layout
 				spawnTime = 0,
 				spawn = { x = 0, z = 100 },
 				path = { { x = 30, z = 60 } },
+				lane = "center",
 			},
 		},
 	}

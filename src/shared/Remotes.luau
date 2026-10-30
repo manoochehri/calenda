@@ -57,6 +57,7 @@ local EVENT_KINDS: { [string]: boolean } = {
 	miss = true, -- continuous-fire shot with no target (ADR 0004); display only
 	attack = true,
 	defeated = true,
+	pickup = true, -- issue #156: an optional +1 pickup was collected (display and log only)
 }
 
 function Remotes.isEventKind(kind: any): boolean

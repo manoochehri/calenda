@@ -132,7 +132,7 @@ return {
 		name = "road: with the lead anywhere it can stand, every follower and figure stays on the road",
 		run = function()
 			local road = FollowerSlots.roadHalfWidth()
-			local bound = Steering.bound(DebugLayout.halfWidth)
+			local bound = Steering.bound(DebugLayout.halfWidth, DebugLayout.leadLimit)
 			for step = -40, 40 do
 				local leadX = bound * step / 40
 				for k = 1, FollowerSlots.capacity() do
@@ -156,7 +156,7 @@ return {
 		name = "attached: the cloud centre follows the lead (slope >= 0.7, offset small) except at the road edge",
 		run = function()
 			local road = FollowerSlots.roadHalfWidth()
-			local bound = Steering.bound(DebugLayout.halfWidth)
+			local bound = Steering.bound(DebugLayout.halfWidth, DebugLayout.leadLimit)
 			local follow = road
 				- FollowerSlots.BASE_FOOTPRINT
 				- FollowerSlots.MIN_WIDTH * (FollowerSlots.REACH - FollowerSlots.BASE_FOOTPRINT)
@@ -180,7 +180,7 @@ return {
 	{
 		name = "attached: some follower is always near the lead, at every lead position",
 		run = function()
-			local bound = Steering.bound(DebugLayout.halfWidth)
+			local bound = Steering.bound(DebugLayout.halfWidth, DebugLayout.leadLimit)
 			for step = -40, 40 do
 				local leadX = bound * step / 40
 				local nearest = math.huge
@@ -198,7 +198,7 @@ return {
 	{
 		name = "continuous: the world x of any slot or base changes at most ~2x as fast as the lead",
 		run = function()
-			local bound = Steering.bound(DebugLayout.halfWidth)
+			local bound = Steering.bound(DebugLayout.halfWidth, DebugLayout.leadLimit)
 			local dxs = {}
 			for k = 1, FollowerSlots.capacity() do
 				table.insert(dxs, FollowerSlots.slot(k).dx)

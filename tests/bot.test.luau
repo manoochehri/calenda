@@ -32,6 +32,7 @@ local function layoutOf(
 		streetLength = 500,
 		plazaStart = 400,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 100000,
 		intendedRecruitTotal = 0,
 		gates = gates,
@@ -234,15 +235,22 @@ return {
 		end,
 	},
 	{
-		name = "no-input run: every horde that reached the parade removed its share; the total chain holds",
+		name = "left-lane run: hordes in the held lane remove their share, off-lane hordes pass; the total chain holds",
 		-- OPEN (issue #121, spec Amendment 4 Balance): with fixed per-hit losses the no-input run is
 		-- NOT defeated on the debug layout (its total grows to ~800 from recruits and gates). That
 		-- balance check is therefore not asserted here; the defeat mechanism is tested in
 		-- issue121_life.test.luau. The owner decides the loss rule before this check can be restored.
 		run = function()
 			for _, hz in { 30, 60 } do
-				local r = BotHarness.play(DebugLayout, BotHarness.policy("none", 1), { hz = hz })
-				check(#r.attacks > 0, "the no-input run is attacked", r)
+				local r =
+					BotHarness.play(DebugLayout, BotHarness.policy("always-left", 1), { hz = hz })
+				for _, a in r.attacks do
+					check(
+						Level.findCluster(DebugLayout, a.id).lane == "left",
+						"an off-lane horde attacked",
+						r
+					)
+				end
 				check(checkTotalsChain(r, DebugLayout) >= 0, "chain", r)
 				if r.outcome == "defeated" then
 					local c = r.runLog.completion :: any
@@ -294,15 +302,45 @@ return {
 	{
 		name = "moving clusters: the first unconverted attack happens when the cluster's time-based position reaches the lead",
 		run = function()
-			local r = BotHarness.play(DebugLayout, BotHarness.policy("none", 1))
-			check(#r.attacks >= 1, "no attack in the no-input run", r)
+			-- A wave the lead cannot convert in time (see "missed wave"): the left-lane lead gets attacked.
+			local layout = layoutOf({}, {}, {
+				{
+					id = 1,
+					wave = 1,
+					type = "large",
+					spawnTime = 0,
+					spawn = { x = -10, z = 41 },
+					path = {},
+					lane = "left",
+				},
+				{
+					id = 2,
+					wave = 1,
+					type = "small",
+					spawnTime = 0,
+					spawn = { x = 10, z = 42 },
+					path = {},
+					lane = "right",
+				},
+				{
+					id = 3,
+					wave = 1,
+					type = "small",
+					spawnTime = 0,
+					spawn = { x = -10, z = 43 },
+					path = {},
+					lane = "left",
+				},
+			})
+			local r = BotHarness.play(layout, BotHarness.policy("always-left", 1))
+			check(#r.attacks >= 1, "no attack from the lane the lead holds", r)
 			local a = r.attacks[1]
 			-- Level says cluster `a.id` is at or behind the lead from tReach on; the driver must attack on
 			-- the tick that contains tReach (within one tick).
 			local tReach
 			for k = 0, 12000 do -- 20 s: the first no-input attack is later at the 6/s rate (ADR 0004)
 				local t = k / 600
-				if Level.clusterPosition(DebugLayout, a.id, t).z <= Level.leadZ(t) then
+				if Level.clusterPosition(layout, a.id, t).z <= Level.leadZ(t) then
 					tReach = t
 					break
 				end
@@ -327,12 +365,13 @@ return {
 					wave = 1,
 					type = if i == 1 then "large" else "small",
 					spawnTime = 0,
-					spawn = { x = if i == 2 then 16 else -16, z = 40 + i },
+					spawn = { x = if i == 2 then 10 else -10, z = 40 + i },
 					path = {},
+					lane = if i == 2 then "right" else "left",
 				})
 			end
 			local layout = layoutOf({}, {}, clusters)
-			local r = BotHarness.play(layout, BotHarness.policy("none", 1))
+			local r = BotHarness.play(layout, BotHarness.policy("always-left", 1))
 			local credited: { [string]: boolean } = {}
 			for _, e in r.events do
 				if e.kind == "cluster_credit" then

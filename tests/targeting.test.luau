@@ -1,5 +1,6 @@
 --!strict
 local Config = require("../src/shared/Config")
+local LaneGeometry = require("../src/shared/LaneGeometry")
 local Level = require("../src/shared/Level")
 local RunState = require("../src/shared/RunState")
 local Targeting = require("../src/shared/Targeting")
@@ -22,6 +23,7 @@ local function cluster(
 		spawnTime = spawnTime or 0,
 		spawn = { x = x, z = z },
 		path = {},
+		lane = LaneGeometry.laneOf(x) :: any, -- authored lane; the test data places each horde in its lane
 	}
 end
 
@@ -32,6 +34,7 @@ local function layoutOf(clusters: { Level.Cluster }): Level.Layout
 		streetLength = 1600,
 		plazaStart = 1440,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {},
@@ -99,37 +102,36 @@ local function drive(
 end
 
 local function cand(id: number, x: number, z: number, full: boolean?): Targeting.Candidate
-	return { id = id, x = x, z = z, full = full or false }
+	return { id = id, x = x, z = z, full = full or false, lane = LaneGeometry.laneOf(x) :: any }
 end
 
 return {
 	{
-		name = "steering center engages no horde, even one that is eligible on either side",
+		name = "steering center engages the center lane only (ADR 0010 item 1, supersedes Amendment 5)",
 		run = function()
-			local tol = Config.spectators.centerTolerance
-			local list = { cand(1, -16, 20), cand(2, 16, 30), cand(3, -tol, 10) }
-			assert(Targeting.selectTarget(list, 0, "center") == nil, "center targets nothing")
+			local list = { cand(1, -10, 20), cand(2, 10, 30), cand(3, 0, 10) }
+			assert(Targeting.selectTarget(list, 0, "center") == 3, "center lane horde")
 		end,
 	},
 	{
 		name = "steering toward a side never falls back to a horde on the other side",
 		run = function()
 			assert(
-				Targeting.selectTarget({ cand(1, 16, 20) }, 0, "left") == nil,
+				Targeting.selectTarget({ cand(1, 10, 20) }, 0, "left") == nil,
 				"left, right horde"
 			)
 			assert(
-				Targeting.selectTarget({ cand(1, -16, 20) }, 0, "right") == nil,
+				Targeting.selectTarget({ cand(1, -10, 20) }, 0, "right") == nil,
 				"right, left horde"
 			)
-			local list = { cand(1, -16, 10, true), cand(2, 16, 30) }
+			local list = { cand(1, -10, 10, true), cand(2, 10, 30) }
 			assert(Targeting.selectTarget(list, 0, "left") == nil, "full left, eligible right")
 		end,
 	},
 	{
 		name = "steering toward a side engages the nearest eligible horde on that side only",
 		run = function()
-			local list = { cand(1, 16, 10), cand(2, -16, 40), cand(3, -16, 25) }
+			local list = { cand(1, 10, 10), cand(2, -10, 40), cand(3, -10, 25) }
 			assert(Targeting.selectTarget(list, 0, "left") == 3, "nearest left")
 			assert(Targeting.selectTarget(list, 0, "right") == 1, "nearest right")
 		end,
@@ -137,7 +139,7 @@ return {
 	{
 		name = "neutral steering sends only visual misses while hordes on both sides are in range",
 		run = function()
-			local layout = layoutOf({ cluster(1, -16, 30), cluster(2, 16, 30) })
+			local layout = layoutOf({ cluster(1, -10, 30), cluster(2, 10, 30) })
 			local session = newSession(layout)
 			local all = driveAll(session, 0, 2, 1 / 30, 0, "center")
 			assert(#all >= 12, `expected continuous shots, got {#all}`)
@@ -151,7 +153,7 @@ return {
 		name = "steer side is read per advance: switching sides switches the engaged horde",
 		run = function()
 			-- horde 1 passes the lead at ~0.9 s; horde 2 stays eligible on the right for ~1.7 s
-			local layout = layoutOf({ cluster(1, -16, 30), cluster(2, 16, 60) })
+			local layout = layoutOf({ cluster(1, -10, 30), cluster(2, 10, 60) })
 			local session = newSession(layout)
 			local left = drive(session, 0, 1, 1 / 30, 0, "left")
 			assert(#left > 0, "left shots")
@@ -209,30 +211,30 @@ return {
 		name = "range is inclusive at firing.range and a cluster at the lead is passed",
 		run = function()
 			assert(
-				Targeting.selectTarget({ cand(1, 16, Config.firing.range) }, 0, "right") == 1,
+				Targeting.selectTarget({ cand(1, 10, Config.firing.range) }, 0, "right") == 1,
 				"edge"
 			)
 			assert(
-				Targeting.selectTarget({ cand(1, 16, 100 + 0.001) }, 100, "right") == 1,
+				Targeting.selectTarget({ cand(1, 10, 100 + 0.001) }, 100, "right") == 1,
 				"just ahead"
 			)
-			assert(Targeting.selectTarget({ cand(1, 16, 100) }, 100, "right") == nil, "at lead")
+			assert(Targeting.selectTarget({ cand(1, 10, 100) }, 100, "right") == nil, "at lead")
 		end,
 	},
 	{
 		name = "nearest eligible target on the steered side is chosen, skipping full ones",
 		run = function()
-			local list = { cand(1, -16, 40), cand(2, 16, 20), cand(3, 16, 30) }
+			local list = { cand(1, -10, 40), cand(2, 10, 20), cand(3, 10, 30) }
 			assert(Targeting.selectTarget(list, 0, "right") == 2, "nearest")
 			-- a nearer but full cluster is skipped
-			list[2] = cand(2, 16, 20, true)
+			list[2] = cand(2, 10, 20, true)
 			assert(Targeting.selectTarget(list, 0, "right") == 3, "skips full")
 		end,
 	},
 	{
 		name = "steering toward a side prefers eligible targets on that side",
 		run = function()
-			local list = { cand(1, -16, 50), cand(2, 16, 10), cand(3, 16, 20) }
+			local list = { cand(1, -10, 50), cand(2, 10, 10), cand(3, 10, 20) }
 			assert(Targeting.selectTarget(list, 0, "left") == 1, "left beats nearer right")
 			assert(Targeting.selectTarget(list, 0, "right") == 2, "nearest on right")
 		end,
@@ -240,34 +242,32 @@ return {
 	{
 		name = "steering toward a side with no eligible horde engages nothing",
 		run = function()
-			local list = { cand(1, 16, 40), cand(2, 16, 25) }
+			local list = { cand(1, 10, 40), cand(2, 10, 25) }
 			assert(Targeting.selectTarget(list, 0, "left") == nil, "no left horde")
 			-- the only left horde is full: left has no eligible target and nothing is borrowed
-			local list2 = { cand(1, -16, 10, true), cand(2, 16, 30) }
+			local list2 = { cand(1, -10, 10, true), cand(2, 10, 30) }
 			assert(Targeting.selectTarget(list2, 0, "left") == nil, "full left, no fallback")
 		end,
 	},
 	{
-		name = "center band uses spectators.centerTolerance for side membership",
+		name = "lane bands decide engagement: -5 is center, -5.5 is left",
 		run = function()
-			local tol = Config.spectators.centerTolerance
-			-- x = -tol is center, so it does not count as "left"
-			local list = { cand(1, -tol, 10), cand(2, -tol - 0.5, 50) }
+			local list = { cand(1, -5, 10), cand(2, -5.5, 50) }
 			assert(Targeting.selectTarget(list, 0, "left") == 2, "strictly left only")
-			assert(Targeting.selectTarget(list, 0, "center") == nil, "center engages nothing")
+			assert(Targeting.selectTarget(list, 0, "center") == 1, "boundary -5 is center")
 		end,
 	},
 	{
 		name = "ties on distance break by lowest id (deterministic)",
 		run = function()
-			local list = { cand(7, -16, 20), cand(3, -16, 20) }
+			local list = { cand(7, -10, 20), cand(3, -10, 20) }
 			assert(Targeting.selectTarget(list, 0, "left") == 3, "lowest id")
 		end,
 	},
 	{
 		name = "shots fire at the curve rate on a fixed clock",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "large") })
+			local layout = layoutOf({ cluster(1, 10, 30, "large") })
 			local session = newSession(layout)
 			-- sections 0 => 6 per second; stand-still lead is not modelled, so use a short window
 			local shots = driveAll(session, 0, 0.9, 1 / 60, 0, "right")
@@ -283,7 +283,7 @@ return {
 	{
 		name = "meter fills by hits and credits the run exactly once",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "small") })
+			local layout = layoutOf({ cluster(1, 10, 30, "small") })
 			local session, rs = newSession(layout)
 			local need = Config.clusterTypes.small.hits
 			local before = rs:total()
@@ -309,7 +309,7 @@ return {
 	{
 		name = "extra hits after the meter is full never credit again",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "small") })
+			local layout = layoutOf({ cluster(1, 10, 30, "small") })
 			local session, rs = newSession(layout)
 			drive(session, 0, 5, 1 / 60, 0, "right")
 			local total = rs:total()
@@ -326,7 +326,7 @@ return {
 	{
 		name = "a full cluster is no longer targeted",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "small"), cluster(2, -16, 60, "small") })
+			local layout = layoutOf({ cluster(1, 10, 30, "small"), cluster(2, -10, 60, "small") })
 			local session = newSession(layout)
 			-- steer right for the first second (cluster 1 takes its 3 hits), then left (cluster 2)
 			local shots = drive(session, 0, 1, 1 / 60, 0, "right")
@@ -362,7 +362,7 @@ return {
 	{
 		name = "scheduler stamps shots with the gift kind, still one hit each",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 30, "large") })
+			local layout = layoutOf({ cluster(1, 10, 30, "large") })
 			local session = newSession(layout)
 			local shots = drive(session, 0, 5, 1 / 60, 3, "right")
 			assert(#shots == Config.clusterTypes.large.hits, "gifts count as one hit each")
@@ -374,8 +374,8 @@ return {
 		name = "deterministic: identical clock and inputs give identical shots",
 		run = function()
 			local layout = layoutOf({
-				cluster(1, 16, 30, "large"),
-				cluster(2, -16, 45, "small"),
+				cluster(1, 10, 30, "large"),
+				cluster(2, -10, 45, "small"),
 				cluster(3, 2, 20, "small", 0.5),
 			})
 			local function run(): string
@@ -394,7 +394,7 @@ return {
 		name = "moving targets: eligibility follows position at the shot time",
 		run = function()
 			-- Cluster starts at z = 500, walks toward the parade at approachSpeed while the lead moves up.
-			local layout = layoutOf({ cluster(1, 16, 500, "large") })
+			local layout = layoutOf({ cluster(1, 10, 500, "large") })
 			local session = newSession(layout)
 			local closing = Config.speed + Config.spectators.approachSpeed
 			-- distance(t) = 500 - closing * t; in range when <= firing.range
@@ -416,7 +416,7 @@ return {
 	{
 		name = "moving targets: a cluster that has not spawned yet is not a target",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 100, "small", 2) })
+			local layout = layoutOf({ cluster(1, 10, 100, "small", 2) })
 			local session = newSession(layout)
 			local shots = drive(session, 0, 1.5, 1 / 30, 0, "right")
 			assert(#shots == 0, "waiting cluster is not targeted")
@@ -429,7 +429,7 @@ return {
 		run = function()
 			-- Right on the lead's path: the lead overtakes it before it can be filled (no fire: steer
 			-- sections 0 gives 6/s, cluster needs 8 hits but passes within ~0.9 s).
-			local layout = layoutOf({ cluster(1, 16, 20, "large") })
+			local layout = layoutOf({ cluster(1, 10, 20, "large") })
 			local session, rs = newSession(layout)
 			local total = rs:total()
 			local passedIds: { number } = {}
@@ -465,7 +465,7 @@ return {
 	{
 		name = "hit after a cluster passed is inert",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 20, "large") })
+			local layout = layoutOf({ cluster(1, 10, 20, "large") })
 			local session, rs = newSession(layout)
 			local t = (20 / (Config.speed + Config.spectators.approachSpeed)) + 0.01
 			local step = session:advance(t, 0, "right")
@@ -484,7 +484,7 @@ return {
 	{
 		name = "a cluster that fills just before the lead reaches it converts and is not reported passed",
 		run = function()
-			local layout = layoutOf({ cluster(1, 16, 14.67, "small") })
+			local layout = layoutOf({ cluster(1, 10, 14.67, "small") })
 			local session = newSession(layout)
 			local passed = 0
 			local shots = 0
@@ -506,7 +506,7 @@ return {
 	{
 		name = "advance rejects time going backwards",
 		run = function()
-			local session = newSession(layoutOf({ cluster(1, 16, 30) }))
+			local session = newSession(layoutOf({ cluster(1, 10, 30) }))
 			session:advance(1, 0, "right")
 			assert(not pcall(function()
 				session:advance(0.5, 0, "right")

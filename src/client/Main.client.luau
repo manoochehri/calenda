@@ -130,9 +130,12 @@ end)
 stepAt = startupTrace:lap("Backdrop.build", stepAt)
 TouchControls.disable()
 
-local input = InputController.new(Steering.bound(DebugLayout.halfWidth), function(x: number)
-	steerRemote:FireServer({ x = x })
-end)
+local input = InputController.new(
+	Steering.bound(DebugLayout.halfWidth, DebugLayout.leadLimit),
+	function(x: number)
+		steerRemote:FireServer({ x = x })
+	end
+)
 stepAt = startupTrace:lap("InputController.new", stepAt)
 music = MusicPlayer.new() -- one selected full-mix loop (issue #21)
 stepAt = startupTrace:lap("MusicPlayer.new", stepAt)

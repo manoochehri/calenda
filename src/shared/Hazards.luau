@@ -12,7 +12,6 @@
 --    once.
 -- [default] values are tuning defaults; the issue names no numbers.
 local Crossing = require("./Crossing")
-local Steering = require("./Steering")
 
 local Hazards = {}
 
@@ -58,7 +57,8 @@ function Hazards.rng(seed: number): () -> number
 end
 
 -- The concrete schedule for one run, in impact order. Empty when the level has no hazard set.
-function Hazards.schedule(set: Set?, seed: number, halfWidth: number, speed: number): { Hazard }
+-- `bound` is the furthest |x| a hazard may be placed at: Steering.bound(halfWidth, leadLimit) (ADR 0010).
+function Hazards.schedule(set: Set?, seed: number, bound: number, speed: number): { Hazard }
 	local out: { Hazard } = {}
 	if set == nil or #set.kinds == 0 then
 		return out
@@ -68,7 +68,6 @@ function Hazards.schedule(set: Set?, seed: number, halfWidth: number, speed: num
 	end
 	assert(set.minGap > 0 and set.maxGap >= set.minGap, "hazard gaps must be positive and ordered")
 	local rng = Hazards.rng(seed)
-	local bound = Steering.bound(halfWidth)
 	local t = math.max(set.firstAt, Hazards.MIN_START + Hazards.TOMATO_WARNING)
 	local id = 0
 	while t <= set.lastAt do

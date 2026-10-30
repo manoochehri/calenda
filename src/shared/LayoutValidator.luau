@@ -14,6 +14,7 @@
 local CrowdMath = require("./CrowdMath")
 local Config = require("./Config")
 local Emergence = require("./Emergence")
+local LaneGeometry = require("./LaneGeometry")
 local Level = require("./Level")
 local RunDriver = require("./RunDriver")
 
@@ -89,11 +90,24 @@ local function structure(layout: any, cfg: any, errs: { string })
 		table.insert(errs, msg)
 	end
 	for _, key in
-		{ "streetLength", "plazaStart", "halfWidth", "maxTotal", "intendedRecruitTotal", "seed" }
+		{
+			"streetLength",
+			"plazaStart",
+			"halfWidth",
+			"leadLimit",
+			"maxTotal",
+			"intendedRecruitTotal",
+			"seed",
+		}
 	do
 		if not isNum(layout[key]) then
 			bad(`{key} must be a finite number`)
 		end
+	end
+	if
+		isNum(layout.leadLimit) and (layout.leadLimit <= 0 or layout.leadLimit > layout.halfWidth)
+	then
+		bad(`leadLimit must be above 0 and at most halfWidth {layout.halfWidth}`)
 	end
 	if
 		type(layout.gates) ~= "table"
@@ -157,8 +171,22 @@ local function structure(layout: any, cfg: any, errs: { string })
 		end
 	end
 
+	local seenPickup: { [number]: boolean } = {}
+	for _, p in layout.pickups or {} do
+		if seenPickup[p.id] then
+			bad(`duplicate pickup id {p.id}`)
+		end
+		seenPickup[p.id] = true
+		if not isNum(p.z) or p.z <= 0 or p.z >= layout.plazaStart then
+			bad(`pickup {p.id} z must be between 0 and plazaStart`)
+		end
+		if p.lane ~= "left" and p.lane ~= "center" and p.lane ~= "right" then
+			bad(`pickup {p.id} has an invalid lane`)
+		end
+	end
+
 	local seenCluster: { [number]: boolean } = {}
-	local waveSide: { [number]: string } = {}
+	local waveLane: { [number]: string } = {}
 	for _, c in layout.clusters do
 		if seenCluster[c.id] then
 			bad(`duplicate cluster id {c.id}`)
@@ -198,24 +226,32 @@ local function structure(layout: any, cfg: any, errs: { string })
 		if not inside then
 			bad(`cluster {c.id}: outside street (halfWidth {layout.halfWidth})`)
 		end
-		local side = Level.sideOf(c.spawn.x, cfg)
-		if waveSide[c.wave] == nil then
-			waveSide[c.wave] = side
-		elseif waveSide[c.wave] ~= side then
-			bad(`wave {c.wave} mixes sides`)
+		-- ADR 0010 item 2: the authored lane must be the lane that owns the spawn's x.
+		local lane = LaneGeometry.laneOf(c.spawn.x)
+		if c.lane ~= lane then
+			bad(
+				`cluster {c.id}: lane {tostring(c.lane)} does not match spawn x {c.spawn.x} (lane {tostring(
+					lane
+				)})`
+			)
+		end
+		if waveLane[c.wave] == nil then
+			waveLane[c.wave] = c.lane
+		elseif waveLane[c.wave] ~= c.lane then
+			bad(`wave {c.wave} mixes lanes`)
 		end
 	end
 	local waves: { number } = {}
-	for w in waveSide do
+	for w in waveLane do
 		table.insert(waves, w)
 	end
 	table.sort(waves)
 	for i = 1, #waves do
-		local side = waveSide[waves[i]]
-		if side == "center" then
+		local lane = waveLane[waves[i]]
+		if lane == "center" then
 			bad(`wave {waves[i]} must start on a sidewalk, not the center`)
-		elseif i > 1 and side == waveSide[waves[i - 1]] then
-			bad(`waves must alternate sides (wave {waves[i]} repeats {side})`)
+		elseif i > 1 and lane == waveLane[waves[i - 1]] then
+			bad(`waves must alternate sides (wave {waves[i]} repeats {lane})`)
 		end
 	end
 end

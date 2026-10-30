@@ -2,6 +2,7 @@
 -- Pure server-side crossing and overlap detection (issue #8, spec s6, s9). The server decides
 -- what the lead touched from the layout and its own positions; no client claim is involved.
 -- Coordinates follow Level: z along the street (+z forward), x lateral (negative = left).
+local LaneGeometry = require("./LaneGeometry")
 local Level = require("./Level")
 
 local Crossing = {}
@@ -60,6 +61,41 @@ function Crossing.obstaclesHit(
 			and zMax > o.z - Crossing.OBSTACLE_HALF_DEPTH
 		if depthOk and xMin < hi and xMax > lo then
 			table.insert(out, o)
+		end
+	end
+	table.sort(out, function(a, b)
+		if a.z ~= b.z then
+			return a.z < b.z
+		end
+		return a.id < b.id
+	end)
+	return out
+end
+
+-- Pickups whose distance plane the lead crossed this tick and whose lane the lead occupied there
+-- (ADR 0010, Amendment 9). The plane is crossed when z0 < pickup.z <= z1, which also requires forward
+-- progress, so stationary lateral movement cannot collect one. The lead's x at the crossing is
+-- interpolated linearly between x0 and x1. Passing in another lane returns nothing: the pickup
+-- expires with no reward or loss. In (z, id) order.
+function Crossing.pickupsAwarded(
+	layout: Level.Layout,
+	z0: any,
+	z1: any,
+	x0: any,
+	x1: any
+): { Level.Pickup }
+	local out: { Level.Pickup } = {}
+	if not (isFinite(z0) and isFinite(z1) and isFinite(x0) and isFinite(x1)) then
+		return out
+	end
+	local list = layout.pickups or {}
+	for _, p in list do
+		if z0 < p.z and p.z <= z1 then
+			local f = (p.z - z0) / (z1 - z0)
+			local xAt = x0 + (x1 - x0) * f
+			if LaneGeometry.laneOf(xAt) == p.lane then
+				table.insert(out, p)
+			end
 		end
 	end
 	table.sort(out, function(a, b)

@@ -18,7 +18,7 @@ end
 
 local HALF_WIDTH = 20
 local SPEED = Config.speed
-local BOUND = Steering.bound(HALF_WIDTH)
+local BOUND = Steering.bound(HALF_WIDTH, 15)
 
 local MIXED = { kinds = { "tomato", "cart" }, firstAt = 20, lastAt = 80, minGap = 14, maxGap = 22 }
 local ONLY_TOMATO_ONCE =
@@ -34,6 +34,7 @@ local function layoutWith(set: any): any
 		streetLength = 1600,
 		plazaStart = 1440,
 		halfWidth = HALF_WIDTH,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {},
@@ -86,7 +87,7 @@ local function countKind(events: { any }, kind: string): number
 end
 
 local function firstOf(set: any, runSeed: number): any
-	local list = Hazards.schedule(set, runSeed, HALF_WIDTH, SPEED)
+	local list = Hazards.schedule(set, runSeed, BOUND, SPEED)
 	assert(#list == 1, `expected exactly one hazard, got {#list}`)
 	return list[1]
 end
@@ -95,8 +96,8 @@ return {
 	{
 		name = "the seeded schedule is reproducible and changes with the seed",
 		run = function()
-			local a = Hazards.schedule(MIXED, 7, HALF_WIDTH, SPEED)
-			local b = Hazards.schedule(MIXED, 7, HALF_WIDTH, SPEED)
+			local a = Hazards.schedule(MIXED, 7, BOUND, SPEED)
+			local b = Hazards.schedule(MIXED, 7, BOUND, SPEED)
 			eq(#a, #b, "same seed, same count")
 			assert(#a >= 2, "the authored window should hold more than one hazard")
 			for i = 1, #a do
@@ -104,7 +105,7 @@ return {
 				eq(a[i].impactAt, b[i].impactAt, `impact {i}`)
 				eq(a[i].x, b[i].x, `x {i}`)
 			end
-			local c = Hazards.schedule(MIXED, 8, HALF_WIDTH, SPEED)
+			local c = Hazards.schedule(MIXED, 8, BOUND, SPEED)
 			local differs = #c ~= #a
 			for i = 1, math.min(#a, #c) do
 				if a[i].x ~= c[i].x or a[i].impactAt ~= c[i].impactAt then
@@ -118,7 +119,7 @@ return {
 		name = "no hazard warns before the run has started and all stay in the authored window",
 		run = function()
 			for seed = 1, 50 do
-				for _, h in Hazards.schedule(MIXED, seed, HALF_WIDTH, SPEED) do
+				for _, h in Hazards.schedule(MIXED, seed, BOUND, SPEED) do
 					assert(
 						h.warnAt >= Hazards.MIN_START,
 						`seed {seed}: warning at {h.warnAt} is too early`
@@ -132,25 +133,25 @@ return {
 	{
 		name = "the hazard set comes from level configuration only",
 		run = function()
-			for _, h in Hazards.schedule(ONLY_CART_ONCE, 3, HALF_WIDTH, SPEED) do
+			for _, h in Hazards.schedule(ONLY_CART_ONCE, 3, BOUND, SPEED) do
 				eq(h.kind, "cart", "cart-only set yields carts")
 			end
 			eq(
 				#Hazards.schedule(
 					{ kinds = {}, firstAt = 20, lastAt = 80, minGap = 14, maxGap = 22 },
 					3,
-					HALF_WIDTH,
+					BOUND,
 					SPEED
 				),
 				0,
 				"empty set yields nothing"
 			)
-			eq(#Hazards.schedule(nil, 3, HALF_WIDTH, SPEED), 0, "no set yields nothing")
+			eq(#Hazards.schedule(nil, 3, BOUND, SPEED), 0, "no set yields nothing")
 			local ok = pcall(
 				Hazards.schedule,
 				{ kinds = { "unknown" }, firstAt = 20, lastAt = 20, minGap = 14, maxGap = 14 },
 				3,
-				HALF_WIDTH,
+				BOUND,
 				SPEED
 			)
 			eq(ok, false, "an unknown kind is refused")

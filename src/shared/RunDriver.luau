@@ -116,6 +116,10 @@ function RunDriver.toRunLayout(layout: Level.Layout, hazards: { Hazards.Hazard }
 	for _, c in layout.clusters do
 		table.insert(clusters, { id = `c{c.id}`, type = c.type :: RunState.ClusterKind })
 	end
+	local pickups: { RunState.PickupDef } = {}
+	for _, p in layout.pickups or {} do
+		table.insert(pickups, { id = `p{p.id}` })
+	end
 	local obstacles: { RunState.ObstacleDef } = {}
 	for _, o in layout.obstacles do
 		table.insert(obstacles, { id = `o{o.id}` })
@@ -129,7 +133,13 @@ function RunDriver.toRunLayout(layout: Level.Layout, hazards: { Hazards.Hazard }
 			table.insert(tomatoes, { id = `t{h.id}` })
 		end
 	end
-	return { gatePairs = gatePairs, clusters = clusters, obstacles = obstacles, tomatoes = tomatoes }
+	return {
+		gatePairs = gatePairs,
+		clusters = clusters,
+		obstacles = obstacles,
+		tomatoes = tomatoes,
+		pickups = pickups,
+	}
 end
 
 local function isFinite(v: any): boolean
@@ -152,6 +162,10 @@ local function copyForDetection(layout: Level.Layout): Level.Layout
 	for _, o in layout.obstacles do
 		table.insert(obstacles, { id = o.id, z = o.z, side = o.side })
 	end
+	local pickups: { Level.Pickup } = {}
+	for _, p in layout.pickups or {} do
+		table.insert(pickups, { id = p.id, z = p.z, lane = p.lane })
+	end
 	return {
 		name = layout.name,
 		seed = layout.seed,
@@ -160,6 +174,8 @@ local function copyForDetection(layout: Level.Layout): Level.Layout
 		streetLength = layout.streetLength,
 		plazaStart = layout.plazaStart,
 		halfWidth = layout.halfWidth,
+		leadLimit = layout.leadLimit,
+		pickups = pickups,
 		maxTotal = layout.maxTotal,
 		intendedRecruitTotal = layout.intendedRecruitTotal,
 		gates = gates,
@@ -179,7 +195,12 @@ function RunDriver.new(opts: Options): RunDriver
 	-- Issue #96: the hazard schedule is drawn from the run seed, once, here on the server. Replay
 	-- keeps the same seed, so the same hazards come back. Each level draws its own from that seed.
 	local runSeed = opts.runSeed or layout.seed
-	local hazards = Hazards.schedule(layout.hazardSet, runSeed, layout.halfWidth, Config.speed)
+	local hazards = Hazards.schedule(
+		layout.hazardSet,
+		runSeed,
+		Steering.bound(layout.halfWidth, layout.leadLimit),
+		Config.speed
+	)
 	-- Deliberately NOT forwarded: any startingTotal on opts (never client or caller data).
 	local state = RunState.new({
 		seed = runSeed,
@@ -191,7 +212,8 @@ function RunDriver.new(opts: Options): RunDriver
 	local hazardWarned: { [number]: boolean } = {}
 	local hazardDone: { [number]: boolean } = {}
 	local gifts: { { t: number, used: boolean } } = {}
-	local bound = Steering.bound(layout.halfWidth)
+	-- The one clamp on lead x (ADR 0010 item 3); recomputed when the level changes (enterLevel).
+	local bound = Steering.bound(layout.halfWidth, layout.leadLimit)
 
 	local time, z, x, target = 0, 0, 0, 0
 
@@ -201,7 +223,8 @@ function RunDriver.new(opts: Options): RunDriver
 		levelIndex = index
 		local authored = levels[index]
 		layout = copyForDetection(authored)
-		hazards = Hazards.schedule(layout.hazardSet, runSeed, layout.halfWidth, Config.speed)
+		bound = Steering.bound(layout.halfWidth, layout.leadLimit)
+		hazards = Hazards.schedule(layout.hazardSet, runSeed, bound, Config.speed)
 		state:enterLevel(RunDriver.toRunLayout(authored, hazards), `level{index}`)
 		time, z = 0, 0
 		hazardWarned, hazardDone, gifts = {}, {}, {}
@@ -288,6 +311,16 @@ function RunDriver.new(opts: Options): RunDriver
 					before = r.before,
 					after = r.after,
 				})
+			end
+		end
+		-- Optional +1 pickups (issue #156): once per id, only from the lead's lane at the crossing.
+		for _, p in Crossing.pickupsAwarded(layout, z0, z1, x0, x1) do
+			local r = state:addPickup(`p{p.id}`)
+			if r.ok then
+				table.insert(
+					events,
+					{ kind = "pickup", id = p.id, before = r.before, after = r.after }
+				)
 			end
 		end
 		for _, o in Crossing.obstaclesHit(layout, z0, z1, x0, x1) do

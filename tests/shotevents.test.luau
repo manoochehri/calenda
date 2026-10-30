@@ -17,6 +17,7 @@ local function layoutWith(spawnZ: number): Level.Layout
 		streetLength = 1600,
 		plazaStart = 1440,
 		halfWidth = 20,
+		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
 		gates = {},
@@ -27,8 +28,9 @@ local function layoutWith(spawnZ: number): Level.Layout
 				wave = 1,
 				type = "large",
 				spawnTime = 0,
-				spawn = { x = 16, z = spawnZ },
+				spawn = { x = 10, z = spawnZ },
 				path = {},
+				lane = "right",
 			},
 		},
 	}
@@ -52,7 +54,7 @@ local function shotsFor(layout: Level.Layout, startingTotal: number, t1: number)
 		t1 = t1,
 		z0 = 0,
 		z1 = 0,
-		x = 16,
+		x = 10,
 		state = state,
 		passedClusters = {},
 		emit = function(e: any)

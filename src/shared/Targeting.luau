@@ -4,11 +4,10 @@
 -- Level.leadZ(t)), x is lateral. A target's distance is z - leadZ.
 --
 -- Rules (Amendment 1, as amended for issue #142): eligible = in range (distance <= firing.range),
--- meter not full, not yet passed (z > leadZ), and already spawned. Steering decides the side:
--- steer left engages only eligible hordes on the left, steer right only on the right (Level.sideOf,
--- which applies spectators.centerTolerance). Center steering engages nothing, and there is no
--- fallback to the other side. Among eligible hordes on the steered side, the nearest to the lead is
--- chosen. Reaching the parade reports an unfilled cluster in `passed` for the attack phase; later
+-- meter not full, not yet passed (z > leadZ), and already spawned. The lead's lane decides which
+-- hordes it can engage (ADR 0010 item 1, issue #156): a horde is engaged only from its authored lane,
+-- and center engages the center lane. There is no fallback to another lane. Among eligible hordes in
+-- the lead's lane, the nearest to the lead is chosen. Reaching the parade reports an unfilled cluster in `passed` for the attack phase; later
 -- hits to a passed cluster are inert.
 --
 -- Firing is CONTINUOUS (ADR 0004, spec Amendment 2): a shot every 1 / fireRate seconds whether or
@@ -28,7 +27,8 @@ local RunState = require("./RunState")
 export type Steer = "left" | "right" | "center"
 export type ShotKind = "note" | "gift"
 -- A candidate for selectTarget: `z` and `x` are the cluster's current position.
-export type Candidate = { id: number, x: number, z: number, full: boolean }
+-- `lane` is the cluster's authored lane (ADR 0010 item 2), not a lane derived from its position.
+export type Candidate = { id: number, x: number, z: number, full: boolean, lane: Steer }
 
 export type Shot = {
 	number: number, -- 1-based shot count for this session (hits and misses)
@@ -49,7 +49,7 @@ export type Session = {
 		self: Session,
 		t: number,
 		sectionCount: number,
-		steer: Steer,
+		steer: Steer?,
 		shotPositionTime: number?
 	) -> Step,
 	hit: (self: Session, id: number) -> HitResult,
@@ -109,15 +109,16 @@ function Targeting.shotKind(shotNumber: number, sectionCount: number, config: an
 	return "note"
 end
 
--- Pure target choice (issue #142). Only eligible candidates on the steered side are considered;
--- center steering considers none. Returns the nearest such id, ties broken by lowest id, or nil.
+-- Pure target choice (issue #142, lanes per ADR 0010). Only eligible candidates whose authored lane
+-- is the lead's lane are considered; a nil lane (lead outside the lanes) engages nothing. Returns the
+-- nearest such id, ties broken by lowest id, or nil.
 function Targeting.selectTarget(
 	candidates: { Candidate },
 	leadZ: number,
-	steer: Steer,
+	steer: Steer?,
 	config: any?
 ): number?
-	if steer == "center" then
+	if steer == nil then
 		return nil
 	end
 	local cfg = config or Config
@@ -125,12 +126,7 @@ function Targeting.selectTarget(
 	local bestDist = math.huge
 	for _, c in candidates do
 		local dist = c.z - leadZ
-		if
-			not c.full
-			and dist > 0
-			and dist <= cfg.firing.range
-			and Level.sideOf(c.x, cfg) == steer
-		then
+		if not c.full and dist > 0 and dist <= cfg.firing.range and c.lane == steer then
 			if best == nil or dist < bestDist or (dist == bestDist and c.id < best.id) then
 				best, bestDist = c, dist
 			end
@@ -194,16 +190,19 @@ function Targeting.new(opts: Options): Session
 		for _, c in clusters do
 			if t >= c.spawnTime then
 				local p = Level.clusterPosition(layout, c.id, t, cfg)
-				table.insert(
-					list,
-					{ id = c.id, x = p.x, z = p.z, full = hitsOf[c.id] >= needed[c.id] }
-				)
+				table.insert(list, {
+					id = c.id,
+					x = p.x,
+					z = p.z,
+					full = hitsOf[c.id] >= needed[c.id],
+					lane = c.lane,
+				})
 			end
 		end
 		return list
 	end
 
-	local function pick(t: number, steer: Steer): number?
+	local function pick(t: number, steer: Steer?): number?
 		return Targeting.selectTarget(candidatesAt(t), Level.leadZ(t, cfg), steer, cfg)
 	end
 
@@ -211,7 +210,7 @@ function Targeting.new(opts: Options): Session
 		_,
 		t: number,
 		sectionCount: number,
-		steer: Steer,
+		steer: Steer?,
 		shotPositionTime: number?
 	): Step
 		if type(t) ~= "number" or t ~= t or t < 0 then
