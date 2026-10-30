@@ -299,7 +299,7 @@ return {
 							1000 * Config.speed / 14.4,
 							1300 * Config.speed / 14.4,
 							DebugLayout.plazaStart - 10,
-							DebugLayout.plazaStart,
+							DebugLayout.plazaStart + 60,
 						}
 					do
 						local n = blockedCount(boxes, leadX, leadZ, pullback)

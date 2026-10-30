@@ -485,7 +485,8 @@ local function makePlaza(theme: LevelTheme.Theme, info: LayoutInfo, rng: () -> n
 		end
 	end
 	-- Kiosco (bandstand) and a stone church-like backdrop, both behind the end of the street.
-	local kz = info.streetLength + 14
+	-- Keep the kiosco clear of the final plaza camera's forward sight line (half-pace route, #174).
+	local kz = info.streetLength + 40
 	table.insert(
 		plaza,
 		prim("KioscoBase", "kiosco", "cylinder", 0, 0.6, kz, 14, 1.2, 14, p.kioscoBase, m.ground)
@@ -517,7 +518,7 @@ local function makePlaza(theme: LevelTheme.Theme, info: LayoutInfo, rng: () -> n
 		plaza,
 		prim("KioscoDome", "kiosco", "ball", 0, 9, kz, 6, 6, 6, p.kioscoRoof, m.ground)
 	)
-	local cz = info.streetLength + 44
+	local cz = info.streetLength + 72
 	table.insert(
 		plaza,
 		prim(
