@@ -146,7 +146,7 @@ return {
 		end,
 	},
 	{
-		name = "gift cadence is unchanged: every 4th shot number is a gift, hit or miss",
+		name = "gift cadence is unchanged: every giftEveryNthShot-th shot number is a gift, hit or miss",
 		run = function()
 			-- A 4-shot cadence keeps the sample short; the default cadence is pinned elsewhere.
 			local cfg = table.clone(Config)

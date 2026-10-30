@@ -34,7 +34,7 @@ Notes visibly arc from the lead/band to the target. A completed meter triggers c
 
 The permanent lead musician is separate from the follower total and remains even at zero followers. Starter firing rate: 3 note hits per second. As sections accumulate, use `min(12, 3 + sectionCount)` hits per second. This controlled increase gives growth a gameplay benefit without making thousands of followers produce thousands of projectiles.
 
-Gift tosses share this excitement system. Once a dancer section is present, every fourth shot is a visibly different snack/gift toss worth the same one hit. It replaces a note; it is not an extra reward or damage system. Spectators catch gifts and celebrate. Use placeholder wrapped treats initially; settle specific foods with local reference review.
+Gift tosses share this excitement system. Once a dancer section is present, about one shot in 100 (Amendment 11, `Config.giftEveryNthShot`) is a visibly different snack/gift toss worth the same one hit. It replaces a note; it is not an extra reward or damage system. Spectators catch gifts and celebrate. Use placeholder wrapped treats initially; settle specific foods with local reference review.
 
 ## 5. Crowd math: one authoritative total
 
@@ -197,7 +197,7 @@ Supersedes, where they conflict: §3 ("No target means no projectile spam"), §4
 
 **Firing is continuous.**
 - The parade shoots at the firing-rate curve whether or not anything is in range. The curve is `min(firing.cap, firing.base + firing.perSection * sectionCount)` shots per second with the new named defaults `firing.base = 6` (was 3), `firing.cap = 20` (was 12) and `firing.perSection = 1` (kept). Each is one Config line; `firing.cap` is validated to be at most 30, the server tick rate, because every shot is one replicated event.
-- A shot with an eligible target (Amendment 1 targeting, unchanged) goes to it and **counts as a hit**: one meter hit, credit-once, gift cadence unchanged (every fourth shot once a dancer section exists, counted over all shots, hit or miss).
+- A shot with an eligible target (Amendment 1 targeting, unchanged) goes to it and **counts as a hit**: one meter hit, credit-once, gift cadence unchanged except for its interval, which Amendment 11 changes from every fourth shot to about one in 100 (`Config.giftEveryNthShot`); counted over all shots, hit or miss, once a dancer section exists.
 - A shot with **no eligible target** still fires, straight ahead, as a **miss**: visual only. A miss never fills a meter, credits, damages, consumes a cluster or changes `crowdTotal` or HP, and it is not a gameplay event. It is replicated to the owning player only as a lightweight, bounded, display-only `miss` Event (shot kind and shot number only; no id, position or reward), validated when encoded and again when decoded.
 - The same-tick order (Amendment 1) and server authority are unchanged: shots (hits and misses) are phase 1.
 
@@ -340,3 +340,7 @@ The slower lead changes how quickly mob centers close the gap. Set `spectators.a
 The individual visual mob speeds retain `spectators.scatter.approachSpeedSpread = 0.18`, so their absolute speed variation changes with the new approach speed. Individual movement feel/readability, phone rendering and player balance remain UNVERIFIED pending Studio play-through and separate balance validation.
 
 The 7.2 pace is the owner's requested tuning target. Scripted balance evidence applies only to the authored scenarios; Studio movement feel and player balance remain unverified until checked.
+
+## Amendment 11 — Gift lobs are about one shot in 100 (owner direction, 2026-10-30, issue #194)
+
+Owner direction: gift lobs occur about one in 100 shots. The interval is governed by the single tunable `Config.giftEveryNthShot`, now 100 (from 4; PR #197). This supersedes "every fourth shot" at §4 (gift tosses) and in Amendment 2 (continuous fire), and the same interval wording in Amendment 9's shot-cadence line. Everything else about gifts is unchanged: a gift replaces a note, is worth the same one hit, is counted over all shots, and keeps the landed-gift tomato interaction.
