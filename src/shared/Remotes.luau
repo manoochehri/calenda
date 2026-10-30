@@ -47,6 +47,8 @@ export type StatePayload = {
 	score: number?,
 	level: number, -- issue #128: 1-based index of the level being played (the server decides it)
 	encounter: Encounter?, -- issue #156: the lane encounter to show; absent when none is pending
+	stage: string, -- issue #162: "traveling" | "mini-boss-combat" | "final-boss-combat"; see isStage
+	holdZ: number?, -- issue #162: z of the next unresolved checkpoint plane (or the one held at)
 }
 
 -- Server -> client discrete events. ids are layout ids, for animation lookup only.
@@ -132,6 +134,17 @@ function Remotes.isPhase(p: any): boolean
 	return type(p) == "string" and PHASES[p] == true
 end
 
+-- Issue #162 (ADR 0010 item 5): where the lead is in the route. Distinct from `phase`.
+local STAGES: { [string]: boolean } = {
+	traveling = true,
+	["mini-boss-combat"] = true,
+	["final-boss-combat"] = true,
+}
+
+function Remotes.isStage(s: any): boolean
+	return type(s) == "string" and STAGES[s] == true
+end
+
 -- Start (and Replay) take no data. Any arguments are discarded; always returns true so the
 -- handler's only inputs are the sender and the server clock.
 function Remotes.decodeStart(...: any): boolean
@@ -167,6 +180,8 @@ export type Snapshot = {
 	score: number?,
 	level: number?, -- issue #128: 1-based index of the level being played; absent = 1
 	encounter: Encounter?, -- issue #156: the lane encounter to show, if any
+	stage: string?, -- issue #162: absent or invalid = "traveling"
+	holdZ: number?, -- issue #162: hold plane; dropped unless finite
 }
 
 function Remotes.encodeState(s: Snapshot): StatePayload
@@ -187,6 +202,8 @@ function Remotes.encodeState(s: Snapshot): StatePayload
 		score = s.score,
 		level = if type(s.level) == "number" and s.level >= 1 then math.floor(s.level) else 1,
 		encounter = Remotes.decodeEncounter(s.encounter),
+		stage = if Remotes.isStage(s.stage) then s.stage :: string else "traveling",
+		holdZ = if isFinite(s.holdZ) then round2(s.holdZ :: number) else nil,
 	}
 end
 

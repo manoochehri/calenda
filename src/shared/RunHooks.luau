@@ -37,7 +37,15 @@ function RunHooks.new(layout: Level.Layout, config: any?): any
 			ctx.t1,
 			CrowdMath.sectionCount(ctx.state:total()),
 			LaneGeometry.laneOf(ctx.x), -- start-of-tick lane (Amendment 9 same-tick order); nil engages nothing
-			ctx.t0
+			ctx.t0,
+			if ctx.routeT1 ~= nil
+				then {
+					delay = ctx.delay,
+					routeT1 = ctx.routeT1,
+					leadZ0 = ctx.z0,
+					leadZ1 = ctx.z1,
+				}
+				else nil
 		)
 		ctx.passedClusters = step.passed
 		-- Landed gift shots can block a tomato (issue #96). Misses and notes never do.

@@ -43,6 +43,12 @@ export type Shot = {
 }
 export type HitResult = { hits: number, needed: number, filled: boolean, credit: RunState.Result? }
 export type Step = { shots: { Shot }, passed: { number } }
+-- Issue #162: route time and combat time are different clocks once the lead can stop. `t` stays the
+-- monotonic combat time. `delay` is combat time minus route time at the start of the tick (0 until a
+-- stop), `routeT1` the route time reached at the end of the tick, and leadZ0/leadZ1 the lead's real
+-- z at its start and end. A mob spawns when ROUTE time reaches its spawnTime and then ages on combat
+-- time, so a stop neither releases the mobs ahead nor freezes the ones already walking.
+export type Clock = { delay: number, routeT1: number, leadZ0: number, leadZ1: number }
 
 export type Session = {
 	advance: (
@@ -50,7 +56,8 @@ export type Session = {
 		t: number,
 		sectionCount: number,
 		steer: Steer?,
-		shotPositionTime: number?
+		shotPositionTime: number?,
+		clock: Clock?
 	) -> Step,
 	hit: (self: Session, id: number) -> HitResult,
 	meter: (self: Session, id: number) -> (number, number),
@@ -185,11 +192,27 @@ function Targeting.new(opts: Options): Session
 		return { hits = hitsOf[id], needed = need, filled = hitsOf[id] >= need, credit = credit }
 	end
 
-	local function candidatesAt(t: number): { Candidate }
+	-- Combat-time offset of cluster `c`'s path: the stationary time that had already passed when it
+	-- spawned. nil until it has spawned. Without a clock it is 0, the pre-checkpoint behaviour.
+	local shiftOf: { [number]: number } = {}
+	local function spawnShift(c: Level.Cluster, t: number, clock: Clock?): number?
+		local shift = shiftOf[c.id]
+		if shift == nil then
+			local routeNow = if clock then math.min(t - clock.delay, clock.routeT1) else t
+			if routeNow >= c.spawnTime then
+				shift = if clock then clock.delay else 0
+				shiftOf[c.id] = shift
+			end
+		end
+		return shift
+	end
+
+	local function candidatesAt(t: number, clock: Clock?): { Candidate }
 		local list: { Candidate } = {}
 		for _, c in clusters do
-			if t >= c.spawnTime then
-				local p = Level.clusterPosition(layout, c.id, t, cfg)
+			local shift = spawnShift(c, t, clock)
+			if shift ~= nil then
+				local p = Level.clusterPosition(layout, c.id, math.max(0, t - shift), cfg)
 				table.insert(list, {
 					id = c.id,
 					x = p.x,
@@ -202,8 +225,9 @@ function Targeting.new(opts: Options): Session
 		return list
 	end
 
-	local function pick(t: number, steer: Steer?): number?
-		return Targeting.selectTarget(candidatesAt(t), Level.leadZ(t, cfg), steer, cfg)
+	local function pick(t: number, steer: Steer?, clock: Clock?): number?
+		local leadZ = if clock then clock.leadZ0 else Level.leadZ(t, cfg)
+		return Targeting.selectTarget(candidatesAt(t, clock), leadZ, steer, cfg)
 	end
 
 	function self.advance(
@@ -211,7 +235,8 @@ function Targeting.new(opts: Options): Session
 		t: number,
 		sectionCount: number,
 		steer: Steer?,
-		shotPositionTime: number?
+		shotPositionTime: number?,
+		clock: Clock?
 	): Step
 		if type(t) ~= "number" or t ~= t or t < 0 then
 			error(`t must be a non-negative number, got {t}`, 2)
@@ -237,7 +262,7 @@ function Targeting.new(opts: Options): Session
 		local fired = 0
 		while nextShot <= t do
 			local at = nextShot
-			local target = pick(shotPositionTime or at, steer)
+			local target = pick(shotPositionTime or at, steer, clock)
 			shotCount += 1
 			local kind = Targeting.shotKind(shotCount, sectionCount, cfg)
 			if target == nil then
@@ -277,10 +302,11 @@ function Targeting.new(opts: Options): Session
 
 		-- Clusters that reached the parade unfilled are reported once for the attack phase.
 		local passed: { number } = {}
-		local z = Level.leadZ(t, cfg)
+		local z = if clock then clock.leadZ1 else Level.leadZ(t, cfg)
 		for _, c in clusters do
-			if t >= c.spawnTime and not reported[c.id] and hitsOf[c.id] < needed[c.id] then
-				if Level.clusterPosition(layout, c.id, t, cfg).z <= z then
+			local shift = spawnShift(c, t, clock)
+			if shift ~= nil and not reported[c.id] and hitsOf[c.id] < needed[c.id] then
+				if Level.clusterPosition(layout, c.id, math.max(0, t - shift), cfg).z <= z then
 					reported[c.id] = true
 					table.insert(passed, c.id)
 				end

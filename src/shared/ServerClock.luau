@@ -16,6 +16,7 @@
 --     rate-limited to the server's own lateral speed limit.
 -- Duplicates and stale States are ignored; run time going back by more than REPLAY_BACKSTEP is a
 -- replay and resets everything. Pure: the caller passes the clock reading (os.clock()).
+local Remotes = require("./Remotes")
 local Steering = require("./Steering")
 
 local ServerClock = {}
@@ -33,7 +34,7 @@ ServerClock.MAX_QUERY_DT = 0.25 -- [default] longest frame gap the slew/follower
 local KEEP = 8
 
 type Sample = { t: number, x: number }
-type Latest = { t: number, z: number, x: number, over: boolean }
+type Latest = { t: number, z: number, x: number, over: boolean, stopped: boolean, holdZ: number? }
 
 export type ServerClock = {
 	-- Feed a State (fields t, z, x, over) received at local time `now`; false when ignored.
@@ -92,7 +93,16 @@ function ServerClock.new(): ServerClock
 				math.clamp(o - target, -ServerClock.MAX_INNOVATION, ServerClock.MAX_INNOVATION)
 			target += ServerClock.ALPHA * innovation
 		end
-		latest = { t = state.t, z = state.z, x = state.x, over = state.over == true }
+		-- Issue #162: a State is level-triggered, so a missed stop or resume is repaired by the next one.
+		-- `stopped` (a fight is on) freezes z; `holdZ` stops the extrapolation at the plane before it.
+		latest = {
+			t = state.t,
+			z = state.z,
+			x = state.x,
+			over = state.over == true,
+			stopped = Remotes.isStage(state.stage) and state.stage ~= "traveling",
+			holdZ = if finite(state.holdZ) then state.holdZ else nil,
+		}
 		table.insert(samples, { t = state.t, x = state.x })
 		if #samples > KEEP then
 			table.remove(samples, 1)
@@ -145,7 +155,10 @@ function ServerClock.new(): ServerClock
 			l.t - ServerClock.MAX_EXTRAPOLATION,
 			l.t + ServerClock.MAX_EXTRAPOLATION
 		)
-		local z = math.min(maxZ, l.z + speed * (rt - l.t))
+		local z = if l.stopped then l.z else math.min(maxZ, l.z + speed * (rt - l.t))
+		if l.holdZ ~= nil then
+			z = math.min(z, math.max(l.holdZ, l.z))
+		end
 
 		local want = pathX(rt - ServerClock.LATERAL_DELAY)
 		local fx = follower

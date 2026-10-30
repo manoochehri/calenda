@@ -8,7 +8,13 @@
 -- completion are detected here from server positions and applied through RunState.
 --
 -- Same-tick order (Amendment 1): (1) shots/conversions, (2) lead moves, gates, then obstacle,
--- (3) attacks, (4) end checks (defeat wins over reaching the plaza). The hooks below are the
+-- (3) attacks, (4) end checks (defeat wins over reaching the plaza).
+--
+-- Two clocks (issue #162, ADR 0010): `time` is monotonic COMBAT time and advances every tick
+-- (shots, mob ages, hazards already warned, steering). `routeTime` is the ROUTE clock behind the
+-- lead's forward distance (z = speed * routeTime), spawns and hazard scheduling; it stops while the
+-- lead is held at a checkpoint. A checkpoint is entered once (the lead is clamped onto its plane,
+-- the rest of the step is discarded) and resumed once, by the server-only `resolveCheckpoint`. The hooks below are the
 -- extension points: #9 plugs targeting/shooting into `shots`, #36 plugs cluster attacks into
 -- `attacks` and defeat into `endCheck`. Life is the crowd total (ADR 0006): a loss that empties it
 -- ends the run in RunState itself.
@@ -59,6 +65,8 @@ export type DriverEvent = {
 export type TickContext = {
 	t0: number,
 	t1: number,
+	routeT1: number, -- route time at the end of this tick (== t1 until a checkpoint holds the lead)
+	delay: number, -- combat time minus route time at the start of this tick (0 until a hold)
 	z0: number,
 	z1: number,
 	x: number,
@@ -86,6 +94,8 @@ export type Options = {
 
 export type Snapshot = Remotes.Snapshot
 
+local STAGE_OF = { ["mini-boss"] = "mini-boss-combat" }
+
 export type RunDriver = {
 	steer: (self: RunDriver, now: any, payload: any) -> boolean,
 	tick: (self: RunDriver, dt: any) -> { DriverEvent },
@@ -93,6 +103,9 @@ export type RunDriver = {
 	start: (self: RunDriver, now: any) -> boolean,
 	phase: (self: RunDriver) -> "ready" | "running" | "over",
 	snapshot: (self: RunDriver) -> Snapshot,
+	-- Server-only (issue #162): resumes the held checkpoint `id` at the end of the next tick.
+	-- No remote reaches it. False unless `id` is the checkpoint currently held and not yet resolved.
+	resolveCheckpoint: (self: RunDriver, id: any) -> boolean,
 	total: (self: RunDriver) -> number,
 	outcome: (self: RunDriver) -> string?,
 	events: (self: RunDriver) -> { RunState.Event },
@@ -167,6 +180,13 @@ local function copyForDetection(layout: Level.Layout): Level.Layout
 	for _, p in layout.pickups or {} do
 		table.insert(pickups, { id = p.id, z = p.z, lane = p.lane })
 	end
+	local checkpoints: { Level.Checkpoint } = {}
+	for _, c in layout.checkpoints or {} do
+		table.insert(checkpoints, { id = c.id, z = c.z, kind = c.kind })
+	end
+	table.sort(checkpoints, function(a, b)
+		return a.z < b.z
+	end)
 	return {
 		name = layout.name,
 		seed = layout.seed,
@@ -177,6 +197,7 @@ local function copyForDetection(layout: Level.Layout): Level.Layout
 		halfWidth = layout.halfWidth,
 		leadLimit = layout.leadLimit,
 		pickups = pickups,
+		checkpoints = checkpoints,
 		maxTotal = layout.maxTotal,
 		intendedRecruitTotal = layout.intendedRecruitTotal,
 		gates = gates,
@@ -212,11 +233,35 @@ function RunDriver.new(opts: Options): RunDriver
 	-- Hazard runtime (per run; cleared on replay). Gifts are landed gift shots still able to block.
 	local hazardWarned: { [number]: boolean } = {}
 	local hazardDone: { [number]: boolean } = {}
+	-- Combat time minus route time when a hazard was warned: its impact is due that long after its
+	-- route-scheduled impactAt, so a stop between warning and impact does not move or repeat it.
+	local hazardShift: { [number]: number } = {}
 	local gifts: { { t: number, used: boolean } } = {}
 	-- The one clamp on lead x (ADR 0010 item 3); recomputed when the level changes (enterLevel).
 	local bound = Steering.bound(layout.halfWidth, layout.leadLimit)
 
 	local time, z, x, target = 0, 0, 0, 0
+	-- Issue #162: the route clock and the checkpoint lifecycle (level-local ids; cleared with the level
+	-- and on replay). `active` is the checkpoint the lead is held at; `resolved` is never re-entered.
+	local routeTime = 0
+	local checkpointResolved: { [number]: boolean } = {}
+	local activeCheckpoint: Level.Checkpoint? = nil
+	local resolveQueued = false
+	local function resetCheckpoints()
+		routeTime = 0
+		checkpointResolved = {}
+		activeCheckpoint = nil
+		resolveQueued = false
+	end
+	-- The first checkpoint ahead of z that has not been entered or resolved (the list is sorted by z).
+	local function nextCheckpoint(fromZ: number): Level.Checkpoint?
+		for _, c in layout.checkpoints or {} do
+			if c.z > fromZ and not checkpointResolved[c.id] and c ~= activeCheckpoint then
+				return c
+			end
+		end
+		return nil
+	end
 	-- Issue #156: how each pickup of the current level was resolved (pickup id -> outcome). Set at its
 	-- plane: "collected" when it awarded, "missed" when the lead passed the plane in another lane.
 	-- Cleared with the level and on replay; it only feeds the snapshot's encounter.
@@ -232,8 +277,9 @@ function RunDriver.new(opts: Options): RunDriver
 		hazards = Hazards.schedule(layout.hazardSet, runSeed, bound, Config.speed)
 		state:enterLevel(RunDriver.toRunLayout(authored, hazards), `level{index}`)
 		time, z = 0, 0
-		hazardWarned, hazardDone, gifts = {}, {}, {}
+		hazardWarned, hazardDone, gifts, hazardShift = {}, {}, {}, {}
 		pickupOutcome = {}
+		resetCheckpoints()
 	end
 	local ended = false
 	local finalOutcome: string? = nil
@@ -272,11 +318,26 @@ function RunDriver.new(opts: Options): RunDriver
 		local step = math.min(dt :: number, RunDriver.MAX_DT)
 		local t0, t1 = time, time + step
 		local z0, x0 = z, x
-		local z1 = Level.leadZ(t1, Config)
+		local delay = t0 - routeTime
+		-- Forward travel: only while no checkpoint holds the lead. The step that reaches an unresolved
+		-- plane is clamped onto it and the rest of its distance is discarded, so a resume starts from
+		-- the plane with no jump.
+		local routeT1, z1 = routeTime, z0
+		local reached: Level.Checkpoint? = nil
+		if activeCheckpoint == nil then
+			routeT1 = routeTime + step
+			z1 = Level.leadZ(routeT1, Config)
+			local cp = nextCheckpoint(z0)
+			if cp ~= nil and z1 >= cp.z then
+				z1, routeT1, reached = cp.z, Level.timeAtZ(cp.z, Config), cp
+			end
+		end
 		local x1 = Steering.step(x0, target, step, Steering.MAX_LATERAL_SPEED)
 		local ctx: TickContext = {
 			t0 = t0,
 			t1 = t1,
+			routeT1 = routeT1,
+			delay = delay,
 			z0 = z0,
 			z1 = z1,
 			x = x0,
@@ -305,7 +366,7 @@ function RunDriver.new(opts: Options): RunDriver
 		end
 
 		-- (2) the lead moves, then gates resolve, then the obstacle applies
-		time, z, x = t1, z1, x1
+		time, z, x, routeTime = t1, z1, x1, routeT1
 		ctx.x = x1
 		for _, g in Crossing.gatesCrossed(layout, z0, z1) do
 			local r = state:resolveGate(`g{g.id}`, x1)
@@ -349,19 +410,21 @@ function RunDriver.new(opts: Options): RunDriver
 		-- impact (in its lane? a landed gift in its warning window blocks it; otherwise followers lost), a cart
 		-- on the sweep through its blocked band (crowd loss).
 		for _, h in hazards do
-			if not hazardWarned[h.id] and t1 >= h.warnAt then
+			if not hazardWarned[h.id] and routeT1 >= h.warnAt then
 				hazardWarned[h.id] = true
+				hazardShift[h.id] = t1 - routeT1
 				table.insert(events, {
 					kind = "hazard_warning",
 					id = h.id,
 					hazard = h.kind,
-					at = h.impactAt,
+					at = h.impactAt + hazardShift[h.id],
 					x = h.x,
 					side = h.side,
 				})
 			end
 			if not hazardDone[h.id] then
-				if h.kind == "tomato" and t1 >= h.impactAt then
+				local shift = hazardShift[h.id] or 0
+				if h.kind == "tomato" and hazardWarned[h.id] and t1 >= h.impactAt + shift then
 					hazardDone[h.id] = true
 					if not Hazards.tomatoHit(h, x1) then
 						table.insert(
@@ -371,7 +434,11 @@ function RunDriver.new(opts: Options): RunDriver
 					else
 						local blocker = nil
 						for i, g in gifts do
-							if not g.used and g.t >= h.warnAt and g.t <= h.impactAt then
+							if
+								not g.used
+								and g.t >= h.warnAt + shift
+								and g.t <= h.impactAt + shift
+							then
 								blocker = i
 								break
 							end
@@ -435,13 +502,23 @@ function RunDriver.new(opts: Options): RunDriver
 			end
 			ended, finalOutcome, finalScore = true, "defeated", state:score() or state:total()
 			table.insert(events, { kind = "defeated", score = finalScore })
-		elseif z1 >= layout.plazaStart and levelIndex < #levels then
-			-- A level's finale (issue #128): the run moves on, the crowd total carries over.
-			enterLevel(levelIndex + 1)
-		elseif z1 >= layout.plazaStart then
-			local r = state:complete()
-			ended, finalOutcome, finalScore = true, "completed", r.score
-			table.insert(events, { kind = "complete", score = r.score })
+		else
+			-- Checkpoint lifecycle (after the defeat check, so defeat wins over a pending resolution):
+			-- a queued resolution resumes the lead once; reaching a plane holds it once.
+			if resolveQueued and activeCheckpoint ~= nil then
+				checkpointResolved[activeCheckpoint.id] = true
+				activeCheckpoint, resolveQueued = nil, false
+			elseif reached ~= nil then
+				activeCheckpoint = reached
+			end
+			if z1 >= layout.plazaStart and levelIndex < #levels then
+				-- A level's finale (issue #128): the run moves on, the crowd total carries over.
+				enterLevel(levelIndex + 1)
+			elseif z1 >= layout.plazaStart then
+				local r = state:complete()
+				ended, finalOutcome, finalScore = true, "completed", r.score
+				table.insert(events, { kind = "complete", score = r.score })
+			end
 		end
 		return events
 	end
@@ -471,8 +548,18 @@ function RunDriver.new(opts: Options): RunDriver
 		end
 		time, z, x, target = 0, 0, 0, 0
 		ended, finalOutcome, finalScore = false, nil, nil
-		hazardWarned, hazardDone, gifts = {}, {}, {}
+		hazardWarned, hazardDone, gifts, hazardShift = {}, {}, {}, {}
 		pickupOutcome = {}
+		resetCheckpoints()
+		return true
+	end
+
+	function self.resolveCheckpoint(_, id: any): boolean
+		local active = activeCheckpoint
+		if not started or ended or resolveQueued or active == nil or active.id ~= id then
+			return false
+		end
+		resolveQueued = true
 		return true
 	end
 
@@ -509,6 +596,15 @@ function RunDriver.new(opts: Options): RunDriver
 			score = finalScore,
 			level = levelIndex,
 			encounter = Encounters.current(layout, z, pickupOutcome),
+			stage = if activeCheckpoint ~= nil
+				then STAGE_OF[activeCheckpoint.kind]
+				else "traveling",
+			holdZ = if activeCheckpoint ~= nil
+				then activeCheckpoint.z
+				else (function(): number?
+					local c = nextCheckpoint(z)
+					return if c then c.z else nil
+				end)(),
 		}
 	end
 
