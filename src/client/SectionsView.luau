@@ -357,7 +357,10 @@ function SectionsView.new(initialTotal: number): SectionsView
 			local ground = CFrame.new(rep.x, 0, rep.z)
 			local reaction = CFrame.new(0, eventHop, 0) * CFrame.Angles(eventRoll, eventTurn, 0)
 			rep.visual:setPose(ground * reaction, clock * tempo, rep.phase, scale, intensity)
-			rep.badge.Text = `x{rep.count}`
+			local badgeText = `x{rep.count}`
+			if rep.badge.Text ~= badgeText then -- issue #147: write text only when it changes
+				rep.badge.Text = badgeText
+			end
 			rep.badgeGui.Enabled = rep.count > 1 and rep.riseT >= 1
 		end
 		for i = #ghosts, 1, -1 do

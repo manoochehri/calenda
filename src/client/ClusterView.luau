@@ -614,8 +614,15 @@ function ClusterView.new(layout: any): ClusterView
 			g.fill.Size = UDim2.fromScale(g.meter:step(v.id, v.fill, dt, METER_RATE), 1)
 			local done = v.phase == "cheering"
 			g.fill.BackgroundColor3 = if done then BAR_DONE else BAR_FILL
-			g.numeral.Text = if done then "" else string.format("%d", v.remaining)
-			g.reward.Text = string.format("+%d", v.reward)
+			-- Issue #147: assign text only when it changes; a TextLabel relayouts on every write.
+			local numeralText = if done then "" else string.format("%d", v.remaining)
+			if g.numeral.Text ~= numeralText then
+				g.numeral.Text = numeralText
+			end
+			local rewardText = string.format("+%d", v.reward)
+			if g.reward.Text ~= rewardText then
+				g.reward.Text = rewardText
+			end
 			for _, r in v.runners do
 				table.insert(runnerViews, r)
 			end
@@ -823,7 +830,9 @@ function ClusterView.new(layout: any): ClusterView
 			local f = fl[i]
 			local m = FeedbackMath.floatText(f.f)
 			item.part.Position = Vector3.new(ViewMap.x(f.data.x), 12 + m.dy, f.data.z)
-			item.text.Text = f.data.text
+			if item.text.Text ~= f.data.text then -- issue #147: write text only when it changes
+				item.text.Text = f.data.text
+			end
 			item.text.TextTransparency = 1 - m.alpha
 			item.text.TextStrokeTransparency = 1 - m.alpha * 0.8
 		end
