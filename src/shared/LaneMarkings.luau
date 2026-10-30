@@ -17,11 +17,16 @@ local LaneMarkings = {}
 LaneMarkings.DIVIDER_WIDTH = 0.4 -- [default] studs
 LaneMarkings.ARROW_SPACING = 48 -- [default] studs between arrow rows along the street
 LaneMarkings.ARROW_LENGTH = 6 -- [default] studs, the arrow's extent along the street
-LaneMarkings.ARROW_WIDTH = 4 -- [default] studs, the arrow's extent across the lane
+LaneMarkings.ARROW_WIDTH = 6 -- [default] studs, the arrow's extent across the lane (shaft plus both barbs, 5.8)
 LaneMarkings.CLEARANCE = 4 -- [default] studs kept free around a gate or obstacle line
 LaneMarkings.BRACKET_BAR_DEPTH = 0.6 -- [default] studs
 LaneMarkings.BRACKET_HALF_LENGTH = 5 -- [default] studs the bracket reaches behind and ahead of the lead
 LaneMarkings.BRACKET_INSET = 0.5 -- [default] studs kept clear of the lane boundary on each side
+
+LaneMarkings.SHAFT_WIDTH = 0.6 -- [default] studs
+LaneMarkings.BARB_LENGTH = 3 -- [default] studs
+LaneMarkings.BARB_WIDTH = 0.6 -- [default] studs
+LaneMarkings.BARB_GAP = 0.05 -- [default] studs of clear air between a barb's footprint and the shaft's
 
 export type Spec = {
 	name: string,
@@ -118,6 +123,64 @@ function LaneMarkings.specs(layout: LayoutInfo): { Spec }
 	return list
 end
 
+export type Part = {
+	name: string,
+	side: number, -- 0 for the shaft; -1 or 1 for a barb, the lane-unit side it leans toward
+	x: number, -- lateral centre (lane units, before ViewMap mirroring)
+	z: number,
+	sx: number, -- the part's own size before rotation
+	sz: number,
+	top: number,
+	x0: number, -- the axis-aligned footprint after rotation (conservative for the 45 degree barbs)
+	x1: number,
+	z0: number,
+	z1: number,
+}
+
+-- The Parts of one forward arrow: a shaft along the street and two barbs sweeping back from the
+-- tip. No two footprints overlap, so every Part can share the one MARKING layer without the #85
+-- z-fight: each barb is pushed out so its footprint clears the shaft and the other barb. LaneView
+-- draws exactly these (barb yaw is -45 * side, mirrored by ViewMap).
+function LaneMarkings.arrowParts(s: Spec): { Part }
+	local shaftW, len, bw =
+		LaneMarkings.SHAFT_WIDTH, LaneMarkings.BARB_LENGTH, LaneMarkings.BARB_WIDTH
+	local h = (len + bw) / 2 / math.sqrt(2) -- half extent of a barb rotated 45 degrees
+	local cx = shaftW / 2 + LaneMarkings.BARB_GAP + h
+	local tip = s.z + s.sz / 2
+	local parts: { Part } = {
+		{
+			name = s.name,
+			side = 0,
+			x = s.x,
+			z = s.z,
+			sx = shaftW,
+			sz = s.sz,
+			top = s.top,
+			x0 = s.x - shaftW / 2,
+			x1 = s.x + shaftW / 2,
+			z0 = s.z - s.sz / 2,
+			z1 = tip,
+		},
+	}
+	for _, side in { -1, 1 } do
+		local x, z = s.x + side * cx, tip - h
+		table.insert(parts, {
+			name = `{s.name}_Barb{if side < 0 then "L" else "R"}`,
+			side = side,
+			x = x,
+			z = z,
+			sx = bw,
+			sz = len,
+			top = s.top,
+			x0 = x - h,
+			x1 = x + h,
+			z0 = z - h,
+			z1 = z + h,
+		})
+	end
+	return parts
+end
+
 -- The lane the lead's marker belongs to for lateral position x; positions outside the street clamp
 -- to the nearest lane so the marker never vanishes.
 function LaneMarkings.leadLane(x: number): LaneGeometry.Lane
@@ -127,13 +190,24 @@ end
 
 export type Bar = { x: number, z: number, sx: number, sz: number, top: number }
 
+LaneMarkings.BRACKET_TOP = LayerHeights.LANE_LEAD
+
+-- The lead's lane centre for lateral position x (what leadBracket centres on), allocation-free.
+function LaneMarkings.leadCentre(x: number): number
+	return LaneGeometry.centerOf(LaneMarkings.leadLane(x))
+end
+
+-- The bracket bars' constant lateral size.
+function LaneMarkings.bracketWidth(): number
+	return (LaneGeometry.RIGHT_EDGE - LaneGeometry.LEFT_EDGE) - 2 * LaneMarkings.BRACKET_INSET
+end
+
 -- The lead's lane marker: a front bar and a rear bar across the lane, centred on the lane centre.
 -- Pure of time: it only moves when the lead moves or changes lane, it never pulses.
 function LaneMarkings.leadBracket(x: number, z: number): { Bar }
 	local lane = LaneMarkings.leadLane(x)
 	local centre = LaneGeometry.centerOf(lane)
-	local width = (LaneGeometry.RIGHT_EDGE - LaneGeometry.LEFT_EDGE)
-		- 2 * LaneMarkings.BRACKET_INSET
+	local width = LaneMarkings.bracketWidth()
 	local h = LaneMarkings.BRACKET_HALF_LENGTH
 	return {
 		{

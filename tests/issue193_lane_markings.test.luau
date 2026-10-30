@@ -67,6 +67,21 @@ return {
 					`{s.name} outside the lanes`
 				)
 			end
+			for _, s in specs do
+				if s.kind == "arrow" then
+					for _, part in LaneMarkings.arrowParts(s) do
+						assert(
+							part.x0 >= s.x - s.sx / 2 and part.x1 <= s.x + s.sx / 2,
+							`{part.name} reaches outside its arrow`
+						)
+						assert(part.z1 <= s.z + s.sz / 2 + 1e-9, `{part.name} passes the arrow tip`)
+						assert(
+							part.x0 >= -road and part.x1 <= road,
+							`{part.name} reaches the sidewalk`
+						)
+					end
+				end
+			end
 			for _, lane in LANES do
 				local centre = LaneGeometry.centerOf(lane :: LaneGeometry.Lane)
 				for _, bar in LaneMarkings.leadBracket(centre, 100) do
@@ -91,15 +106,29 @@ return {
 				startPlazaEnd = DebugLayout.startPlazaEnd,
 			}
 			local list = LayerHeights.surfaces(info)
+			-- Every arrow as its separate Parts (shaft and both barbs), as LaneView draws them.
 			for _, s in specs do
-				table.insert(list, {
-					name = s.name,
-					top = s.top,
-					x0 = s.x - s.sx / 2,
-					x1 = s.x + s.sx / 2,
-					z0 = s.z - s.sz / 2,
-					z1 = s.z + s.sz / 2,
-				})
+				if s.kind == "divider" then
+					table.insert(list, {
+						name = s.name,
+						top = s.top,
+						x0 = s.x - s.sx / 2,
+						x1 = s.x + s.sx / 2,
+						z0 = s.z - s.sz / 2,
+						z1 = s.z + s.sz / 2,
+					})
+				else
+					for _, part in LaneMarkings.arrowParts(s) do
+						table.insert(list, {
+							name = part.name,
+							top = part.top,
+							x0 = part.x0,
+							x1 = part.x1,
+							z0 = part.z0,
+							z1 = part.z1,
+						})
+					end
+				end
 			end
 			for _, bar in { LaneMarkings.leadBracket(0, 0)[1] } do
 				table.insert(list, {
@@ -130,6 +159,27 @@ return {
 			local bars = LaneMarkings.leadBracket(0, 50)
 			eq(#bars, 2, "two bars")
 			assert(bars[1].z > 50 and bars[2].z < 50, "bracket frames the lead")
+		end,
+	},
+	{
+		name = "issue 193: the per-frame lead update is allocation-free and guarded (no redundant writes)",
+		run = function()
+			for _, x in { -40, -12, -5, 0, 4.9, 5, 40 } do
+				eq(
+					LaneMarkings.leadCentre(x),
+					LaneMarkings.leadBracket(x, 7)[1].x,
+					`leadCentre x={x}`
+				)
+			end
+			eq(LaneMarkings.leadBracket(0, 0)[1].sx, LaneMarkings.bracketWidth(), "bracket width")
+			local view = fs.readFile("src/client/LaneView.luau")
+			local body = string.match(view, "function LaneView%.update.-\nend\n") or ""
+			assert(string.find(body, "return", 1, true), "update has no early return")
+			assert(
+				string.find(body, "leadBracket", 1, true) == nil,
+				"update allocates via leadBracket"
+			)
+			assert(string.find(body, "Size", 1, true) == nil, "update writes Size every frame")
 		end,
 	},
 	{
