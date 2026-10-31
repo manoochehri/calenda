@@ -7,14 +7,16 @@
 -- meter not full, not yet passed (z > leadZ), and already spawned. The lead's lane decides which
 -- hordes it can engage (ADR 0010 item 1, issue #156): a horde is engaged only from its authored lane,
 -- and center engages the center lane. There is no fallback to another lane. Among eligible hordes in
--- the lead's lane, the nearest to the lead is chosen. Reaching the parade reports an unfilled cluster in `passed` for the attack phase; later
+-- the lead's lane, the nearest to the lead is chosen. Reaching the parade reports an unfilled
+-- cluster in `passed` for the attack phase; later
 -- hits to a passed cluster are inert.
 --
 -- Firing is CONTINUOUS (ADR 0004, spec Amendment 2): a shot every 1 / fireRate seconds whether or
 -- not anything is in range. Issue #234: the rate, the projectile speed and the number of projectiles
 -- allowed in flight at once follow the recruit count (FireTable, Config.firing.tiers). With zero
 -- recruits one projectile is in flight at a time: the next shot starts only after the current one
--- has hit, missed out or left the playfield (its server-side flight time, at the tier speed). A shot with an eligible target is a hit (one meter hit, credit-once).
+-- has hit, missed out or left the playfield (its server-side flight time, at the tier speed).
+-- A shot with an eligible target is a hit (one meter hit, credit-once).
 -- A shot with none is a MISS: `miss = true`, no targetId, and it touches no meter, no RunState and
 -- no life. Misses still advance the shot counter, so the gift cadence (every Nth shot) is unchanged.
 --

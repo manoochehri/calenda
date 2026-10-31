@@ -23,11 +23,12 @@ local ClusterFeed = {}
 
 ClusterFeed.MAX_HITS = 1000 -- [default] sanity bound on a replicated hit count
 ClusterFeed.MAX_SHOT_NUMBER = 1000000 -- [default] sanity bound on a replicated miss shot number
+ClusterFeed.MIN_SPEED = 10 -- [default] lower bound: a tiny v cannot stretch a client flight without limit
 ClusterFeed.MAX_SPEED = 1000 -- [default] sanity bound on a replicated projectile speed (studs/s)
 
--- A speed field is valid when a finite number in (0, MAX_SPEED]; anything else is dropped to nil.
+-- A speed field is valid when a finite number in [MIN_SPEED, MAX_SPEED]; anything else is dropped to nil.
 local function validSpeed(v: any): number?
-	if type(v) == "number" and v > 0 and v <= ClusterFeed.MAX_SPEED then
+	if type(v) == "number" and v >= ClusterFeed.MIN_SPEED and v <= ClusterFeed.MAX_SPEED then
 		return v
 	end
 	return nil

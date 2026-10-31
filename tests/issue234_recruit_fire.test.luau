@@ -258,7 +258,7 @@ return {
 				nil,
 				"absent"
 			)
-			for _, bad in { 0, -5, 1e9, "fast", 0 / 0 } do
+			for _, bad in { 0, -5, 1e9, "fast", 0 / 0, 0.001, 0.9 } do
 				local p = { kind = "cluster", id = 1, hits = 1, shot = "note", v = bad }
 				eq((ClusterFeed.decode(p) :: any).speed, nil, `bad speed {tostring(bad)}`)
 			end
