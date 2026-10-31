@@ -90,6 +90,66 @@ local function validOp(op: any): boolean
 	return (op.kind == "add" and op.value >= 1) or (op.kind == "multiply" and op.value >= 2)
 end
 
+-- Issue #238: a gate pair must be a real choice.
+-- DOMINATED: for every whole crowd size n in 0..maxTotal one option's result applyOp(n, op) is >=
+-- the other's (a tie everywhere counts). Then taking the other side is never right.
+export type GateChoice = {
+	dominated: boolean,
+	better: string, -- "left" | "right" | "tie": who wins at the first crowd size that is not a tie
+	crossover: number?, -- smallest crowd size where the side that lost at the start is at least as good
+}
+
+local function opLabel(op: any): string
+	return if op.kind == "multiply" then `x{op.value}` else `+{op.value}`
+end
+
+-- Both ops are linear in the crowd (add: n + N, multiply: K * n), so left - right is linear in n and
+-- its sign changes at most once over 0..maxTotal. Two endpoints decide dominance and a binary
+-- search finds the crossover: no loop over maxTotal (a test may set it to 10^9).
+local function gateChoice(left: any, right: any, maxTotal: number): GateChoice
+	local function diff(n: number): number
+		return CrowdMath.applyOp(n, left) - CrowdMath.applyOp(n, right)
+	end
+	local function sign(n: number): number
+		local d = diff(n)
+		return if d > 0 then 1 elseif d < 0 then -1 else 0
+	end
+	local d0, dEnd = diff(0), diff(maxTotal)
+	local hasLeft = math.max(d0, dEnd) > 0
+	local hasRight = math.min(d0, dEnd) < 0
+	local first = sign(0)
+	if first == 0 and maxTotal >= 1 then
+		first = sign(1) -- a tie at an empty crowd: the first nonzero sign decides
+	end
+	local crossover: number? = nil
+	if first ~= 0 and sign(maxTotal) ~= first then
+		local lo, hi = 0, maxTotal -- sign(lo) == first, sign(hi) ~= first
+		while hi - lo > 1 do
+			local mid = (lo + hi) // 2
+			if sign(mid) == first then
+				lo = mid
+			else
+				hi = mid
+			end
+		end
+		crossover = hi
+	end
+	return {
+		dominated = not (hasLeft and hasRight),
+		better = if first > 0 then "left" elseif first < 0 then "right" else "tie",
+		crossover = crossover,
+	}
+end
+
+-- Unplayed layouts (src/shared/Layouts.luau, not what RunServer loads) that still carry dominated
+-- add-versus-add rows. They are exempt from the #238 rules by NAME, with the reason, so the
+-- exemption is a visible list and not a weaker rule. A layout with a new name gets no exemption.
+local UNPLAYED_EXEMPT: { [string]: string } = {
+	["calle-del-mercado"] = "not played (RunServer loads DebugLayout); dominated rows 3, 5, 6 left for the follow-up that retunes the unplayed catalogue",
+	["portal-del-sur"] = "not played (RunServer loads DebugLayout); dominated rows 1, 3, 4, 5 left for the follow-up that retunes the unplayed catalogue",
+	["esquina-de-la-banda"] = "not played (RunServer loads DebugLayout); dominated rows 1-4, 6 left for the follow-up that retunes the unplayed catalogue",
+}
+
 -- Structural checks; every problem found is appended to errs.
 local function structure(layout: any, cfg: any, errs: { string })
 	local function bad(msg: string)
@@ -161,6 +221,18 @@ local function structure(layout: any, cfg: any, errs: { string })
 	end
 	if #layout.gates > MAX_GATES then
 		bad(`more than {MAX_GATES} gates cannot be enumerated`)
+	end
+	if UNPLAYED_EXEMPT[layout.name] == nil then
+		for _, g in layout.gates do
+			if validOp(g.left) and validOp(g.right) then
+				local choice = gateChoice(g.left, g.right, layout.maxTotal)
+				if choice.dominated then
+					bad(
+						`gate {g.id} is dominated: {opLabel(g.left)} versus {opLabel(g.right)} has one side at least as good at every crowd size 0 to {layout.maxTotal}`
+					)
+				end
+			end
+		end
 	end
 
 	if #layout.obstacles == 0 then
@@ -578,6 +650,35 @@ local function check(layout: any, config: any?, extraChecks: { ExtraCheck }?): R
 			)
 		end
 	end
+	-- Issue #238, stricter than dominance: the crowd that really arrives at a gate (same witness
+	-- runs, nothing extra simulated) must favor each side at least once, i.e. the crossover lies
+	-- inside the reached range. Skipped for a gate already reported as dominated.
+	local witnessResult = report.witness
+	if witnessResult ~= nil and UNPLAYED_EXEMPT[layout.name] == nil then
+		for i, g in layout.gates do
+			local crowds = witnessResult.gateCrowds[g.id]
+			local alreadyDominated = gateChoice(g.left, g.right, layout.maxTotal).dominated
+			if crowds ~= nil and #crowds > 0 and not alreadyDominated then
+				local leftWins, rightWins = false, false
+				local lo, hi = math.huge, -math.huge
+				for _, n in crowds do
+					lo, hi = math.min(lo, n), math.max(hi, n)
+					local diff = CrowdMath.applyOp(n, g.left) - CrowdMath.applyOp(n, g.right)
+					leftWins = leftWins or diff > 0
+					rightWins = rightWins or diff < 0
+				end
+				if not (leftWins and rightWins) then
+					local crossover = gateChoice(g.left, g.right, layout.maxTotal).crossover
+					table.insert(
+						errs,
+						`gate {g.id} crossover at crowd {tostring(crossover)} ({opLabel(g.left)} versus {opLabel(
+							g.right
+						)}) is outside the crowd range reached there, {lo} to {hi} ({#crowds} of {witnessResult.runs} runs, {report.gateTimes[i]} s)`
+					)
+				end
+			end
+		end
+	end
 	if report.bestFinal < cfg.finaleThresholds[#cfg.finaleThresholds] then
 		table.insert(errs, `best route {report.bestFinal} cannot reach the top finale tier`)
 	end
@@ -610,4 +711,9 @@ local function validate(layout: any, config: any?): (boolean, string?)
 	return report.ok, report.errors[1]
 end
 
-return { check = check, validate = validate }
+return {
+	check = check,
+	validate = validate,
+	gateChoice = gateChoice,
+	UNPLAYED_EXEMPT = UNPLAYED_EXEMPT,
+}

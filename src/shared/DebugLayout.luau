@@ -111,49 +111,41 @@ local layout: Level.Layout = {
 	-- The bound lives in Config.layout.maxTotal (issue #142 owner decision, 2026-10-26).
 	maxTotal = Config.layout.maxTotal,
 	intendedRecruitTotal = 30,
+	-- Issue #238 (P0): every gate row is a REAL choice, +N versus xK, and the crossover (the crowd at
+	-- which the two give the same result, N / (K - 1)) lies inside the crowd range actually reached
+	-- at that gate. LayoutValidator enforces both (gate dominance over 0..maxTotal, and the crossover
+	-- inside the range the LayoutWitness runs reach). The old seven rows had four add-versus-add rows
+	-- where one board was better at every crowd size. Seven add-versus-x2 rows also cannot stay under
+	-- maxTotal (each greedy run doubles seven times), so the count is four, not seven: the two early
+	-- rows and the final row that the spec s9 timeline windows require, plus the 50 s row.
+	-- Crowd range reached on arrival (9 policies x 5 seeds, 41 to 44 runs reach each gate), and where
+	-- each crossover sits in it: tests/issue238_gate_choice.test.luau prints and pins them. Balance
+	-- and winnability are UNVERIFIED until the skeptic has reviewed them.
 	gates = {
 		{
 			id = 1,
 			z = paceDistance(192),
-			left = { kind = "add", value = 15 },
-			right = { kind = "multiply", value = 2 },
-		}, -- 12s
+			left = { kind = "add", value = 9 },
+			right = { kind = "multiply", value = 4 },
+		}, -- 12s: crossover 3
 		{
 			id = 2,
 			z = paceDistance(320),
-			left = { kind = "multiply", value = 2 },
-			right = { kind = "add", value = 20 },
-		}, -- 20s
+			left = { kind = "multiply", value = 4 },
+			right = { kind = "add", value = 36 },
+		}, -- 20s: crossover 12
 		{
 			id = 3,
-			z = paceDistance(512),
-			left = { kind = "add", value = 30 },
-			right = { kind = "add", value = 40 },
-		}, -- 32s
+			z = paceDistance(800),
+			left = { kind = "add", value = 40 },
+			right = { kind = "multiply", value = 2 },
+		}, -- 50s: crossover 40
 		{
 			id = 4,
-			z = paceDistance(736),
-			left = { kind = "add", value = 40 },
-			right = { kind = "add", value = 50 },
-		}, -- 46s
-		{
-			id = 5,
-			z = paceDistance(928),
-			left = { kind = "add", value = 50 },
-			right = { kind = "add", value = 40 },
-		}, -- 58s
-		{
-			id = 6,
-			z = paceDistance(1152),
-			left = { kind = "add", value = 80 },
-			right = { kind = "add", value = 100 },
-		}, -- 72s
-		{
-			id = 7,
-			z = paceDistance(1344),
-			left = { kind = "multiply", value = 3 },
-			right = { kind = "add", value = 200 },
-		}, -- 84s
+			z = paceDistance(1280),
+			left = { kind = "multiply", value = 2 },
+			right = { kind = "add", value = 300 },
+		}, -- 80s: crossover 300
 	},
 	obstacles = {
 		{ id = 1, z = paceDistance(640), side = "left" }, -- 40s

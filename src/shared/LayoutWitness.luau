@@ -24,6 +24,9 @@ export type Result = {
 	policies: number,
 	seeds: number,
 	worst: Witness?, -- the highest final total; first one found on ties
+	-- Issue #238: the crowd on arrival at each gate (keyed by gate id), one entry per run that
+	-- reached it. Recorded on the same runs, so it adds no simulation.
+	gateCrowds: { [number]: { number } },
 }
 
 LayoutWitness.SEEDS = { 1, 2, 3, 4, 5 } -- [default] run seeds; seed drives hazards and random policies
@@ -187,7 +190,12 @@ local function policies(seed: number): { Policy }
 end
 
 -- Plays one run through the production driver. Returns the final total and the outcome.
-local function play(layout: Level.Layout, policy: Policy, seed: number): (number, string?)
+local function play(
+	layout: Level.Layout,
+	policy: Policy,
+	seed: number,
+	gateCrowds: { [number]: { number } }
+): (number, string?)
 	local clock = 0 -- session clock: the steer limiter's time (server seconds in production)
 	local driver = RunDriver.new({
 		layout = layout,
@@ -216,6 +224,12 @@ local function play(layout: Level.Layout, policy: Policy, seed: number): (number
 			nextDecision = snap.time + policy.period
 		end
 		driver:tick(DT)
+		local after = driver:snapshot()
+		for _, g in layout.gates do
+			if g.z > snap.z and g.z <= after.z then
+				table.insert(gateCrowds[g.id], snap.total) -- the crowd arriving at the gate
+			end
+		end
 		if driver:outcome() ~= nil then
 			break
 		end
@@ -226,12 +240,16 @@ end
 -- Runs every fixed policy under every seed and returns the highest final total with its witness.
 local function searchUncached(layout: Level.Layout, seeds: { number }?): Result
 	local seedList = seeds or LayoutWitness.SEEDS
-	local result: Result = { runs = 0, policies = 0, seeds = #seedList, worst = nil }
+	local result: Result =
+		{ runs = 0, policies = 0, seeds = #seedList, worst = nil, gateCrowds = {} }
+	for _, g in layout.gates do
+		result.gateCrowds[g.id] = {}
+	end
 	for _, seed in seedList do
 		local list = policies(seed)
 		result.policies = #list
 		for _, policy in list do
-			local total, outcome = play(layout, policy, seed)
+			local total, outcome = play(layout, policy, seed, result.gateCrowds)
 			result.runs += 1
 			local worst = result.worst
 			if worst == nil or total > worst.total then
