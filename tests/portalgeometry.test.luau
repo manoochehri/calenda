@@ -79,7 +79,7 @@ return {
 				first.gateId == 1 and first.side == "left" and first.z == firstGateZ,
 				"first is gate 1 left"
 			)
-			assert(first.op.kind == "add" and first.op.value == 9, "gate 1 left is +9")
+			assert(first.op.kind == "add" and first.op.value == 20, "gate 1 left is +20")
 			assert(all[2].side == "right" and all[2].op.kind == "multiply", "gate 1 right is x4")
 		end,
 	},

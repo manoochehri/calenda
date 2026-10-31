@@ -164,8 +164,13 @@ return {
 	{
 		name = "in range: a minority that exists only at crowd 0 is rejected",
 		run = function()
-			-- Reached crowds at gate 1 are 0 and 5; +9 beats x4 only at crowd 0..2, so left never wins at 5.
-			local report = LayoutValidator.check(DebugLayout)
+			-- The round-1 gate 1: +9 versus x4 at 12 s. Reached crowds there are only 0 and 5, and +9
+			-- beats x4 only at 0 to 2, so the left side wins at crowd 0 alone.
+			local l = clone(DebugLayout)
+			l.name = "test-copy"
+			l.gates[1].z = z(192)
+			l.gates[1].left = op("add", 9)
+			local report = LayoutValidator.check(l)
 			assert(not report.ok, "gate 1 +9 versus x4 passes only on crowd 0 runs")
 			assert(
 				string.find(joined(report.errors), "gate 1 (+9 versus x4", 1, true),
