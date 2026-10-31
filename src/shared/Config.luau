@@ -374,7 +374,7 @@ end
 
 local config: ConfigType = {
 	sectionSize = 50, -- [spec s5]
-	startingTotal = 10, -- [spec s5]
+	startingTotal = 0, -- owner direction #226, spec Amendment 13: recruit everyone during play
 	clusterTypes = {
 		-- hits/reward [spec s4]. An unconverted horde costs attackSharePercent of the parade (any type).
 		small = { hits = 3, reward = 5 },

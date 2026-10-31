@@ -270,25 +270,9 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	local veil = Instance.new("Frame")
 	veil.Name = "Veil"
 	veil.Size = UDim2.fromScale(1, 1)
-	veil.BackgroundTransparency = 1 -- the street shows through once the title is ready
+	veil.BackgroundTransparency = 1 -- avatar first, then the street fills in behind the title (#226)
 	veil.BorderSizePixel = 0
 	veil.Parent = gui
-
-	-- While loading, an opaque cover hides the half-built street. It goes once the title is ready.
-	local cover = Instance.new("Frame")
-	cover.Name = "Cover"
-	cover.Size = UDim2.fromScale(1, 1)
-	cover.BackgroundColor3 = Color3.fromRGB(38, 27, 55)
-	cover.BorderSizePixel = 0
-	cover.Parent = veil
-	local backgroundGradient = Instance.new("UIGradient")
-	backgroundGradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(96, 45, 97)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(51, 43, 77)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(29, 57, 82)),
-	})
-	backgroundGradient.Rotation = 30
-	backgroundGradient.Parent = cover
 
 	-- A soft dark scrim down the left edge, so the title stays readable over the street.
 	local scrim = Instance.new("Frame")
@@ -296,7 +280,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	scrim.Size = UDim2.fromScale(1, 1)
 	scrim.BackgroundColor3 = INK
 	scrim.BorderSizePixel = 0
-	scrim.Visible = false
+	scrim.Visible = true
 	scrim.Parent = veil
 	local scrimFade = Instance.new("UIGradient")
 	scrimFade.Transparency = NumberSequence.new({
@@ -354,7 +338,7 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 
 	local play = Instance.new("TextButton")
 	play.Name = "Play"
-	local primary = ScreenLayout.PRIMARY_BUTTON
+	local primary = ScreenLayout.PLAY_BUTTON
 	play.AnchorPoint = Vector2.new(primary.ax, primary.ay)
 	play.Position = UDim2.fromScale(primary.x, primary.y)
 	play.Size = UDim2.fromScale(primary.w, primary.h)
@@ -434,7 +418,6 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 		if play.Visible then
 			return
 		end
-		cover.Visible = false
 		scrim.Visible = true
 		loading.Visible = false
 		flourish.Visible = true

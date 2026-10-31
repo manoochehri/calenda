@@ -263,6 +263,7 @@ return {
 				local state = RunState.new({
 					seed = 1,
 					automated = true,
+					startingTotal = 10, -- exercise share losses on an existing recruited parade
 					layout = RunDriver.toRunLayout(layout),
 				})
 				local before = state:total()

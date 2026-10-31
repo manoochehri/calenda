@@ -6,7 +6,7 @@
 --
 -- Life is the crowd total (ADR 0006, spec Amendment 4). A horde that reaches the parade unconverted,
 -- and an unblocked tomato, remove followers; every loss clamps at zero, and the run ends defeated
--- the moment the total is empty. There is no separate HP.
+-- when a real hit leaves it empty. The solo opening is playable until hit (ADR 0012); no separate HP.
 local Config = require("./Config")
 local CrowdMath = require("./CrowdMath")
 
@@ -463,10 +463,17 @@ local function new(opts: Options): RunState
 		end
 		assert(type(ids) == "table", "cluster attack ids must be a list")
 		local results: { Result } = {}
+		local attacked = false
 		for _, id in ids do
-			table.insert(results, applyAttack(id))
+			local result = applyAttack(id)
+			attacked = attacked or result.ok
+			table.insert(results, result)
 		end
-		endIfEmpty()
+		-- Empty/off-lane/rejected batches are not hits. A valid attack still defeats at zero,
+		-- including before the first recruit; keep all same-batch contacts logged before defeat.
+		if attacked then
+			endIfEmpty()
+		end
 		return results
 	end
 

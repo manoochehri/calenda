@@ -4,6 +4,7 @@ local CameraRig = require("../src/shared/CameraRig")
 local DebugLayout = require("../src/shared/DebugLayout")
 local ScreenLayout = require("../src/shared/ScreenLayout")
 local Strings = require("../src/shared/Strings")
+local TitleLayout = require("../src/shared/TitleLayout")
 
 local EPS = 1e-6
 
@@ -145,19 +146,19 @@ return {
 		end,
 	},
 	{
-		name = "the title card ends above the Play button, and every DisplayOrder is unique with the dim under the HUD text",
+		name = "the title column clears the raised Play button, and every DisplayOrder is unique with the dim under the HUD text",
 		run = function()
-			local card = ScreenLayout.TITLE_CARD
 			eachAspect(function(a, safe, full)
 				local r = ScreenLayout.elementRect(
 					ScreenLayout.element("Play") :: ScreenLayout.Element,
 					safe
 				)
-				local cardBottom = (card.y + card.h / 2) * full.h
-				assert(
-					r.y >= cardBottom,
-					`{a.name}: Play top {r.y} is inside the card (bottom {cardBottom})`
-				)
+				for _, e in TitleLayout.ELEMENTS do
+					assert(
+						not overlap(r, ScreenLayout.elementRect(e, full)),
+						`{a.name}: Play overlaps {e.name}`
+					)
+				end
 			end)
 			local D = ScreenLayout.DISPLAY_ORDER
 			local seen = {}

@@ -19,13 +19,14 @@ end
 local HALF_WIDTH = 20
 local SPEED = Config.speed
 local BOUND = Steering.bound(HALF_WIDTH, 15)
+local HAZARD_CROWD = 10 -- grant via an early gate so hazard tests still exercise losses above zero
 
 local MIXED = { kinds = { "tomato", "cart" }, firstAt = 20, lastAt = 80, minGap = 14, maxGap = 22 }
 local ONLY_TOMATO_ONCE =
 	{ kinds = { "tomato" }, firstAt = 20, lastAt = 20, minGap = 14, maxGap = 14 }
 local ONLY_CART_ONCE = { kinds = { "cart" }, firstAt = 20, lastAt = 20, minGap = 14, maxGap = 14 }
 
--- Minimal layout for the driver: no gates, no clusters, no streetwork obstacles, one hazard set.
+-- Minimal layout: an early +10 gate establishes followers, then one hazard set.
 local function layoutWith(set: any): any
 	return {
 		name = "issue96",
@@ -37,7 +38,14 @@ local function layoutWith(set: any): any
 		leadLimit = 15,
 		maxTotal = 1000,
 		intendedRecruitTotal = 0,
-		gates = {},
+		gates = {
+			{
+				id = 1,
+				z = 1,
+				left = { kind = "add", value = HAZARD_CROWD },
+				right = { kind = "add", value = HAZARD_CROWD },
+			},
+		},
 		obstacles = {},
 		clusters = {},
 		hazardSet = set,
@@ -228,9 +236,9 @@ return {
 			eq(countKind(events, "hazard_hit"), 1, "one hit, applied once")
 			eq(
 				driver:snapshot().total,
-				Config.startingTotal
+				HAZARD_CROWD
 					- CrowdMath.shareLoss(
-						Config.startingTotal,
+						HAZARD_CROWD,
 						Config.hazards.tomatoSharePercent,
 						Config.minShareLoss
 					),
@@ -247,7 +255,7 @@ return {
 				drive(ONLY_TOMATO_ONCE, seed, h.x, h.impactAt + 4, h.impactAt - 1)
 			eq(countKind(events, "hazard_blocked"), 1, "gift blocks")
 			eq(countKind(events, "hazard_hit"), 0, "a blocked tomato does not hit")
-			eq(driver:snapshot().total, Config.startingTotal, "no followers lost")
+			eq(driver:snapshot().total, HAZARD_CROWD, "no followers lost")
 		end,
 	},
 	{
@@ -258,9 +266,9 @@ return {
 			local driver = drive(ONLY_TOMATO_ONCE, seed, h.x, h.impactAt + 4, h.warnAt - 1)
 			eq(
 				driver:snapshot().total,
-				Config.startingTotal
+				HAZARD_CROWD
 					- CrowdMath.shareLoss(
-						Config.startingTotal,
+						HAZARD_CROWD,
 						Config.hazards.tomatoSharePercent,
 						Config.minShareLoss
 					),

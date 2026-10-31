@@ -352,3 +352,22 @@ Owner direction on #206: hordes come down ONE lane so the player can see and sho
 Display only: horde figures use one saturated red family, the parade and converted runners one saturated blue family, and the world reward floater is a small non-always-on-top billboard.
 
 NOT in this amendment (needs a decision, see #206): starting the parade at 0 (spec s5 says 10; zero also defeats the run, which conflicts with a zero start), and +1 pickups in the non-horde lanes (no authored layout carries pickups yet).
+
+## Amendment 13 — Player alone first, then the city (owner direction, 2026-10-30, issue #226)
+
+Start title, intro, gameplay and replay with only the permanent player avatar and zero NPC
+followers (`Config.startingTotal = 0`); recruit everyone during play. Reveal the avatar before
+releasing surrounding city construction, without an opaque city-completion cover. Reuse the
+existing bounded avatar wait on character-load failure so the opening cannot deadlock.
+
+The initial zero-follower state is playable and retains continuous base-rate firing and
+server-authoritative recruitment. A valid damaging hit while alone defeats immediately;
+losing the last recruited follower still defeats. No-contact, off-lane or rejected attack
+batches do not defeat. No HP, immunity, new life counter or change to loss amounts is added.
+This supersedes §5's starting total of 10 and the unconditional zero-total defeat wording of
+Amendments 4/9 only, resolving the starting-zero deferral in Amendment 12 (ADR 0012).
+
+Keep the city buildings. Road, sidewalk and plaza paving are continuous smooth surfaces,
+without conspicuous checker tiling. Jugar sits higher with bottom spacing inside the safe
+area on phone and desktop. Startup order, solo firing/recruitment, loss/replay and layout
+need regression evidence; engine appearance remains UNVERIFIED until checked in Studio.

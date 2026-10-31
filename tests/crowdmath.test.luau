@@ -35,7 +35,7 @@ return {
 		name = "spec: start at 10 is 10 loose followers, no section",
 		run = function()
 			eq(CrowdMath.startingTotal(), Config.startingTotal, "startingTotal")
-			expectSplit(CrowdMath.startingTotal(), 0, 10)
+			expectSplit(CrowdMath.startingTotal(), 0, 0)
 		end,
 	},
 	{

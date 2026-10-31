@@ -416,9 +416,12 @@ return {
 	{
 		name = "spec s12 end to end: 49 + 1 = 50 forms one section with no loss",
 		run = function()
-			local layout = layoutOf({ gate(1, 100, 39), gate(2, 200, 1) }, {})
+			local layout = layoutOf(
+				{ gate(1, 100, 49 - Config.startingTotal), gate(2, 200, 1) },
+				{}
+			)
 			local r = BotHarness.play(layout, goRight())
-			eq(r.runLog.gates[1].after, 49, "after +39")
+			eq(r.runLog.gates[1].after, 49, "after reaching 49")
 			eq(CrowdMath.sectionCount(49), 0, "49 has no section")
 			eq(r.runLog.gates[2].before, 49, "before +1")
 			eq(r.runLog.gates[2].after, 50, "49 + 1")
@@ -437,9 +440,12 @@ return {
 	{
 		name = "spec s12 end to end: 120 x2 = 240",
 		run = function()
-			local layout = layoutOf({ gate(1, 100, 110), gate(2, 200, 2, "multiply") }, {})
+			local layout = layoutOf(
+				{ gate(1, 100, 120 - Config.startingTotal), gate(2, 200, 2, "multiply") },
+				{}
+			)
 			local r = BotHarness.play(layout, goRight())
-			eq(r.runLog.gates[1].after, 120, "10 + 110")
+			eq(r.runLog.gates[1].after, 120, "reach 120 before multiplying")
 			eq(r.runLog.gates[2].before, 120, "before x2")
 			eq(r.runLog.gates[2].after, 240, "120 x 2")
 			eq(r.total, 240, "total")
@@ -449,8 +455,11 @@ return {
 	{
 		name = "spec s12 end to end: 105 - 10 = 95 and the section visuals update",
 		run = function()
-			-- 10 + 95 = 105 (2 sections, 5 loose), then the right-hand obstacle at z 300 removes 10.
-			local layout = layoutOf({ gate(1, 100, 95) }, { { id = 1, z = 300, side = "right" } })
+			-- Reach 105 (2 sections, 5 loose), then the right-hand obstacle at z 300 removes 10.
+			local layout = layoutOf(
+				{ gate(1, 100, 105 - Config.startingTotal) },
+				{ { id = 1, z = 300, side = "right" } }
+			)
 			local r = BotHarness.play(layout, goRight())
 			eq(r.runLog.gates[1].after, 105, "105")
 			eq(r.runLog.obstacleLosses[1].before, 105, "before the obstacle")
@@ -466,7 +475,7 @@ return {
 	{
 		name = "spec s12 end to end: a synthetic 10,000 keeps the counter exact and respects visual budgets",
 		run = function()
-			local layout = layoutOf({ gate(1, 100, 9990) }, {})
+			local layout = layoutOf({ gate(1, 100, 10000 - Config.startingTotal) }, {})
 			local r = BotHarness.play(layout, goRight())
 			eq(r.total, 10000, "total")
 			eq(r.score, 10000, "score")

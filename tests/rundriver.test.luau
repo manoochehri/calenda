@@ -119,11 +119,11 @@ return {
 			local events = runOut(d)
 			eq(kinds(events), "gate,obstacle,complete", "event order")
 			eq(events[1].side, "left", "tie break")
-			eq(events[1].before, 10, "gate before")
-			eq(events[1].after, 25, "gate after")
-			eq(events[2].after, 15, "obstacle loss")
+			eq(events[1].before, Config.startingTotal, "gate before")
+			eq(events[1].after, Config.startingTotal + 15, "gate after")
+			eq(events[2].after, Config.startingTotal + 5, "obstacle loss")
 			eq(d:outcome(), "completed", "outcome")
-			eq(d:snapshot().score, 15, "score == final total")
+			eq(d:snapshot().score, Config.startingTotal + 5, "score == final total")
 			assert(d:snapshot().z >= 320, "reached plaza")
 		end,
 	},
@@ -135,7 +135,7 @@ return {
 			local events = runOut(d)
 			eq(kinds(events), "gate,complete", "no obstacle event")
 			eq(events[1].side, "right", "side")
-			eq(d:snapshot().score, 20, "10 x 2")
+			eq(d:snapshot().score, Config.startingTotal * 2, "starting total x 2")
 		end,
 	},
 	{
@@ -276,7 +276,7 @@ return {
 				lane = "center",
 			})
 			runOut(d)
-			eq(d:snapshot().score, 15, "run used the original values")
+			eq(d:snapshot().score, Config.startingTotal + 5, "run used the original values")
 			local converted = RunDriver.toRunLayout(fixture())
 			local again = RunDriver.toRunLayout(fixture())
 			converted.gatePairs[1].left.op.value = 12345
@@ -330,7 +330,7 @@ return {
 			eq(d:replay(0), false, "mid-run replay refused")
 			eq(d:snapshot().z > 0, true, "run continues")
 			runOut(d)
-			eq(d:snapshot().score, 15, "first score")
+			eq(d:snapshot().score, Config.startingTotal + 5, "first score")
 			eq(d:replay(100), true, "replay accepted")
 			local s = d:snapshot()
 			eq(s.total, Config.startingTotal, "total reset")
@@ -338,7 +338,7 @@ return {
 			eq(s.x, 0, "x reset")
 			eq(s.outcome, nil, "outcome reset")
 			eq(s.score, nil, "score reset")
-			eq(s.best, 15, "best kept")
+			eq(s.best, Config.startingTotal + 5, "best kept")
 			local events = runOut(d)
 			eq(kinds(events), "gate,obstacle,complete", "gates apply again in the new run")
 		end,
@@ -398,15 +398,15 @@ return {
 			end
 			assert(gateTick > 0, "gate crossed")
 			eq(table.concat(order, ","), "shots,attacks,end", "phase order")
-			eq(totals[1], "shots:10", "shots see the pre-move total")
-			eq(totals[2], "attacks:25", "attacks see the post-gate total")
+			eq(totals[1], `shots:{Config.startingTotal}`, "shots see the pre-move total")
+			eq(totals[2], `attacks:{Config.startingTotal + 15}`, "attacks see the post-gate total")
 		end,
 	},
 	{
 		name = "server driver attacks passed clusters in ID order before ending defeated",
 		run = function()
 			local clusters: { Level.Cluster } = {}
-			local lethalAttackCount = hitsToEmpty(Config.startingTotal)
+			local lethalAttackCount = math.max(1, hitsToEmpty(Config.startingTotal))
 			local attackCount = lethalAttackCount + 2
 			for i = attackCount, 1, -1 do
 				table.insert(clusters, {
@@ -614,14 +614,14 @@ return {
 			})
 			runOut(d)
 			eq(d:outcome(), "completed", "first run completed")
-			eq(d:snapshot().best, 11, "completed score becomes session best")
+			eq(d:snapshot().best, Config.startingTotal + 1, "completed score becomes session best")
 			shouldDefeat = true
 			assert(d:replay(100), "replay accepted")
 			assert(d:steer(101, { x = 10 }), "steer right for the higher gate")
 			runOut(d)
 			eq(d:outcome(), "defeated", "second run defeated")
-			eq(d:snapshot().score, 210, "defeated score is higher")
-			eq(d:snapshot().best, 11, "defeat does not update session best")
+			eq(d:snapshot().score, Config.startingTotal + 200, "defeated score is higher")
+			eq(d:snapshot().best, Config.startingTotal + 1, "defeat does not update session best")
 		end,
 	},
 	{
@@ -634,7 +634,7 @@ return {
 				+ Config.spectators.approachSpeed * (t1 - spawnTime)
 				- 1e-6 -- place every unconverted cluster just behind the lead at the plaza tick
 			local clusters: { Level.Cluster } = {}
-			for id = 1, hitsToEmpty(Config.startingTotal) do
+			for id = 1, math.max(1, hitsToEmpty(Config.startingTotal)) do
 				table.insert(clusters, {
 					id = id,
 					wave = 1,
@@ -690,7 +690,7 @@ return {
 			eq(d:outcome(), "defeated", "defeated, not completed")
 			eq(kinds(events), "gate,obstacle,defeated", "no complete event")
 			local score = d:snapshot().score
-			eq(score, 15, "score is the total at the end")
+			eq(score, Config.startingTotal + 5, "score is the total at the end")
 			eq(#d:tick(DT), 0, "ignored after end")
 			eq(d:snapshot().score, score, "unchanged")
 		end,

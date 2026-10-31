@@ -38,12 +38,17 @@ local layout: RunState.Layout = {
 	obstacles = { { id = "o1" }, { id = "o2" } },
 }
 
-local function make(automated: boolean?): (RunState.RunState, { clock: number })
+-- Arithmetic scenarios use an explicit population; the default-start case below uses Config.
+local function make(
+	automated: boolean?,
+	startingTotal: number?
+): (RunState.RunState, { clock: number })
 	local t = { clock = 100 }
 	local run = RunState.new({
 		seed = 42,
 		automated = automated or false,
 		layout = layout,
+		startingTotal = startingTotal or 10,
 		now = function()
 			t.clock += 1
 			return t.clock
@@ -75,7 +80,7 @@ return {
 	{
 		name = "new run starts at Config.startingTotal, not complete, one run_start event",
 		run = function()
-			local run = make()
+			local run = make(false, Config.startingTotal)
 			eq(run:total(), Config.startingTotal, "total")
 			eq(run:isComplete(), false, "complete")
 			eq(run:outcome(), nil, "outcome")
@@ -358,7 +363,8 @@ return {
 	{
 		name = "obstacle: clamps at zero, never negative; spec 105 -> 95",
 		run = function()
-			local run = RunState.new({ seed = 1, automated = true, layout = layout })
+			local run =
+				RunState.new({ seed = 1, automated = true, layout = layout, startingTotal = 10 })
 			assert(run:creditCluster("c1").ok and run:creditCluster("c2").ok, "grow") -- 10+5+15=30
 			assert(run:hitObstacle("o1").ok, "o1") -- 20
 			assert(run:hitObstacle("o2").ok, "o2") -- 10
@@ -427,6 +433,7 @@ return {
 			local run = RunState.new({
 				seed = 1,
 				automated = true,
+				startingTotal = 10,
 				layout = {
 					gatePairs = {
 						{
@@ -506,7 +513,7 @@ return {
 			run:hitObstacle("o1")
 			run:complete()
 			run:reset()
-			eq(run:total(), Config.startingTotal, "total")
+			eq(run:total(), 10, "explicit fixture total restored")
 			eq(run:isComplete(), false, "complete")
 			eq(run:outcome(), nil, "outcome")
 			eq(run:score(), nil, "score")
@@ -650,7 +657,7 @@ return {
 		name = "total matches CrowdMath arithmetic across a long mixed sequence (no drift)",
 		run = function()
 			local run = make()
-			local expected = Config.startingTotal
+			local expected = 10 -- explicit arithmetic fixture
 			expected = CrowdMath.applyOp(expected, layout.gatePairs[1].right.op)
 			run:resolveGate("g1", 4)
 			expected += Config.clusterTypes.large.reward

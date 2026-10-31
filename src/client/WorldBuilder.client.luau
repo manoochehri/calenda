@@ -5,6 +5,7 @@
 -- and costs nothing when Config.debug.startupTiming is false.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local StartupTrace = require(script.Parent:WaitForChild("StartupTrace"))
@@ -118,7 +119,7 @@ local function addGround(
 		Vector3.new(width, 1, z1 - z0),
 		Vector3.new(ViewMap.x(x), (top or LayerHeights.GROUND) - 0.5, (z0 + z1) / 2),
 		color,
-		Enum.Material.Concrete,
+		Enum.Material.SmoothPlastic,
 		true
 	)
 	part.CastShadow = false
@@ -272,6 +273,12 @@ local function buildWorld()
 	for _, obstacle in DebugLayout.obstacles do
 		addObstacle(world, obstacle.id, obstacle.side, obstacle.z)
 	end
+end
+
+-- Main renders the lead before releasing either city builder (#226). The signal also releases
+-- on the existing bounded avatar wait when a character fails to load, so startup cannot deadlock.
+while Workspace:GetAttribute("CalendaAvatarReady") ~= true do
+	RunService.Heartbeat:Wait()
 end
 
 if TIMING then
