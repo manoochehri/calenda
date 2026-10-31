@@ -398,10 +398,10 @@ return {
 		gate(l, 2).z = 28 * Config.speed
 	end),
 	rejects("first section too late", "first section", function(l)
-		-- Weak but real choices (+1 versus x2): equal rows would be rejected as dominated (#238).
-		gate(l, 1).left = { kind = "add", value = 1 }
+		-- Weak but real choices (+2 versus x2; +1 versus x2 only wins at crowd 0, which #238 does not count): equal rows would be rejected as dominated (#238).
+		gate(l, 1).left = { kind = "add", value = 2 }
 		gate(l, 1).right = { kind = "multiply", value = 2 }
-		gate(l, 2).left = { kind = "add", value = 1 }
+		gate(l, 2).left = { kind = "add", value = 2 }
 		gate(l, 2).right = { kind = "multiply", value = 2 }
 		-- At the continuous-fire rate (6/s base, ADR 0004) the early clusters alone reach a section
 		-- in time, so the late clusters are also pushed past the 25 s window.
@@ -442,7 +442,7 @@ return {
 	rejects("worst route collapses (needs spending to recover)", "worst route", function(l)
 		for _, g in l.gates do
 			if Level.timeAtZ(g.z) > 30 then
-				g.left = { kind = "add", value = 1 }
+				g.left = { kind = "add", value = 2 }
 				g.right = { kind = "multiply", value = 2 }
 			end
 		end

@@ -118,7 +118,8 @@ local layout: Level.Layout = {
 	-- where one board was better at every crowd size. Seven add-versus-x2 rows also cannot stay under
 	-- maxTotal (each greedy run doubles seven times), so the count is four, not seven: the two early
 	-- rows and the final row that the spec s9 timeline windows require, plus the 50 s row.
-	-- Crowd range reached on arrival (9 policies x 5 seeds, 41 to 44 runs reach each gate), and where
+	-- Crowd range reached on arrival (9 policies x 5 seeds = 45 runs, of which 35 to 41 reach each gate; these are about 9 distinct
+	-- trajectories, so report distinct crowd values, not runs), and where
 	-- each crossover sits in it: tests/issue238_gate_choice.test.luau prints and pins them. Balance
 	-- and winnability are UNVERIFIED until the skeptic has reviewed them.
 	gates = {

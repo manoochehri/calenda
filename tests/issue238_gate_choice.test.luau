@@ -5,7 +5,8 @@
 -- DOMINATED: for every whole crowd size n in 0..maxTotal, one option's result
 -- CrowdMath.applyOp(n, op) is >= the other's (so a tie everywhere also counts).
 -- IN RANGE (stricter): among the crowd sizes actually reached on arrival at that gate across the
--- witness runs, at least one crowd favors each side strictly.
+-- witness runs, at least one NON-ZERO crowd favors each side strictly (crowd 0 is a run that
+-- collected nothing, not a player choosing), counted as distinct crowd values, not runs.
 local Config = require("../src/shared/Config")
 local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
@@ -91,8 +92,8 @@ return {
 			assert(not report.ok, "x2 versus +100 was accepted")
 			local text = joined(report.errors)
 			assert(
-				string.find(text, "gate 1 crossover", 1, true)
-					and string.find(text, "outside the crowd range reached", 1, true),
+				string.find(text, "gate 1 (x2 versus +100", 1, true)
+					and string.find(text, "distinct crowd values reached", 1, true),
 				`expected an in-range rejection for gate 1 in: {text}`
 			)
 			assert(
@@ -102,32 +103,74 @@ return {
 		end,
 	},
 	{
-		name = "played level: every gate row is a real choice, dominance and in range",
+		name = "played level: every gate row is a real choice, dominance and in range (distinct non-zero crowds)",
 		run = function()
-			local report = LayoutValidator.check(DebugLayout)
-			assert(report.ok, joined(report.errors))
 			local result = LayoutWitness.search(DebugLayout)
+			local failures = {}
 			for _, g in DebugLayout.gates do
 				local choice = LayoutValidator.gateChoice(g.left, g.right, DebugLayout.maxTotal)
 				assert(not choice.dominated, `gate {g.id} dominated`)
-				local crowds = (result.gateCrowds :: any)[g.id]
+				local seen, values = {}, {}
+				for _, n in (result.gateCrowds :: any)[g.id] do
+					if not seen[n] then
+						seen[n] = true
+						table.insert(values, n)
+					end
+				end
+				table.sort(values)
 				local leftWins, rightWins = 0, 0
-				for _, n in crowds do
+				for _, n in values do
 					local d = CrowdMath.applyOp(n, g.left) - CrowdMath.applyOp(n, g.right)
-					if d > 0 then
+					if n > 0 and d > 0 then
 						leftWins += 1
-					elseif d < 0 then
+					elseif n > 0 and d < 0 then
 						rightWins += 1
 					end
 				end
 				print(
-					`gate {g.id}: {#crowds} of {result.runs} runs, left better {leftWins}, right better {rightWins}`
+					`gate {g.id}: {#values} distinct crowd values ({table.concat(values, ",")}), non-zero favoring left {leftWins}, right {rightWins}`
 				)
-				assert(
-					leftWins > 0 and rightWins > 0,
-					`gate {g.id} favors one side at every reached crowd`
-				)
+				if leftWins == 0 or rightWins == 0 then
+					table.insert(failures, `gate {g.id}`)
+				end
 			end
+			assert(
+				#failures == 0,
+				`no non-zero reached crowd favors one side at: {table.concat(failures, ", ")}`
+			)
+		end,
+	},
+	{
+		name = "exemption: the played level is not exempt and the exemption table is frozen",
+		run = function()
+			assert(
+				(LayoutValidator.UNPLAYED_EXEMPT :: any)[DebugLayout.name] == nil,
+				"the played level must not be exempt from the gate rules"
+			)
+			assert(
+				table.isfrozen(LayoutValidator.UNPLAYED_EXEMPT),
+				"UNPLAYED_EXEMPT must be frozen"
+			)
+		end,
+	},
+	{
+		name = "choice: crowd 0 does not make a row a choice (+1 versus x2 wins only at 0 and is dominated)",
+		run = function()
+			local choice = LayoutValidator.gateChoice
+			assert(choice(op("add", 1), op("multiply", 2), 4000).dominated, "+1 vs x2")
+			assert(not choice(op("add", 2), op("multiply", 2), 4000).dominated, "+2 vs x2")
+		end,
+	},
+	{
+		name = "in range: a minority that exists only at crowd 0 is rejected",
+		run = function()
+			-- Reached crowds at gate 1 are 0 and 5; +9 beats x4 only at crowd 0..2, so left never wins at 5.
+			local report = LayoutValidator.check(DebugLayout)
+			assert(not report.ok, "gate 1 +9 versus x4 passes only on crowd 0 runs")
+			assert(
+				string.find(joined(report.errors), "gate 1 (+9 versus x4", 1, true),
+				joined(report.errors)
+			)
 		end,
 	},
 	{
