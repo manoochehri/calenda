@@ -11,7 +11,10 @@
 -- hits to a passed cluster are inert.
 --
 -- Firing is CONTINUOUS (ADR 0004, spec Amendment 2): a shot every 1 / fireRate seconds whether or
--- not anything is in range. A shot with an eligible target is a hit (one meter hit, credit-once).
+-- not anything is in range. Issue #234: the rate, the projectile speed and the number of projectiles
+-- allowed in flight at once follow the recruit count (FireTable, Config.firing.tiers). With zero
+-- recruits one projectile is in flight at a time: the next shot starts only after the current one
+-- has hit, missed out or left the playfield (its server-side flight time, at the tier speed). A shot with an eligible target is a hit (one meter hit, credit-once).
 -- A shot with none is a MISS: `miss = true`, no targetId, and it touches no meter, no RunState and
 -- no life. Misses still advance the shot counter, so the gift cadence (every Nth shot) is unchanged.
 --
@@ -21,8 +24,11 @@
 -- same ids as strings (tostring).
 local Config = require("./Config")
 local CrowdMath = require("./CrowdMath")
+local FireTable = require("./FireTable")
 local Level = require("./Level")
+local ProjectileVisual = require("./ProjectileVisual")
 local RunState = require("./RunState")
+local ShotLook = require("./ShotLook")
 
 export type Steer = "left" | "right" | "center"
 export type ShotKind = "note" | "gift"
@@ -40,6 +46,7 @@ export type Shot = {
 	needed: number, -- 0 for a miss
 	filled: boolean, -- true when the meter is full (this hit or earlier); false for a miss
 	credit: RunState.Result?, -- set only on the hit that fills the meter
+	speed: number, -- projectile speed in studs/s the server used for this shot's flight (display)
 }
 export type HitResult = { hits: number, needed: number, filled: boolean, credit: RunState.Result? }
 export type Step = { shots: { Shot }, passed: { number } }
@@ -57,7 +64,8 @@ export type Session = {
 		sectionCount: number,
 		steer: Steer?,
 		shotPositionTime: number?,
-		clock: Clock?
+		clock: Clock?,
+		recruits: number?
 	) -> Step,
 	hit: (self: Session, id: number) -> HitResult,
 	meter: (self: Session, id: number) -> (number, number),
@@ -77,8 +85,8 @@ local Targeting = {}
 -- that jumps the clock, whose backlog is dropped rather than fired.
 Targeting.MAX_SHOTS_PER_ADVANCE = 32 -- [default]
 
--- Spec s4 as amended (Amendment 2): min(cap, base + perSection * sectionCount) shots per second,
--- all numbers from Config.firing (defaults 6, 20, +1 per section).
+-- Issue #234: shots per second at `sectionCount` whole sections (sectionCount x Config.sectionSize
+-- recruits), from the Config.firing.tiers table. Replaces the ADR 0004 min(cap, base + n) curve.
 function Targeting.fireRate(sectionCount: number, config: any?): number
 	if
 		type(sectionCount) ~= "number"
@@ -87,8 +95,8 @@ function Targeting.fireRate(sectionCount: number, config: any?): number
 	then
 		error(`sectionCount must be a non-negative integer, got {sectionCount}`, 2)
 	end
-	local f = (config or Config).firing
-	return math.min(f.cap, f.base + f.perSection * sectionCount)
+	local cfg = config or Config
+	return FireTable.rate(sectionCount * cfg.sectionSize, cfg)
 end
 
 local function hasDancers(sectionCount: number): boolean
@@ -165,6 +173,9 @@ function Targeting.new(opts: Options): Session
 
 	local shotCount = 0
 	local nextShot = 0
+	-- Issue #234: the times at which the shots still in flight resolve (hit landed, miss left the
+	-- playfield). A new shot may start only while fewer than the tier's maxInFlight are unresolved.
+	local resolveAt: { number } = {}
 	local lastT = -math.huge
 
 	local self = {} :: Session
@@ -225,6 +236,15 @@ function Targeting.new(opts: Options): Session
 		return list
 	end
 
+	-- Studs from the lead to the target at the shot's position time: the flight distance. Along the
+	-- street only (the lead is in the target's lane when it engages), so the server flight time is a
+	-- close, display-independent estimate of the client's. UNVERIFIED against the client's 2D distance.
+	local function distanceTo(id: number, t: number, clock: Clock?): number
+		local shift = shiftOf[id] or 0
+		local leadZ = if clock then clock.leadZ0 else Level.leadZ(t, cfg)
+		return math.max(0, Level.clusterPosition(layout, id, math.max(0, t - shift), cfg).z - leadZ)
+	end
+
 	local function pick(t: number, steer: Steer?, clock: Clock?): number?
 		local leadZ = if clock then clock.leadZ0 else Level.leadZ(t, cfg)
 		return Targeting.selectTarget(candidatesAt(t, clock), leadZ, steer, cfg)
@@ -236,7 +256,8 @@ function Targeting.new(opts: Options): Session
 		sectionCount: number,
 		steer: Steer?,
 		shotPositionTime: number?,
-		clock: Clock?
+		clock: Clock?,
+		recruits: number?
 	): Step
 		if type(t) ~= "number" or t ~= t or t < 0 then
 			error(`t must be a non-negative number, got {t}`, 2)
@@ -256,12 +277,33 @@ function Targeting.new(opts: Options): Session
 			error(`shot position time must be between {lastT} and {t}`, 2)
 		end
 		lastT = t
-		local interval = 1 / Targeting.fireRate(sectionCount, cfg)
+		if
+			recruits ~= nil and (type(recruits) ~= "number" or recruits ~= recruits or recruits < 0)
+		then
+			error(`recruits must be a non-negative number, got {tostring(recruits)}`, 2)
+		end
+		local tier = FireTable.tier(recruits or sectionCount * cfg.sectionSize, cfg)
+		local interval = 1 / tier.shotsPerSecond
 		local shots: { Shot } = {}
 
 		local fired = 0
 		while nextShot <= t do
 			local at = nextShot
+			-- One in flight (#234): drop what has resolved by `at`; if the tier's allowance is still
+			-- used up, the next shot waits for the earliest to resolve.
+			local live: { number } = {}
+			local earliest = math.huge
+			for _, r in resolveAt do
+				if r > at then
+					table.insert(live, r)
+					earliest = math.min(earliest, r)
+				end
+			end
+			resolveAt = live
+			if #resolveAt >= tier.maxInFlight then
+				nextShot = earliest
+				continue
+			end
 			local target = pick(shotPositionTime or at, steer, clock)
 			shotCount += 1
 			local kind = Targeting.shotKind(shotCount, sectionCount, cfg)
@@ -277,7 +319,9 @@ function Targeting.new(opts: Options): Session
 					needed = 0,
 					filled = false,
 					credit = nil,
+					speed = tier.speed,
 				})
+				table.insert(resolveAt, at + ShotLook.missSeconds(tier.speed))
 			else
 				local r = self:hit(target)
 				table.insert(shots, {
@@ -290,7 +334,17 @@ function Targeting.new(opts: Options): Session
 					needed = r.needed,
 					filled = r.filled,
 					credit = r.credit,
+					speed = tier.speed,
 				})
+				table.insert(
+					resolveAt,
+					at
+						+ ProjectileVisual.flightSeconds(
+							kind,
+							distanceTo(target, shotPositionTime or at, clock),
+							tier.speed
+						)
+				)
 			end
 			nextShot = at + interval
 			fired += 1

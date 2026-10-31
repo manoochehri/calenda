@@ -34,7 +34,7 @@ local RunDriver = {}
 RunDriver.MAX_DT = 0.1 -- [default] seconds; a longer frame is simulated as this long
 RunDriver.TICK_DT = 1 / 30 -- shared fixed step for server and validator
 -- Hard cap on shot events ("cluster" hits plus "miss"es together) one tick may return. Firing is
--- continuous (ADR 0004), so every shot is one event. The fire rate is at most Config.firing.cap
+-- continuous (ADR 0004), so every shot is one event. The fire rate is at most the top row of Config.firing.tiers
 -- (20) shots/s and one step is at most MAX_DT (0.1 s): at most floor(20 * 0.1) + 1 = 3 shots per
 -- step (1 per 1/30 s tick). 8 leaves headroom and only matters if a hook misbehaves. Excess is
 -- dropped. Worst case: 8 events x 30 ticks/s = 240 events/s hard ceiling per player, about

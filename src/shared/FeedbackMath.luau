@@ -23,11 +23,16 @@ function FeedbackMath.arc(
 	return fx + (tx - fx) * k, fy + (ty - fy) * k + 4 * height * k * (1 - k), fz + (tz - fz) * k
 end
 
-function FeedbackMath.flightSeconds(distance: number): number
+-- Flight time over `distance` studs at `speed` studs/s (default FLIGHT_SPEED). Issue #234: a slower
+-- projectile (fewer recruits) stretches the clamp with it, so it is slower at every range; at
+-- FLIGHT_SPEED the result is exactly the former one.
+function FeedbackMath.flightSeconds(distance: number, speed: number?): number
+	local v = speed or FeedbackMath.FLIGHT_SPEED
+	local stretch = FeedbackMath.FLIGHT_SPEED / v
 	return math.clamp(
-		distance / FeedbackMath.FLIGHT_SPEED,
-		FeedbackMath.MIN_FLIGHT,
-		FeedbackMath.MAX_FLIGHT
+		distance / v,
+		FeedbackMath.MIN_FLIGHT * stretch,
+		FeedbackMath.MAX_FLIGHT * stretch
 	)
 end
 

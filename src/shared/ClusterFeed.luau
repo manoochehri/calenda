@@ -12,15 +12,26 @@
 -- `n` only varies the look (note / heart / gift) and orders nothing.
 -- The server side is in RunHooks.shots: each Targeting shot is encoded (and validated) and emitted
 -- to the owning player only.
-export type Shot = { id: number, hits: number, shot: "note" | "gift" }
-export type Payload = { kind: string, id: number, hits: number, shot: string }
-export type Miss = { shot: "note" | "gift", n: number }
-export type MissPayload = { kind: string, shot: string, n: number }
+-- Issue #234: both shapes carry an optional `v`, the projectile speed (studs/s) the server used for
+-- the shot's flight, so the client draws what the server modelled. Absent or out of range = ignored.
+export type Shot = { id: number, hits: number, shot: "note" | "gift", speed: number? }
+export type Payload = { kind: string, id: number, hits: number, shot: string, v: number? }
+export type Miss = { shot: "note" | "gift", n: number, speed: number? }
+export type MissPayload = { kind: string, shot: string, n: number, v: number? }
 
 local ClusterFeed = {}
 
 ClusterFeed.MAX_HITS = 1000 -- [default] sanity bound on a replicated hit count
 ClusterFeed.MAX_SHOT_NUMBER = 1000000 -- [default] sanity bound on a replicated miss shot number
+ClusterFeed.MAX_SPEED = 1000 -- [default] sanity bound on a replicated projectile speed (studs/s)
+
+-- A speed field is valid when a finite number in (0, MAX_SPEED]; anything else is dropped to nil.
+local function validSpeed(v: any): number?
+	if type(v) == "number" and v > 0 and v <= ClusterFeed.MAX_SPEED then
+		return v
+	end
+	return nil
+end
 
 local function isWholeNumber(v: any, min: number, max: number): boolean
 	return type(v) == "number" and v == math.floor(v) and v >= min and v <= max
@@ -38,7 +49,7 @@ function ClusterFeed.decode(payload: any): Shot?
 	if shot ~= "note" and shot ~= "gift" then
 		return nil
 	end
-	return { id = id, hits = hits, shot = shot }
+	return { id = id, hits = hits, shot = shot, speed = validSpeed(payload.v) }
 end
 
 -- Returns the validated miss or nil for anything that is not exactly this shape. Extra fields
@@ -54,11 +65,11 @@ function ClusterFeed.decodeMiss(payload: any): Miss?
 	if shot ~= "note" and shot ~= "gift" then
 		return nil
 	end
-	return { shot = shot, n = n }
+	return { shot = shot, n = n, speed = validSpeed(payload.v) }
 end
 
 -- Server side: a Targeting miss (fields kind, number) becomes the miss wire payload; nil if bad.
-function ClusterFeed.encodeMiss(s: { kind: string, number: number? }): MissPayload?
+function ClusterFeed.encodeMiss(s: { kind: string, number: number?, speed: number? }): MissPayload?
 	if type(s) ~= "table" then
 		return nil
 	end
@@ -69,7 +80,7 @@ function ClusterFeed.encodeMiss(s: { kind: string, number: number? }): MissPaylo
 	if kind ~= "note" and kind ~= "gift" then
 		return nil
 	end
-	return { kind = "miss", shot = kind, n = n }
+	return { kind = "miss", shot = kind, n = n, v = validSpeed(s.speed) }
 end
 
 -- Server side: a Targeting.Shot (fields targetId, hits, kind) becomes the wire payload. Validated
@@ -81,6 +92,7 @@ function ClusterFeed.encode(s: {
 	kind: string,
 	miss: boolean?,
 	number: number?,
+	speed: number?,
 }): (Payload | MissPayload)?
 	if type(s) ~= "table" then
 		return nil
@@ -95,7 +107,7 @@ function ClusterFeed.encode(s: {
 	if kind ~= "note" and kind ~= "gift" then
 		return nil
 	end
-	return { kind = "cluster", id = id, hits = hits, shot = kind }
+	return { kind = "cluster", id = id, hits = hits, shot = kind, v = validSpeed(s.speed) }
 end
 
 return ClusterFeed

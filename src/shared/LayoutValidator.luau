@@ -16,6 +16,7 @@
 local CrowdMath = require("./CrowdMath")
 local Config = require("./Config")
 local Emergence = require("./Emergence")
+local FireTable = require("./FireTable")
 local Encounters = require("./Encounters")
 local LaneGeometry = require("./LaneGeometry")
 local Level = require("./Level")
@@ -296,7 +297,7 @@ type Event = {
 }
 
 local function simulate(layout: any, cfg: any, report: Report, errs: { string })
-	local rate = cfg.firing.base
+	local rate = FireTable.rate(0, cfg) -- zero-recruit rate; the validator does not model recruits or shots in flight (#234)
 	local range = cfg.firing.range
 	local plazaTime = Level.timeAtZ(layout.plazaStart, cfg)
 	local ticks = math.ceil(plazaTime / DT)

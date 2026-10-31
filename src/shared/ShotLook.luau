@@ -4,6 +4,8 @@
 -- numbers and the curves are Lune-tested; the client (ClusterView) only turns them into Parts.
 -- Display only: nothing here decides a hit, a credit or a total. Colors are 0..255 triples.
 -- The owner tunes by editing a `[default]` line below. In-engine look is UNVERIFIED (PR checklist).
+local FeedbackMath = require("./FeedbackMath")
+
 local ShotLook = {}
 
 export type Variant = "note" | "heart" | "gift"
@@ -73,6 +75,15 @@ ShotLook.CAPACITY_SLACK = 4 -- [default] spare projectile slots over rate x flig
 ShotLook.PROJECTILE_HARD_CAP = 32 -- [default] never more live shots than this
 ShotLook.MUZZLE_CAPACITY = 4 -- [default] live muzzle pops (20/s x 0.16 s is about 3)
 ShotLook.IMPACT_CAPACITY = 10 -- [default] live impact bursts (20/s x 0.28 s is about 6)
+
+-- Issue #234: a miss flies MISS_SECONDS at the reference projectile speed (FeedbackMath.FLIGHT_SPEED)
+-- and proportionally longer at a slower one. Nil speed = the reference.
+function ShotLook.missSeconds(speed: number?): number
+	if speed == nil then
+		return ShotLook.MISS_SECONDS
+	end
+	return ShotLook.MISS_SECONDS * FeedbackMath.FLIGHT_SPEED / speed
+end
 
 -- The longest any shot stays alive: a miss's fixed flight or the slowest aimed flight.
 function ShotLook.longestFlight(maxAimedFlight: number): number

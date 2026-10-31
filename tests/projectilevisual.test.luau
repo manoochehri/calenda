@@ -3,6 +3,7 @@
 -- shot is a gift (the server's cadence, Targeting.shotKind, spec s4 / ADR 0004). Gifts fly a
 -- high, slow, looping arc. Pure: the choice and the arc parameters, not the Parts.
 local Config = require("../src/shared/Config")
+local FireTable = require("../src/shared/FireTable")
 local CrowdMath = require("../src/shared/CrowdMath")
 local FeedbackMath = require("../src/shared/FeedbackMath")
 local ProjectileVisual = require("../src/shared/ProjectileVisual")
@@ -95,10 +96,12 @@ return {
 	{
 		name = "gift flight fits the pool: the capacity covers the longest gift flight",
 		run = function()
-			local cap =
-				ShotLook.projectileCapacity(Config.firing.cap, ProjectileVisual.longestFlight())
+			local cap = ShotLook.projectileCapacity(
+				FireTable.maxRate(Config),
+				ProjectileVisual.longestFlight()
+			)
 			assert(
-				cap >= math.ceil(Config.firing.cap * ProjectileVisual.longestFlight()),
+				cap >= math.ceil(FireTable.maxRate(Config) * ProjectileVisual.longestFlight()),
 				"covers rate x flight"
 			)
 			assert(cap <= ShotLook.PROJECTILE_HARD_CAP, "within the hard cap")

@@ -1,5 +1,6 @@
 --!strict
 local Config = require("../src/shared/Config")
+local FastFire = require("./helpers/FastFire")
 local CrowdMath = require("../src/shared/CrowdMath")
 local DebugLayout = require("../src/shared/DebugLayout")
 local Level = require("../src/shared/Level")
@@ -494,7 +495,7 @@ return {
 			}
 			-- Targeting follows the lead's side (issue #142). This test covers conversion ordering,
 			-- so the shots hook sees the lead on the right sidewalk, where the cluster is.
-			local hooks = RunHooks.new(layout)
+			local hooks = RunHooks.new(layout, FastFire.config())
 			local shots = hooks.shots
 			hooks.shots = function(ctx)
 				ctx.x = 10
@@ -535,9 +536,8 @@ return {
 					path = {},
 				},
 			}
-			local testConfig = table.clone(Config)
-			testConfig.firing = table.clone(Config.firing)
-			testConfig.firing.base = 3.1
+			local testConfig = FastFire.config()
+			testConfig.firing.tiers[1].shotsPerSecond = 3.1
 			local hooks = RunHooks.new(layout, testConfig)
 			local shots = hooks.shots
 			local crossingTick = false

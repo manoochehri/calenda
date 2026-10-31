@@ -25,6 +25,7 @@ local QualityConfig = require(Shared:WaitForChild("QualityConfig"))
 local MeterDisplay = require(Shared:WaitForChild("MeterDisplay"))
 local Effects = require(Shared:WaitForChild("Effects"))
 local FeedbackMath = require(Shared:WaitForChild("FeedbackMath"))
+local FireTable = require(Shared:WaitForChild("FireTable"))
 local GiftVisual = require(Shared:WaitForChild("GiftVisual"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ProjectileVisual = require(Shared:WaitForChild("ProjectileVisual"))
@@ -52,7 +53,7 @@ local CHEVRON_ROW = 0.88 -- [default] share of the visible depth where the chevr
 -- slack = 27), under ShotLook.PROJECTILE_HARD_CAP. Extras are simply not drawn. Look knobs live in
 -- ShotLook; the note, heart and gift shapes and the gift arc live in ProjectileVisual.
 local PROJECTILE_CAPACITY =
-	ShotLook.projectileCapacity(Config.firing.cap, ProjectileVisual.longestFlight())
+	ShotLook.projectileCapacity(FireTable.maxRate(Config), ProjectileVisual.longestFlight())
 local FLOAT_CAPACITY = 6 -- [default]
 local FLOAT_SECONDS = 1.1 -- [default]
 -- Issue #50: the cartoon bump when an unfilled cluster reaches the parade. Hats and instrument
@@ -382,7 +383,7 @@ function ClusterView.new(layout: any): ClusterView
 		end
 		local variant = ProjectileVisual.kind(shot.shot, shot.hits)
 		local dist = math.sqrt((at.x - lastLeadX) ^ 2 + (at.z - lastLeadZ) ^ 2)
-		local seconds = ProjectileVisual.flightSeconds(shot.shot, dist)
+		local seconds = ProjectileVisual.flightSeconds(shot.shot, dist, shot.speed)
 		if
 			flights:start(clock, seconds, {
 				id = shot.id,
@@ -416,7 +417,7 @@ function ClusterView.new(layout: any): ClusterView
 		-- Notes and hearts alternate per shot number; every gift (every Nth shot) is a gift (#151).
 		local variant = ProjectileVisual.kind(miss.shot, miss.n)
 		if
-			flights:start(clock, ShotLook.MISS_SECONDS, {
+			flights:start(clock, ShotLook.missSeconds(miss.speed), {
 				id = nil,
 				variant = variant,
 				hits = 0,

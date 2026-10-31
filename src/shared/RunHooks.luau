@@ -45,7 +45,8 @@ function RunHooks.new(layout: Level.Layout, config: any?): any
 					leadZ0 = ctx.z0,
 					leadZ1 = ctx.z1,
 				}
-				else nil
+				else nil,
+			ctx.state:total() -- recruits: speed, rate and shots in flight follow it (issue #234)
 		)
 		ctx.passedClusters = step.passed
 		-- Landed gift shots can block a tomato (issue #96). Misses and notes never do.

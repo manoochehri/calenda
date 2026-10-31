@@ -2,6 +2,7 @@
 -- Issue #67: the pure look numbers (ShotLook). The in-engine appearance is UNVERIFIED; these tests
 -- pin the knobs, the pool sizing against the firing cap, and the shape of the curves.
 local Config = require("../src/shared/Config")
+local FireTable = require("../src/shared/FireTable")
 local FeedbackMath = require("../src/shared/FeedbackMath")
 local ShotLook = require("../src/shared/ShotLook")
 
@@ -17,7 +18,7 @@ return {
 	{
 		name = "projectile pool covers rate x flight time at the firing cap, within the hard cap",
 		run = function()
-			local rate = Config.firing.cap
+			local rate = FireTable.maxRate(Config)
 			local cap = ShotLook.projectileCapacity(rate, FeedbackMath.MAX_FLIGHT)
 			assert(
 				cap >= rate * ShotLook.longestFlight(FeedbackMath.MAX_FLIGHT),
@@ -32,7 +33,7 @@ return {
 	{
 		name = "muzzle and impact pools cover their rate x duration at the firing cap",
 		run = function()
-			local rate = Config.firing.cap
+			local rate = FireTable.maxRate(Config)
 			assert(ShotLook.MUZZLE_CAPACITY >= rate * ShotLook.MUZZLE_SECONDS, "muzzle")
 			assert(ShotLook.IMPACT_CAPACITY >= rate * ShotLook.IMPACT_SECONDS, "impact")
 		end,

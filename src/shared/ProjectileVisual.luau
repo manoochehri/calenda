@@ -51,8 +51,8 @@ end
 
 -- Flight time in seconds for a shot of this kind over `distance` studs. Notes and hearts keep the
 -- FeedbackMath flight; a gift takes GIFT_FLIGHT_SCALE times as long.
-function ProjectileVisual.flightSeconds(shot: string, distance: number): number
-	local base = FeedbackMath.flightSeconds(distance)
+function ProjectileVisual.flightSeconds(shot: string, distance: number, speed: number?): number
+	local base = FeedbackMath.flightSeconds(distance, speed)
 	if shot == "gift" then
 		return base * ProjectileVisual.GIFT_FLIGHT_SCALE
 	end

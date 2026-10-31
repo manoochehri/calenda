@@ -1,6 +1,8 @@
 --!strict
 local Config = require("../src/shared/Config")
+local FastFire = require("./helpers/FastFire")
 local LaneGeometry = require("../src/shared/LaneGeometry")
+local FireTable = require("../src/shared/FireTable")
 local Level = require("../src/shared/Level")
 local RunState = require("../src/shared/RunState")
 local Targeting = require("../src/shared/Targeting")
@@ -60,7 +62,7 @@ end
 
 local function newSession(layout: Level.Layout)
 	local rs = runStateFor(layout)
-	return Targeting.new({ layout = layout, runState = rs }), rs
+	return Targeting.new({ layout = layout, runState = rs, config = FastFire.config() }), rs
 end
 
 -- Runs the session on a fixed clock and returns every shot fired (hits and misses).
@@ -168,15 +170,26 @@ return {
 		end,
 	},
 	{
-		name = "fire rate is min(20, 6 + sections) at 0, 1, 9 and 100 sections (ADR 0004)",
+		name = "fire rate follows Config.firing.tiers by recruits (sections x sectionSize), issue #234",
 		run = function()
-			assert(Targeting.fireRate(0) == 6, "0 sections")
-			assert(Targeting.fireRate(1) == 7, "1 section")
-			assert(Targeting.fireRate(9) == 15, "9 sections")
-			assert(Targeting.fireRate(14) == 20, "14 sections reach the cap")
-			assert(Targeting.fireRate(15) == 20, "15 sections stay at the cap")
-			assert(Targeting.fireRate(100) == 20, "100 sections capped")
-			assert(Config.firing.base == 6 and Config.firing.cap == 20, "named defaults")
+			local tiers = Config.firing.tiers
+			for sections = 0, 20 do
+				assert(
+					Targeting.fireRate(sections) == FireTable.rate(sections * Config.sectionSize),
+					`{sections} sections`
+				)
+			end
+			assert(Targeting.fireRate(0) == tiers[1].shotsPerSecond, "0 sections is the first row")
+			assert(
+				Targeting.fireRate(1000) == tiers[#tiers].shotsPerSecond,
+				"1000 sections is the top row"
+			)
+			-- The old curve is still reproducible as a test config (tests/helpers/FastFire).
+			local legacy = FastFire.config()
+			assert(
+				Targeting.fireRate(0, legacy) == 6 and Targeting.fireRate(9, legacy) == 15,
+				"legacy rows"
+			)
 		end,
 	},
 	{
@@ -358,7 +371,7 @@ return {
 		name = "scheduler stamps shots with the gift kind, still one hit each",
 		run = function()
 			-- A 4-shot cadence keeps the cluster short; the default cadence is pinned elsewhere.
-			local cfg = table.clone(Config)
+			local cfg = FastFire.config()
 			cfg.giftEveryNthShot = 4
 			local layout = layoutOf({ cluster(1, 10, 30, "large") })
 			local rs = runStateFor(layout)
@@ -405,7 +418,11 @@ return {
 				`fired too early at {shots[1].time}, enter {tEnter}`
 			)
 			assert(
-				shots[1].time < tEnter + 1 / Config.firing.base + 1 / 30 + 1e-6,
+				shots[1].time
+					< tEnter
+						+ 1 / FastFire.config().firing.tiers[1].shotsPerSecond
+						+ 1 / 30
+						+ 1e-6,
 				"fires on the next shot tick after it enters range"
 			)
 			local z = Level.clusterPosition(layout, 1, shots[1].time).z
