@@ -26,6 +26,9 @@ local DanceConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local WAIT = 10 -- [default] seconds to wait for a character's parts before giving up on it
+-- Issue #218: the stock walk cycle is made for a 16 stud/s walk; the avatar is held in place (and
+-- marches slower than that), so at 1.0 it read as dancing fast. [default] UNVERIFIED on device.
+local WALK_ANIM_SPEED = 0.55
 
 export type LeadAvatar = {
 	-- Places the avatar for this frame; true when an avatar is in place (false: use the fallback).
@@ -174,6 +177,7 @@ function LeadAvatar.new(): LeadAvatar
 					track.Looped = true
 					track.Priority = Enum.AnimationPriority.Action
 					track:Play()
+					track:AdjustSpeed(WALK_ANIM_SPEED)
 				end
 			end
 		end)

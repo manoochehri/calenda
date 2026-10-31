@@ -20,6 +20,17 @@ if TIMING then
 	startupTrace:mark("Main.client script start")
 end
 
+-- Issue #218: build the loading cover before the ~25 modules below load, so the screen shows the
+-- title backdrop straight away instead of black. Jugar is wired to `onPlayPressed` further down.
+local StartupScreen = timedRequire("Client", script.Parent, "StartupScreen")
+local onPlayPressed: (() -> ())? = nil
+local startupScreen: StartupScreen.Screen = StartupScreen.new(function()
+	if onPlayPressed then
+		onPlayPressed()
+	end
+end)
+startupScreen:setMessage("Cargando el desfile...")
+
 local AudioIntensity = timedRequire("Shared", Shared, "AudioIntensity")
 local CameraRig = timedRequire("Shared", Shared, "CameraRig")
 local Config = StartupTrace.Config
@@ -53,7 +64,6 @@ local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
 local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
 local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
-local StartupScreen = timedRequire("Client", script.Parent, "StartupScreen")
 local CountdownView = timedRequire("Client", script.Parent, "CountdownView")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
@@ -67,7 +77,6 @@ local eventRemote = remotes:WaitForChild(Remotes.names.event) :: RemoteEvent
 
 local startupFlow = StartFlow.new()
 local startupProgress = StartupProgress.new({ "client", "street", "world", "server" })
-local startupScreen: StartupScreen.Screen
 local music: any
 local function updateProgress()
 	local fraction = StartupProgress.fraction(startupProgress)
@@ -80,7 +89,7 @@ end
 -- Jugar -> camera move (#177) -> tres, dos, uno (#203) -> one Start request, while it plays.
 local sequence: StartSequence.Sequence? = nil
 local countdownView: CountdownView.View? = nil
-local function onPlay()
+onPlayPressed = function()
 	if StartFlow.play(startupFlow) then
 		music:start(os.clock()) -- start the selected loop on Jugar, before the server's first running State
 		startupScreen:finishIntro()
@@ -88,8 +97,6 @@ local function onPlay()
 		countdownView = CountdownView.new()
 	end
 end
-startupScreen = StartupScreen.new(onPlay)
-startupScreen:setMessage("Cargando el desfile...")
 
 -- Register both server listeners before the first ready State can unlock the title. The only
 -- client message that starts the run is the user's single, payload-free Play request.

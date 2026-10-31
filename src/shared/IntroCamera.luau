@@ -14,7 +14,7 @@ IntroCamera.AVATAR_WAIT = 1.5 -- [default] seconds Play waits for the avatar bef
 IntroCamera.TITLE_RADIUS = 9 -- [default] studs from the lead while the title shows
 IntroCamera.TITLE_AZIMUTH = 0.6 -- [default] radians round from the avatar's front (0 = straight in front)
 IntroCamera.TITLE_HEIGHT = 4.5 -- [default] studs above the ground while the title shows
-IntroCamera.TITLE_LOOK_SHIFT = -2.5 -- [default] studs: the title looks left of the avatar, so it sits right
+IntroCamera.TITLE_LOOK_SHIFT = -7 -- [default] studs along the camera's right: the title looks left of the avatar, so it sits right (#218: -2.5 left it under the title text)
 IntroCamera.TITLE_LOOK_HEIGHT = 3.5 -- [default] studs: the title looks at the avatar's chest
 IntroCamera.ZOOM_OUT = 20 -- [default] extra studs of radius at the middle of the move, to show the street
 
@@ -44,9 +44,11 @@ function IntroCamera.titlePose(leadX: number, leadZ: number): Pose
 		px = leadX + IntroCamera.TITLE_RADIUS * math.sin(az),
 		py = IntroCamera.TITLE_HEIGHT,
 		pz = leadZ + IntroCamera.TITLE_RADIUS * math.cos(az),
-		lx = leadX + IntroCamera.TITLE_LOOK_SHIFT,
+		-- Issue #218: the shift runs along the camera's own right vector, so it moves the avatar
+		-- across the screen (a plain world-x shift barely moved it from this angle).
+		lx = leadX + IntroCamera.TITLE_LOOK_SHIFT * math.cos(az),
 		ly = IntroCamera.TITLE_LOOK_HEIGHT,
-		lz = leadZ,
+		lz = leadZ - IntroCamera.TITLE_LOOK_SHIFT * math.sin(az),
 	}
 end
 
