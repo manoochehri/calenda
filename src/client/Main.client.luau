@@ -66,6 +66,7 @@ Workspace:SetAttribute("CalendaAvatarReady", true)
 local AudioIntensity = timedRequire("Shared", Shared, "AudioIntensity")
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
+local DebugSwitches = timedRequire("Shared", Shared, "DebugSwitches")
 local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
 local Remotes = timedRequire("Shared", Shared, "Remotes")
 local ResetPlan = timedRequire("Shared", Shared, "ResetPlan")
@@ -482,7 +483,8 @@ RunService:BindToRenderStep(
 		hitFx:step(dt)
 		local hit = hitFx:sample()
 		local pose = CameraRig.pose(ViewMap.x(drawnX), z, pullback) -- mirrored: see ViewMap
-		placeCamera(pose, hit.shakeX, hit.shakeY)
+		local shakeX, shakeY = DebugSwitches.hitShake(Config.debug, hit.shakeX, hit.shakeY)
+		placeCamera(pose, shakeX, shakeY)
 
 		hud:applyHit(hit)
 		hud:update(fx.view(RunView.hud(state)))

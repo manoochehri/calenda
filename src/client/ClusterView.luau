@@ -17,6 +17,7 @@ local ClusterFeed = require(Shared:WaitForChild("ClusterFeed"))
 local ClusterEvents = require(Shared:WaitForChild("ClusterEvents"))
 local ClusterVisual = require(Shared:WaitForChild("ClusterVisual"))
 local Config = require(Shared:WaitForChild("Config"))
+local DebugSwitches = require(Shared:WaitForChild("DebugSwitches"))
 local Emergence = require(Shared:WaitForChild("Emergence"))
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local MobCharge = require(Shared:WaitForChild("MobCharge"))
@@ -635,7 +636,7 @@ function ClusterView.new(layout: any): ClusterView
 			c.left.CFrame = CFrame.new(bars[1].x, y, bars[1].z) * CFrame.Angles(0, bars[1].yaw, 0)
 			c.right.CFrame = CFrame.new(bars[2].x, y, bars[2].z) * CFrame.Angles(0, bars[2].yaw, 0)
 			c.left.Transparency, c.right.Transparency = tr, tr
-			c.dust.Rate = 12 * sc.alpha
+			c.dust.Rate = DebugSwitches.dustRate(Config.debug, 12 * sc.alpha)
 		end
 
 		local rs = runnerPool:setCount(
@@ -717,7 +718,7 @@ function ClusterView.new(layout: any): ClusterView
 			local coreColor = Color3.fromRGB(core[1], core[2], core[3])
 			local glowColor = Color3.fromRGB(glow[1], glow[2], glow[3])
 			local fade = 1 - alpha
-			p.trail.Enabled = not gone and alpha > 0.15
+			p.trail.Enabled = DebugSwitches.trailEnabled(Config.debug, not gone and alpha > 0.15)
 			p.trail.Color = ColorSequence.new(glowColor)
 			for _, e in p.extras do
 				e.Parent = nil

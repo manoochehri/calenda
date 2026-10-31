@@ -22,6 +22,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Config = require(Shared:WaitForChild("Config"))
+local DebugSwitches = require(Shared:WaitForChild("DebugSwitches"))
 local MobCharge = require(Shared:WaitForChild("MobCharge"))
 local MobLod = require(Shared:WaitForChild("MobLod"))
 local Pool = require(Shared:WaitForChild("Pool"))
@@ -374,8 +375,15 @@ function MobView.new(parent: Instance, quality: string): MobView
 			if d ~= nil then
 				push(d.part, CFrame.new(ViewMap.x(centerX), 0.6, m.z + depth * 0.6))
 				d.part.Size = Vector3.new(2 * scatter.spreadHalfWidth * 0.8, 1, depth * 0.8)
-				d.emitter.Rate = if m.phase == "walking" then DUST_RATE * fade else 0
-				if (m.phase == "slamming" or m.phase == "dispersing") and not puffed[m.id] then
+				d.emitter.Rate = DebugSwitches.dustRate(
+					Config.debug,
+					if m.phase == "walking" then DUST_RATE * fade else 0
+				)
+				if
+					(m.phase == "slamming" or m.phase == "dispersing")
+					and not puffed[m.id]
+					and DebugSwitches.allowDustPuff(Config.debug)
+				then
 					puffed[m.id] = true
 					d.emitter:Emit(level.puff)
 				end
