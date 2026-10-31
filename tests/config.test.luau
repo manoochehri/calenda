@@ -46,7 +46,7 @@ return {
 		run = function()
 			local c = Config
 			eq(c.sectionSize, 50, "sectionSize")
-			eq(c.startingTotal, 10, "startingTotal")
+			eq(c.startingTotal, 0, "startingTotal")
 			eq(c.clusterTypes.small.hits, 3, "small.hits")
 			eq(c.clusterTypes.small.reward, 5, "small.reward")
 			eq(c.clusterTypes.large.hits, 8, "large.hits")

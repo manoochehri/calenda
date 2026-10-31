@@ -118,7 +118,7 @@ return {
 		name = "226: Jugar has comfortable bottom spacing across supported safe areas",
 		run = function()
 			local play = ScreenLayout.element("Play")
-			assert(play)
+			assert(play, "Play layout exists")
 			for _, aspect in ScreenLayout.ASPECTS do
 				local safe = ScreenLayout.safeRect(aspect)
 				local rect = ScreenLayout.elementRect(play, safe)

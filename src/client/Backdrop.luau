@@ -34,7 +34,7 @@ local function slab(parent: Instance, name: string, size: Vector3, position: Vec
 	p.Size = size
 	p.Position = position
 	p.Color = color
-	p.Material = Enum.Material.Concrete
+	p.Material = Enum.Material.SmoothPlastic
 	p.Anchored = true
 	p.CanCollide = false
 	p.CanQuery = false

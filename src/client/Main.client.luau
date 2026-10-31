@@ -20,8 +20,8 @@ if TIMING then
 	startupTrace:mark("Main.client script start")
 end
 
--- Issue #218: build the loading cover before the ~25 modules below load, so the screen shows the
--- title backdrop straight away instead of black. Jugar is wired to `onPlayPressed` further down.
+-- Show the title over the scene immediately; no opaque city-completion cover (#226).
+-- Jugar is wired to `onPlayPressed` further down and still waits for actual readiness.
 local StartupScreen = timedRequire("Client", script.Parent, "StartupScreen")
 local onPlayPressed: (() -> ())? = nil
 local startupScreen: StartupScreen.Screen = StartupScreen.new(function()
@@ -31,8 +31,39 @@ local startupScreen: StartupScreen.Screen = StartupScreen.new(function()
 end)
 startupScreen:setMessage("Cargando el desfile...")
 
-local AudioIntensity = timedRequire("Shared", Shared, "AudioIntensity")
+-- Establish the lead's render before loading the rest of the presentation modules (#226).
 local CameraRig = timedRequire("Shared", Shared, "CameraRig")
+local IntroCamera = timedRequire("Shared", Shared, "IntroCamera")
+local ViewMap = timedRequire("Shared", Shared, "ViewMap")
+local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
+local stepAt = startupTrace:begin()
+local leadAvatar = LeadAvatar.new() -- take over the player's avatar before city construction (#226)
+stepAt = startupTrace:lap("LeadAvatar.new", stepAt)
+local avatarPlaced = false
+RunService:BindToRenderStep("CalendaOpening", Enum.RenderPriority.Camera.Value + 1, function()
+	avatarPlaced = leadAvatar:hold(0, 0)
+	local camera = Workspace.CurrentCamera
+	if camera then
+		local pose = IntroCamera.titlePose(ViewMap.x(0), 0)
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.FieldOfView = CameraRig.FIELD_OF_VIEW
+		camera.CFrame = CFrame.lookAt(
+			Vector3.new(pose.px, pose.py, pose.pz),
+			Vector3.new(pose.lx, pose.ly, pose.lz)
+		)
+	end
+end)
+-- Reuse the existing avatar timeout: a missing character must not prevent city/startup forever.
+-- Keep the early render active through module/view setup and transfer it to CalendaFrame below.
+local avatarDeadline = os.clock() + IntroCamera.AVATAR_WAIT
+repeat
+	RunService.Heartbeat:Wait()
+until avatarPlaced or os.clock() >= avatarDeadline
+-- Yield through a further frame so the placed lead can be displayed before scenery is released.
+RunService.Heartbeat:Wait()
+Workspace:SetAttribute("CalendaAvatarReady", true)
+
+local AudioIntensity = timedRequire("Shared", Shared, "AudioIntensity")
 local Config = StartupTrace.Config
 local DebugLayout = timedRequire("Shared", Shared, "DebugLayout")
 local HitFeedback = timedRequire("Shared", Shared, "HitFeedback")
@@ -43,11 +74,9 @@ local CrowdMath = timedRequire("Shared", Shared, "CrowdMath")
 local ServerClock = timedRequire("Shared", Shared, "ServerClock")
 local StartFlow = timedRequire("Shared", Shared, "StartFlow")
 local StartSequence = timedRequire("Shared", Shared, "StartSequence")
-local IntroCamera = timedRequire("Shared", Shared, "IntroCamera")
 local StartupProgress = timedRequire("Shared", Shared, "StartupProgress")
 local Steering = timedRequire("Shared", Shared, "Steering")
 local LevelInterstitial = timedRequire("Shared", Shared, "LevelInterstitial")
-local ViewMap = timedRequire("Shared", Shared, "ViewMap")
 local VisualBudget = timedRequire("Shared", Shared, "VisualBudget")
 
 local TouchControls = timedRequire("Client", script.Parent, "TouchControls")
@@ -59,7 +88,6 @@ local Hud = timedRequire("Client", script.Parent, "Hud")
 local InputController = timedRequire("Client", script.Parent, "InputController")
 local LevelInterstitialView = timedRequire("Client", script.Parent, "LevelInterstitialView")
 local LaneView = timedRequire("Client", script.Parent, "LaneView")
-local LeadAvatar = timedRequire("Client", script.Parent, "LeadAvatar")
 local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
 local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
@@ -124,7 +152,6 @@ task.spawn(function()
 	markWorldReady()
 end)
 
-local stepAt = startupTrace:begin()
 Backdrop.build(function(fraction: number)
 	StartupProgress.report(startupProgress, "street", fraction)
 	updateProgress()
@@ -155,8 +182,6 @@ end)
 stepAt = startupTrace:lap("Hud.new", stepAt)
 local crowd = CrowdView.new() -- pools are lazy: nothing is prewarmed here
 stepAt = startupTrace:lap("CrowdView.new", stepAt)
-local leadAvatar = LeadAvatar.new() -- the player's own character is the lead (issue #55)
-stepAt = startupTrace:lap("LeadAvatar.new", stepAt)
 local laneView = LaneView.new(DebugLayout) -- visible lanes and the lead's lane marker (issue #193)
 stepAt = startupTrace:lap("LaneView.new", stepAt)
 local sections = SectionsView.new(Config.startingTotal)
@@ -331,6 +356,7 @@ eventRemote.OnClientEvent:Connect(function(payload: any)
 	end
 end)
 
+RunService:UnbindFromRenderStep("CalendaOpening")
 RunService:BindToRenderStep(
 	"CalendaFrame",
 	Enum.RenderPriority.Camera.Value + 1,

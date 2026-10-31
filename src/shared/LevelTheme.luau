@@ -207,9 +207,9 @@ LevelTheme.level1 = {
 	materials = {
 		wall = "Concrete",
 		stone = "Slate",
-		road = "Cobblestone",
-		ground = "Concrete",
-		plaza = "Cobblestone",
+		road = "SmoothPlastic",
+		ground = "SmoothPlastic",
+		plaza = "SmoothPlastic",
 	},
 	lighting = {
 		clockTime = 14.5,

@@ -122,12 +122,24 @@ local replay = el("Replay", 1, 1, 1, 1, 0.28, 0.17, RESULTS, {
 replay.touch = true
 replay.primary = true
 
--- The title screen's "Jugar" (issue #72) is the same primary button in the same corner.
-local play = el("Play", 1, 1, 1, 1, 0.28, 0.17, TITLE, {
-	minSize = 14,
-	maxSize = 36,
-	sample = "Jugar",
-})
+-- Jugar sits above the bottom edge, with a little right inset, inside CoreUISafeInsets (#226).
+ScreenLayout.PLAY_BUTTON = table.freeze({ ax = 1, ay = 1, x = 0.97, y = 0.88, w = 0.28, h = 0.17 })
+local playButton = ScreenLayout.PLAY_BUTTON
+local play = el(
+	"Play",
+	playButton.ax,
+	playButton.ay,
+	playButton.x,
+	playButton.y,
+	playButton.w,
+	playButton.h,
+	TITLE,
+	{
+		minSize = 14,
+		maxSize = 36,
+		sample = "Jugar",
+	}
+)
 play.touch = true
 play.primary = true
 

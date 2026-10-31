@@ -381,7 +381,7 @@ local function makeGround(
 				width,
 				0.2,
 				len,
-				if i % 2 == 1 then p.road else p.roadAlt,
+				p.road,
 				m.road
 			)
 		)
@@ -428,28 +428,23 @@ local function makePlaza(theme: LevelTheme.Theme, info: LayoutInfo, rng: () -> n
 	local plaza: { Prim } = {}
 	local depth = info.streetLength - info.plazaStart
 	if depth > 8 then
-		local cols, rows = 6, math.max(1, math.min(4, math.floor(depth / 20)))
-		local w, d = info.halfWidth * 2 / cols, depth / rows
-		for r = 1, rows do
-			for c = 1, cols do
-				table.insert(
-					plaza,
-					prim(
-						`Paving{r}_{c}`,
-						"paving",
-						"block",
-						-info.halfWidth + (c - 0.5) * w,
-						LayerHeights.MARKING - 0.1,
-						info.plazaStart + (r - 0.5) * d,
-						w,
-						0.2,
-						d,
-						if (r + c) % 2 == 0 then p.plazaPaving else p.plazaPavingAlt,
-						m.plaza
-					)
-				)
-			end
-		end
+		-- A single warm floor instead of alternating checker tiles (#226).
+		table.insert(
+			plaza,
+			prim(
+				"PlazaPaving",
+				"paving",
+				"block",
+				0,
+				LayerHeights.MARKING - 0.1,
+				info.plazaStart + depth / 2,
+				info.halfWidth * 2,
+				0.2,
+				depth,
+				p.plazaPaving,
+				m.plaza
+			)
+		)
 		-- Trees outside the plaza floor so the finale's dancers keep the whole floor.
 		local z = info.plazaStart + 16
 		while z < info.streetLength - 8 do
