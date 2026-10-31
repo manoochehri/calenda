@@ -362,6 +362,15 @@ function StartupScreen.new(onPlay: () -> ()): Screen
 	play.BorderSizePixel = 0
 	play.AutoButtonColor = false
 	play.Selectable = true
+	-- Issue #218: the button is selected for keyboard/gamepad (GuiService.SelectedObject), and
+	-- Roblox's default selection box drew a white-blue rectangle round the pill. The pill's own
+	-- gold stroke already marks it, so the selection image is an empty frame.
+	local noSelectionBox = Instance.new("Frame")
+	noSelectionBox.Name = "NoSelectionBox"
+	noSelectionBox.BackgroundTransparency = 1
+	noSelectionBox.BorderSizePixel = 0
+	noSelectionBox.Size = UDim2.fromScale(1, 1)
+	play.SelectionImageObject = noSelectionBox
 	play.Text = "Jugar"
 	play.TextColor3 = Color3.fromRGB(255, 250, 232)
 	play.TextScaled = true

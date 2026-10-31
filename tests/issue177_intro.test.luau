@@ -105,4 +105,28 @@ return {
 			assert(intro.moveAt ~= nil, "move starts after AVATAR_WAIT even without the avatar")
 		end,
 	},
+	{
+		-- Issue #218: the avatar sat under the title text (about 59% across). The title column ends at
+		-- 0.6 of the width (TitleLayout), so the avatar must read clear of it, on the right.
+		name = "the title camera puts the avatar on the right, clear of the title column",
+		run = function()
+			local pose = IntroCamera.titlePose(LEAD_X, LEAD_Z)
+			local dx, dy, dz = pose.lx - pose.px, pose.ly - pose.py, pose.lz - pose.pz
+			local len = math.sqrt(dx * dx + dy * dy + dz * dz)
+			dx, dy, dz = dx / len, dy / len, dz / len
+			-- camera right = forward x up (up = +y), horizontal only
+			local rx, rz = -dz, dx
+			local rlen = math.sqrt(rx * rx + rz * rz)
+			rx, rz = rx / rlen, rz / rlen
+			-- the avatar's chest relative to the camera
+			local vx, vy, vz =
+				LEAD_X - pose.px, IntroCamera.TITLE_LOOK_HEIGHT - pose.py, LEAD_Z - pose.pz
+			local depth = vx * dx + vy * dy + vz * dz
+			local across = vx * rx + vz * rz
+			local fov, aspect = math.rad(70), 2.1 -- Roblox default vertical FOV; a landscape phone
+			local ndc = across / depth / (math.tan(fov / 2) * aspect)
+			local screenX = 0.5 + 0.5 * ndc
+			assert(screenX >= 0.68 and screenX <= 0.88, `avatar at {screenX} of the width`)
+		end,
+	},
 }

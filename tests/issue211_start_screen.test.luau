@@ -45,7 +45,12 @@ return {
 		name = "the title pose is a three-quarter view of the lead, not a close-up or head-on",
 		run = function()
 			local p = IntroCamera.titlePose(LEAD_X, LEAD_Z)
-			near(p.lz, LEAD_Z, "looks at the avatar")
+			-- Issue #218: the look point is shifted along the camera's right (TITLE_LOOK_SHIFT) so the
+			-- avatar sits on the right of the screen, so it is near the avatar, not exactly on it.
+			assert(
+				math.abs(p.lz - LEAD_Z) <= math.abs(IntroCamera.TITLE_LOOK_SHIFT),
+				"looks near the avatar"
+			)
 			assert(p.pz - LEAD_Z > 4, "camera stands clear of the avatar")
 			assert(p.pz - LEAD_Z < 20, "camera is close enough to frame the avatar")
 			assert(p.px ~= LEAD_X, "camera is off-axis for a three-quarter view")
