@@ -72,6 +72,10 @@ export type ConfigType = {
 		freezeCamera: boolean,
 		noShadows: boolean,
 		rawExtrapolation: boolean,
+		noTrails: boolean, -- issue #171 A/B: no shot Trails
+		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
+		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
+		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
 		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
 	},
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
@@ -138,7 +142,17 @@ local function validate(c: any): (boolean, string?)
 	if type(c.debug) ~= "table" or type(c.debug.startupTiming) ~= "boolean" then
 		return false, "debug.startupTiming must be a boolean"
 	end
-	for _, flag in { "freezeCamera", "noShadows", "rawExtrapolation" } do
+	for _, flag in
+		{
+			"freezeCamera",
+			"noShadows",
+			"rawExtrapolation",
+			"noTrails",
+			"noHitShake",
+			"noTransparentStrips",
+			"noDust",
+		}
+	do
 		if type(c.debug[flag]) ~= "boolean" then
 			return false, `debug.{flag} must be a boolean`
 		end
@@ -506,6 +520,11 @@ local config: ConfigType = {
 		noShadows = false, -- Lighting.GlobalShadows = false: is it shadow flicker?
 		quality = nil, -- [default] nil = automatic (medium on touch, high otherwise); or "low" | "medium" | "high"
 		rawExtrapolation = false, -- the pre-#85 snap-to-State lead path instead of ServerClock
+		-- Issue #171 A/B switches (flip one, replay the same route; all false = normal game):
+		noTrails = false, -- shot Trails (Neon streaks) off
+		noHitShake = false, -- hit camera shake off
+		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque
+		noDust = false, -- chevron and mob dust ParticleEmitters off
 	},
 	validate = validate,
 }

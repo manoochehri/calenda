@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local DebugLayout = require(Shared:WaitForChild("DebugLayout"))
+local DebugSwitches = require(Shared:WaitForChild("DebugSwitches"))
 local Effects = require(Shared:WaitForChild("Effects"))
 local Dance = require(Shared:WaitForChild("Dance"))
 local DanceConfig = require(Shared:WaitForChild("DanceConfig"))
@@ -201,7 +202,7 @@ local function buildRing(parent: Instance): Part
 	ring.Size = Vector3.new(0.2, LeadPose.RING_DIAMETER, LeadPose.RING_DIAMETER)
 	ring.Color = RING_COLOR
 	ring.Material = Enum.Material.Neon
-	ring.Transparency = 0.2
+	ring.Transparency = DebugSwitches.stripTransparency(Config.debug, 0.2)
 	ring.Anchored = true
 	ring.CanCollide = false
 	ring.CanQuery = false

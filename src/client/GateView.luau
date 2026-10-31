@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local DebugSwitches = require(Shared:WaitForChild("DebugSwitches"))
 local GateLabel = require(Shared:WaitForChild("GateLabel"))
 local LayerHeights = require(Shared:WaitForChild("LayerHeights"))
 local PortalFx = require(Shared:WaitForChild("PortalFx"))
@@ -171,7 +172,7 @@ local function buildPortal(folder: Instance, desc: PortalGeometry.Portal, total:
 		CFrame.new(ViewMap.x(x), LayerHeights.DECAL - 0.1, desc.z),
 		pal.banner
 	)
-	strip.Transparency = 0.25
+	strip.Transparency = DebugSwitches.stripTransparency(Config.debug, 0.25)
 
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "GateLabel"
@@ -360,7 +361,8 @@ function GateView.new(parent: Instance, layout: any): GateView
 				p.banner.Size =
 					Vector3.new(p.baseSize.X * scale, p.baseSize.Y * scale, p.baseSize.Z)
 				p.banner.Color = p.baseColor:Lerp(WHITE, math.clamp(glow * 0.3 + flash * 0.8, 0, 1))
-				p.strip.Transparency = 0.25 + 0.75 * trans
+				p.strip.Transparency =
+					DebugSwitches.stripTransparency(Config.debug, 0.25 + 0.75 * trans)
 				for _, l in { p.operation, p.result, p.icon } do
 					l.TextTransparency = trans
 					l.TextStrokeTransparency = math.max(0.1, trans)
