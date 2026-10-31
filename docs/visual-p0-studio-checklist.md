@@ -9,7 +9,7 @@ This record covers the owner's 2026-10-30 phone screenshot and review round 2 fo
 
 ### Round 1 — reviewer and security, head `abc6c3b`
 
-- Reviewer verdict: **fail**. Must-fixes were missing review-round evidence, a concrete
+- Reviewer verdict: **merge after fixes**. Must-fixes were missing review-round evidence, a concrete
   #171 A/B diagnosis, a complete #222 rectangle inventory, and exact manual checks.
 - Security verdict: **fail** only for pre-existing repository governance: `main` is not
   protected and `.github/CODEOWNERS` is absent. That finding is tracked separately in
