@@ -25,7 +25,7 @@ Known drift to settle: `FollowerSlots` and `ObstacleFeedback` assume a 6-stud si
 ## Decision
 Set `StreetGeometry.HALF_WIDTH` to **28** (street 56 studs wide; road 46, outer lane edges +-23, inner +-7.67, outer lane centers +-15.33). **The owner confirms or changes the number**; 24 (48 wide) is the smaller alternative. The decision is the mechanism, not the number: change `HALF_WIDTH` and nothing else, and let the derived values follow.
 
-- This supersedes only the numeric lane bands and lead limit in ADR 0010 Decisions 1 and 3, and the +-10 outer spawn x in ADR 0011. Everything else in those records stands (the lane field, one clamp, authored lane per cluster, `laneOf` ownership rule).
+- This supersedes only these numbers, each in the clause that carries it: the lead limit 15 ("The effective limit is min(18.5, 15) = 15") in ADR 0010 Decision item 3; and the lane band edges [-15,-5), [-5,5), [5,15] and centers -10, 0, 10 as quoted in ADR 0011's Context and in spec Amendment 9 (ADR 0010 Decision item 1 defines the `LaneGeometry` resolver but states no band numbers). It builds on ADR 0011, which already narrowed Decision item 1's clause "Authored spawn x values do not change" for outer-lane clusters (spawns at the lane centers, +-10); the new lane centers replace that +-10. Everything else in those records stands (the lane field, one clamp, authored lane per cluster, the `laneOf` ownership rule).
 - A spec amendment states the new lane bands (the bands are in spec Amendment 9).
 - The 5-versus-6 sidewalk drift is resolved: followers and obstacle feedback use the sidewalk width WorldBuilder draws (`StreetGeometry.sidewalkWidth`), and `FOLLOWER_SIDEWALK_WIDTH` is removed.
 - Facade heights and plaza props are re-laid out for the new corridor; the two failing geometric tests pass by re-layout, not by loosening them.
@@ -44,5 +44,5 @@ Set `StreetGeometry.HALF_WIDTH` to **28** (street 56 studs wide; road 46, outer 
 ## Consequences
 - Easier: the next width change is one edit with the validator as the guard.
 - Harder: this one is a balance change; lane width, spawn spacing and scatter shift, and the existing ladder numbers go stale (#148).
-- Separate defect: `CameraRig.visibleHalfWidth` uses the along-the-street gap instead of the view-axis depth and understates the visible width by about half; it is used by `tests/issue54_street_width.test.luau` and `tests/screenlayout.test.luau`. Its effect on those tests is UNVERIFIED. To be filed on its own.
+- Separate defect: `CameraRig.visibleHalfWidth` uses the along-the-street gap instead of the view-axis depth and understates the visible width by about half; it is used by `tests/issue54_street_width.test.luau` and `tests/screenlayout.test.luau`. Its effect on those tests is UNVERIFIED. Tracked in issue #229.
 - Revisit when the owner states a screen-share target as a number, or after a device check.
