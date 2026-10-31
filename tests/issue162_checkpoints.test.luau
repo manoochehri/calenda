@@ -5,6 +5,7 @@
 -- server-side `resolveCheckpoint(id)` hook, which no remote calls.
 -- Modules that are new or changed are required inside each case so a missing one fails only its case.
 local Config = require("../src/shared/Config")
+local FastFire = require("./helpers/FastFire")
 local RunDriver = require("../src/shared/RunDriver")
 local RunHooks = require("../src/shared/RunHooks")
 
@@ -162,7 +163,7 @@ return {
 		run = function()
 			-- Spawns before the stop at route 9.5 s, far enough ahead that it enters range mid-hold.
 			local l = layout({ clusters = { smallMob(1, 9.5, 170) } })
-			local d = driver(l, RunHooks.new(l))
+			local d = driver(l, RunHooks.new(l, FastFire.config()))
 			toCheckpoint(d, DT)
 			local events: { RunDriver.DriverEvent } = {}
 			tickN(d, 240, events)
@@ -212,7 +213,7 @@ return {
 				},
 				clusters = { smallMob(1, 12, 150) },
 			})
-			local d = driver(l, RunHooks.new(l))
+			local d = driver(l, RunHooks.new(l, FastFire.config()))
 			local all = toCheckpoint(d, DT)
 			local totalAtStop = d:total()
 			-- Ten seconds held, sliding across every lane the whole time.
@@ -305,7 +306,7 @@ return {
 			-- Spawned at route 9 s at z 400 (before the stop at route ~10.04 s), center lane. The lead is
 			-- held at 72.3, so it is in range (60 studs) once the mob has walked (400 - 132.3) studs.
 			local l = layout({ clusters = { smallMob(1, 9, 400) } })
-			local d = driver(l, RunHooks.new(l))
+			local d = driver(l, RunHooks.new(l, FastFire.config()))
 			toCheckpoint(d, DT)
 			local at = firstClusterTime(d, 60)
 			local expected = 9
@@ -323,12 +324,12 @@ return {
 			local mob = { smallMob(1, 12, 300) }
 			-- Control: the same mob with no checkpoint.
 			local cl = layout({ clusters = mob, checkpoints = {} })
-			local control = driver(cl, RunHooks.new(cl))
+			local control = driver(cl, RunHooks.new(cl, FastFire.config()))
 			local tControl = firstClusterTime(control, 60)
 			assert(tControl ~= nil, "control mob never came into range")
 
 			local l = layout({ clusters = mob })
-			local d = driver(l, RunHooks.new(l))
+			local d = driver(l, RunHooks.new(l, FastFire.config()))
 			toCheckpoint(d, DT)
 			tickN(d, 100) -- hold 100 ticks
 			eq(d:snapshot().z, CP_Z, "held")
@@ -370,7 +371,7 @@ return {
 			near(
 				(at :: number) - (tControl :: number),
 				shift,
-				1 / Config.firing.base + DT, -- the shot grid is the only slack
+				1 / FastFire.config().firing.tiers[1].shotsPerSecond + DT, -- the shot grid is the only slack
 				"arrival shifted by exactly the hold"
 			)
 		end,

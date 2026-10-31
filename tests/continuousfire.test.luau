@@ -5,6 +5,8 @@
 -- display-only "miss" Event, validated on encode and decode.
 local ClusterFeed = require("../src/shared/ClusterFeed")
 local Config = require("../src/shared/Config")
+local FastFire = require("./helpers/FastFire")
+local FireTable = require("../src/shared/FireTable")
 local Level = require("../src/shared/Level")
 local Remotes = require("../src/shared/Remotes")
 local RunDriver = require("../src/shared/RunDriver")
@@ -67,7 +69,11 @@ local function run(
 	config: any?
 ): ({ any }, RunState.RunState)
 	local rs = stateFor(layout)
-	local session = Targeting.new({ layout = layout, runState = rs, config = config })
+	local session = Targeting.new({
+		layout = layout,
+		runState = rs,
+		config = config or FastFire.config(),
+	})
 	local out: { any } = {}
 	local t = 0.0
 	while t <= seconds do
@@ -81,13 +87,11 @@ end
 
 return {
 	{
-		name = "rate curve: 6 base, +1 per section, cap 20, at 0, 1, 9 and 100 sections",
+		name = "rate comes from the recruit table (issue #234): first row at 0 sections, last row at 100",
 		run = function()
-			eq(Targeting.fireRate(0), 6, "0")
-			eq(Targeting.fireRate(1), 7, "1")
-			eq(Targeting.fireRate(9), 15, "9")
-			eq(Targeting.fireRate(100), 20, "100")
-			eq(Config.firing.perSection, 1, "perSection kept")
+			local tiers = Config.firing.tiers
+			eq(Targeting.fireRate(0), tiers[1].shotsPerSecond, "0")
+			eq(Targeting.fireRate(100), tiers[#tiers].shotsPerSecond, "100")
 		end,
 	},
 	{
@@ -185,7 +189,8 @@ return {
 		name = "a clock jump cannot fire a flood: at most MAX_SHOTS_PER_ADVANCE shots, backlog dropped",
 		run = function()
 			local rs = stateFor(layoutOf({}))
-			local session = Targeting.new({ layout = layoutOf({}), runState = rs })
+			local session =
+				Targeting.new({ layout = layoutOf({}), runState = rs, config = FastFire.config() })
 			local step = session:advance(1000, 100, "center")
 			eq(#step.shots, Targeting.MAX_SHOTS_PER_ADVANCE, "bounded")
 			eq(#session:advance(1000, 100, "center").shots, 0, "no backlog")
@@ -199,7 +204,7 @@ return {
 				local driver = RunDriver.new({
 					layout = layout,
 					automated = true,
-					hooks = RunHooks.new(layout),
+					hooks = RunHooks.new(layout, FastFire.config()),
 				})
 				local worst, total, seconds = 0, 0, 0
 				for _ = 1, 600 do
@@ -214,17 +219,17 @@ return {
 					seconds += math.min(dt, RunDriver.MAX_DT)
 				end
 				assert(worst <= RunDriver.MAX_CLUSTER_EVENTS_PER_TICK, `worst {worst}`)
-				local bound = math.floor(Config.firing.base * dt) + 1
+				local bound = math.floor(FireTable.rate(0, FastFire.config()) * dt) + 1
 				assert(worst <= bound, `dt {dt}: {worst} shots in one tick, bound {bound}`)
 				-- steady state at the base rate (no sections): about 6 shot events per second
 				assert(
-					math.abs(total / seconds - Config.firing.base) < 0.5,
+					math.abs(total / seconds - FireTable.rate(0, FastFire.config())) < 0.5,
 					`rate {total / seconds}`
 				)
 			end
 			-- Even the cap rate fits: floor(20 * 0.1) + 1 = 3 shots per step, under the per-tick cap.
 			assert(
-				math.floor(Config.firing.cap * RunDriver.MAX_DT) + 1
+				math.floor(FireTable.maxRate(FastFire.config()) * RunDriver.MAX_DT) + 1
 					<= RunDriver.MAX_CLUSTER_EVENTS_PER_TICK,
 				"cap rate fits the per-tick cap"
 			)
@@ -268,7 +273,7 @@ return {
 			-- cap: 20 events/s. Both are per player and owner-only.
 			eq(RunDriver.MAX_CLUSTER_EVENTS_PER_TICK * ticksPerSecond, 240, "hard ceiling")
 			assert(
-				Config.firing.cap <= ticksPerSecond,
+				FireTable.maxRate(FastFire.config()) <= ticksPerSecond,
 				"config validation bounds the rate by the tick"
 			)
 		end,
@@ -340,7 +345,7 @@ return {
 			local driver = RunDriver.new({
 				layout = layout,
 				automated = true,
-				hooks = RunHooks.new(layout),
+				hooks = RunHooks.new(layout, FastFire.config()),
 			})
 			local seen = 0
 			for _ = 1, 90 do

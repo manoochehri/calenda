@@ -4,6 +4,15 @@
 -- placeholders chosen by the engineer because the spec gives no number (all are tuning defaults).
 
 export type ClusterType = { hits: number, reward: number }
+-- Issue #234: one row of the recruit -> fire table (see FireTable). From `minRecruits` parade people:
+-- `shotsPerSecond` is the most shots started per second, `speed` the projectile speed in studs per
+-- second, `maxInFlight` the most projectiles unresolved at once (1 = the next shot waits).
+export type FireTier = {
+	minRecruits: number,
+	shotsPerSecond: number,
+	speed: number,
+	maxInFlight: number,
+}
 export type GateOp = { kind: string, value: number }
 export type Curve = { start: number, max: number, sectionsToMax: number }
 -- Spectators as individuals across the lane (issue #65; see SpectatorScatter). Studs unless noted.
@@ -53,7 +62,7 @@ export type ConfigType = {
 	hazards: { tomatoSharePercent: number },
 	layout: { maxTotal: number },
 	speed: number,
-	firing: { base: number, cap: number, perSection: number, range: number },
+	firing: { tiers: { FireTier }, range: number },
 	spectators: { approachSpeed: number, centerTolerance: number, scatter: ScatterConfig },
 	visualBudget: {
 		sectionRepresentatives: number,
@@ -200,20 +209,55 @@ local function validate(c: any): (boolean, string?)
 	end
 
 	local f = c.firing
+	if type(f) ~= "table" or type(f.tiers) ~= "table" or #f.tiers < 2 then
+		return false, "firing.tiers needs at least two rows"
+	end
+	-- Issue #234: ascending rows from 0 recruits; rate, speed and maxInFlight never decrease and the
+	-- top row is strictly faster. Every shot is one replicated event (ADR 0004), so the rate is
+	-- bounded by the 30 Hz server tick.
+	local prevTier: any = nil
+	for i, t in f.tiers do
+		if
+			type(t) ~= "table"
+			or type(t.minRecruits) ~= "number"
+			or t.minRecruits < 0
+			or t.minRecruits ~= math.floor(t.minRecruits)
+			or not isPositive(t.shotsPerSecond)
+			or not isPositive(t.speed)
+			or type(t.maxInFlight) ~= "number"
+			or t.maxInFlight < 1
+			or t.maxInFlight ~= math.floor(t.maxInFlight)
+		then
+			return false,
+				`firing.tiers[{i}] needs integer minRecruits >= 0, positive shotsPerSecond and speed, integer maxInFlight >= 1`
+		end
+		if t.shotsPerSecond > 30 then
+			return false,
+				"firing.tiers shotsPerSecond must be <= 30 (one shot event per 30 Hz server tick)"
+		end
+		if prevTier == nil then
+			if t.minRecruits ~= 0 then
+				return false, "firing.tiers[1].minRecruits must be 0"
+			end
+		elseif
+			t.minRecruits <= prevTier.minRecruits
+			or t.shotsPerSecond < prevTier.shotsPerSecond
+			or t.speed < prevTier.speed
+			or t.maxInFlight < prevTier.maxInFlight
+		then
+			return false,
+				`firing.tiers[{i}] must ascend in minRecruits and never decrease rate, speed or maxInFlight`
+		end
+		prevTier = t
+	end
+	local topTier = f.tiers[#f.tiers]
 	if
-		type(f) ~= "table"
-		or not isPositiveInt(f.base)
-		or not isPositiveInt(f.cap)
-		or not isPositiveInt(f.perSection)
+		not (
+			topTier.shotsPerSecond > f.tiers[1].shotsPerSecond
+			and topTier.speed > f.tiers[1].speed
+		)
 	then
-		return false, "firing needs positive integer base, cap and perSection"
-	end
-	if f.cap < f.base then
-		return false, "firing.cap must be >= firing.base"
-	end
-	-- Every shot is one replicated event (ADR 0004), so the rate is bounded by the 30 Hz server tick.
-	if f.cap > 30 then
-		return false, "firing.cap must be <= 30 (one shot event per 30 Hz server tick)"
+		return false, "firing.tiers top row must be strictly faster than the first"
 	end
 	if not isPositive(f.range) then
 		return false, "firing.range must be a positive number"
@@ -424,11 +468,20 @@ local config: ConfigType = {
 	layout = { maxTotal = 4000 },
 	speed = 7.2, -- [default] studs/second; half the first playable pace (owner feedback, issue #174)
 	firing = {
-		-- Firing is continuous (ADR 0004, Amendment 2): a shot every 1 / rate seconds, hit or miss.
-		-- rate = min(cap, base + perSection * sectionCount) shots/s. One line each to retune.
-		base = 6, -- [default] was 3 in spec s4
-		cap = 20, -- [default] was 12 in spec s4; validate() bounds it by the 30 Hz server tick
-		perSection = 1, -- [spec s4] kept by Amendment 2
+		-- Issue #234 (owner rule 2026-10-31): speed and fire rate follow the recruit count. Row 0 fires
+		-- ONE projectile at a time (maxInFlight 1): the next shot waits until the current one hits,
+		-- misses out or leaves the playfield. Replaces the ADR 0004 base/cap/perSection curve; the
+		-- hitscan, credit-once and gift rules are unchanged. ALL rows are provisional [default] and
+		-- UNVERIFIED for feel until the owner plays it; no balance claim. One place to retune.
+		-- speed 67.5 is the former fixed projectile speed (FeedbackMath.FLIGHT_SPEED); rate 20 the old cap.
+		tiers = {
+			{ minRecruits = 0, shotsPerSecond = 3, speed = 60, maxInFlight = 1 },
+			{ minRecruits = 25, shotsPerSecond = 4, speed = 63, maxInFlight = 2 },
+			{ minRecruits = 50, shotsPerSecond = 5, speed = 66, maxInFlight = 3 },
+			{ minRecruits = 100, shotsPerSecond = 6, speed = 67.5, maxInFlight = 5 },
+			{ minRecruits = 250, shotsPerSecond = 10, speed = 80, maxInFlight = 8 },
+			{ minRecruits = 500, shotsPerSecond = 20, speed = 100, maxInFlight = 16 },
+		},
 		range = 60, -- [default] studs along the street from the lead; spec (Amendment 1) names the key only
 	},
 	spectators = {

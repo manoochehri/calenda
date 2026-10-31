@@ -371,3 +371,12 @@ Keep the city buildings. Road, sidewalk and plaza paving are continuous smooth s
 without conspicuous checker tiling. Jugar sits higher with bottom spacing inside the safe
 area on phone and desktop. Startup order, solo firing/recruitment, loss/replay and layout
 need regression evidence; engine appearance remains UNVERIFIED until checked in Studio.
+
+## Amendment 14 — Fire rate and projectile speed follow the recruit count (owner direction, 2026-10-31, issue #234)
+
+Supersedes, where they conflict: Amendment 2's rate curve (`min(firing.cap, firing.base + firing.perSection * sectionCount)` with defaults 6, 20 and +1; those three keys are removed), §4's starter rate, and issue #148's cadence line (3 shots per second at unchanged flight speed). Everything else in Amendment 2 is unchanged: fire stays continuous (hit or miss), hitscan, credit-once, one hit per shot, the gift cadence (Amendment 11), targeting and lanes, the loss rules, `maxTotal` and server authority. Recorded in ADR 0013 (proposed).
+
+- One table, `Config.firing.tiers`, maps recruits (the server `crowdTotal`) to shots per second, projectile speed (studs per second) and the most projectiles in flight at once. Rows ascend from 0 recruits; rate, speed and max in flight never decrease, and the top row is strictly faster than the first. Rate is at most 30 (one event per 30 Hz tick).
+- The initial player (0 recruits) fires one projectile at a time: the next shot starts only after the current one has hit, missed or left the playfield. The server models each shot's flight time and enforces this.
+- The server sends the speed it used on the shot event (optional field `v`, validated to 10..1000 studs per second); the client draws it.
+- The table values are provisional and UNVERIFIED for feel; prior balance evidence (#17 ladder, #148 sweeps) is stale. Recruited characters' distinct attacks (#230 to #232) must not contradict one-at-a-time for the initial player.

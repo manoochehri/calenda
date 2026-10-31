@@ -1,5 +1,6 @@
 --!strict
 -- Issue #48: the server emits one display-only "cluster" Event per landed shot (spec Amendment 1).
+local FastFire = require("./helpers/FastFire")
 local ClusterFeed = require("../src/shared/ClusterFeed")
 local Config = require("../src/shared/Config")
 local Level = require("../src/shared/Level")
@@ -54,7 +55,7 @@ local function shotsFor(
 		end,
 	})
 	local out: { any } = {}
-	local hooks = RunHooks.new(layout, config)
+	local hooks = RunHooks.new(layout, config or FastFire.config())
 	hooks.shots({
 		t0 = 0,
 		t1 = t1,

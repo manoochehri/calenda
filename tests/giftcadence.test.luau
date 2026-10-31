@@ -6,6 +6,7 @@
 -- cadence (CADENCE) so the samples stay short; the shipped default (Config.giftEveryNthShot, one in
 -- 100) is pinned by tests/issue_gift_share.test.luau.
 local Config = require("../src/shared/Config")
+local FastFire = require("./helpers/FastFire")
 local CrowdMath = require("../src/shared/CrowdMath")
 local Level = require("../src/shared/Level")
 local RunState = require("../src/shared/RunState")
@@ -15,7 +16,7 @@ local VisualBudget = require("../src/shared/VisualBudget")
 
 -- The mechanism under test runs at a 4-shot cadence; see the header.
 local CADENCE = 4
-local cfg = table.clone(Config)
+local cfg = FastFire.config()
 cfg.giftEveryNthShot = CADENCE
 
 local function eq(actual: any, expected: any, name: string)
@@ -72,7 +73,8 @@ local function runLarge(sectionCount: number, config: any?): ({ any }, number, n
 			return 0
 		end,
 	})
-	local session = Targeting.new({ layout = layout, runState = rs, config = config })
+	local session =
+		Targeting.new({ layout = layout, runState = rs, config = config or FastFire.config() })
 	local shots: { any } = {}
 	local credits = 0
 	local t = 0.0

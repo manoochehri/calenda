@@ -3,6 +3,7 @@
 -- logical parade section, capped at five; shots cycle through the streams. Visual only: the stream
 -- count never changes the firing rate, the pool size, or which shots hit (all of that is elsewhere).
 local Config = require("../src/shared/Config")
+local FireTable = require("../src/shared/FireTable")
 local ShotLook = require("../src/shared/ShotLook")
 local ShotStreams = require("../src/shared/ShotStreams")
 
@@ -156,7 +157,7 @@ return {
 		name = "streams never add live shots: the pool stays at rate x flight within the hard cap",
 		run = function()
 			-- The pool is sized from the firing rate alone; no stream count may enlarge it.
-			local rate = Config.firing.cap
+			local rate = FireTable.maxRate(Config)
 			local flight = 0.9
 			local cap = ShotStreams.projectileCapacity(rate, flight)
 			eq(cap, ShotLook.projectileCapacity(rate, flight), "same pool as the shot look sizing")

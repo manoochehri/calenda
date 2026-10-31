@@ -56,9 +56,9 @@ return {
 			eq(c.hazards.tomatoSharePercent, 10, "hazards.tomatoSharePercent")
 			eq(c.layout.maxTotal, 4000, "layout.maxTotal (issue #142 owner decision, 2026-10-26)")
 			eq(c.obstacleLoss, 10, "obstacleLoss")
-			eq(c.firing.base, 6, "firing.base (ADR 0004; was 3)")
-			eq(c.firing.cap, 20, "firing.cap (ADR 0004; was 12)")
-			eq(c.firing.perSection, 1, "firing.perSection")
+			eq(#c.firing.tiers >= 2, true, "firing.tiers (issue #234)")
+			eq(c.firing.tiers[1].minRecruits, 0, "firing.tiers starts at zero recruits")
+			eq(c.firing.tiers[1].maxInFlight, 1, "zero recruits fire one at a time")
 			eq(c.visualBudget.sectionRepresentatives, 6, "sectionRepresentatives")
 			eq(c.visualBudget.looseAvatars, 24, "looseAvatars")
 			eq(#c.finaleThresholds, 3, "finale count")
@@ -137,14 +137,34 @@ return {
 	expectInvalid("cluster reward non-integer", function(c)
 		c.clusterTypes.large.reward = 1.5
 	end),
-	expectInvalid("firing cap below base", function(c)
-		c.firing.cap = 2
+	expectInvalid("firing rate above the 30 Hz tick", function(c)
+		c.firing.tiers[#c.firing.tiers].shotsPerSecond = 31
 	end),
-	expectInvalid("firing cap above the 30 Hz tick", function(c)
-		c.firing.cap = 31
+	expectInvalid("firing rate decreases up the table", function(c)
+		c.firing.tiers[2].shotsPerSecond = c.firing.tiers[1].shotsPerSecond / 2
 	end),
-	expectInvalid("firing perSection zero", function(c)
-		c.firing.perSection = 0
+	expectInvalid("firing speed decreases up the table", function(c)
+		c.firing.tiers[2].speed = c.firing.tiers[1].speed - 1
+	end),
+	expectInvalid("firing max in flight decreases up the table", function(c)
+		c.firing.tiers[1].maxInFlight = 2
+		c.firing.tiers[2].maxInFlight = 1
+	end),
+	expectInvalid("firing max in flight below one", function(c)
+		c.firing.tiers[1].maxInFlight = 0
+	end),
+	expectInvalid("firing first row not at zero recruits", function(c)
+		c.firing.tiers[1].minRecruits = 5
+	end),
+	expectInvalid("firing top row not strictly faster", function(c)
+		local first = c.firing.tiers[1]
+		for _, t in c.firing.tiers do
+			t.shotsPerSecond = first.shotsPerSecond
+			t.speed = first.speed
+		end
+	end),
+	expectInvalid("firing tiers missing", function(c)
+		c.firing.tiers = nil
 	end),
 	expectInvalid("speed not positive", function(c)
 		c.speed = 0
