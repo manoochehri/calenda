@@ -47,9 +47,6 @@ local NOTE_COLOR = Color3.fromRGB(table.unpack(GiftVisual.NOTE_RGB))
 local METER_RATE = 14 -- [default] easing of the bar fill
 local CHEVRONS = 6 -- [default] most warning chevrons at the top of the lanes at once
 local CHEVRON_COLOR = Color3.fromRGB(255, 120, 40)
-local EDGE_COLOR = Color3.fromRGB(255, 70, 40)
-local EDGE_MAX_ALPHA = 0.35 -- [default] the pulse never hides the game
-local EDGE_WIDTH = 0.07 -- [default] share of the screen width per side
 local CHEVRON_ROW = 0.88 -- [default] share of the visible depth where the chevron sits
 -- Live shots: covers the firing cap x the longest flight (a gift, 1.12 s: 20/s x 1.12 = 23, +4
 -- slack = 27), under ShotLook.PROJECTILE_HARD_CAP. Extras are simply not drawn. Look knobs live in
@@ -142,6 +139,9 @@ local function buildGroup(folder: Folder): Group
 	back.Size = UDim2.fromScale(1, 0.28)
 	back.Position = UDim2.fromScale(0, 0.72)
 	back.BackgroundColor3 = BAR_BACK
+	-- The meter is gameplay UI, not a black world rectangle. Keep the fill and labels readable
+	-- without the opaque backing that read as stray geometry in the phone screenshot (#222).
+	back.BackgroundTransparency = 1
 	back.BorderSizePixel = 0
 	back.Parent = gui
 	local fill = Instance.new("Frame")
@@ -212,37 +212,6 @@ function ClusterView.new(layout: any): ClusterView
 		c.left.Parent, c.right.Parent = nil, nil
 		c.dust.Rate = 0
 	end)
-	-- Screen-edge pulse as a wave closes in: two thin gradient strips (display only).
-	local edgeLeft: Frame? = nil
-	local edgeRight: Frame? = nil
-	do
-		local playerGui = if Players.LocalPlayer
-			then Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
-			else nil
-		if playerGui ~= nil then
-			local gui = Instance.new("ScreenGui")
-			gui.Name = "CalendaThreat"
-			gui.ResetOnSpawn = false
-			gui.IgnoreGuiInset = true
-			gui.DisplayOrder = 1
-			gui.Parent = playerGui
-			local function strip(left: boolean): Frame
-				local f = Instance.new("Frame")
-				f.Size = UDim2.fromScale(EDGE_WIDTH, 1)
-				f.Position = UDim2.fromScale(if left then 0 else 1 - EDGE_WIDTH, 0)
-				f.BackgroundColor3 = EDGE_COLOR
-				f.BackgroundTransparency = 1
-				f.BorderSizePixel = 0
-				local g = Instance.new("UIGradient")
-				g.Transparency = NumberSequence.new(if left then 0 else 1, if left then 1 else 0)
-				g.Parent = f
-				f.Parent = gui
-				return f
-			end
-			edgeLeft, edgeRight = strip(true), strip(false)
-		end
-	end
-
 	local tracker = ClusterVisual.new(layout)
 
 	local groups = Pool.new(function(): Group
@@ -517,9 +486,6 @@ function ClusterView.new(layout: any): ClusterView
 		mobs:clear()
 		chevronPool:setCount(0)
 		table.clear(pulsePhase)
-		if edgeLeft ~= nil and edgeRight ~= nil then
-			edgeLeft.BackgroundTransparency, edgeRight.BackgroundTransparency = 1, 1
-		end
 		groups:setCount(0) -- hides every slot, which clears its bar
 		flights:clear()
 		muzzles:clear()
@@ -547,7 +513,6 @@ function ClusterView.new(layout: any): ClusterView
 		local depth = Emergence.visibleDepthAhead(pullback)
 		local descs: { MobView.Desc } = {}
 		local alerts: { { ahead: number, x: number, alpha: number } } = {}
-		local worstThreat = 0
 		approachThreat = 0
 		for i, v in views do
 			-- Where the mob's body is (its front is v.z): shots and the +N aim at the middle.
@@ -584,7 +549,6 @@ function ClusterView.new(layout: any): ClusterView
 			if v.phase == "walking" then
 				local threat = Emergence.threat(v.ahead)
 				pulse = threat * fade
-				worstThreat = math.max(worstThreat, pulse)
 				approachThreat = math.max(approachThreat, threat * fade)
 				table.insert(
 					alerts,
@@ -637,12 +601,6 @@ function ClusterView.new(layout: any): ClusterView
 				and mobs:rankFade(v.id) > 0.5
 				and v.phase ~= "dispersing"
 				and v.phase ~= "slamming"
-		end
-
-		-- Screen-edge pulse: the nearest unconverted wave tints the left and right edges.
-		if edgeLeft ~= nil and edgeRight ~= nil then
-			local a = 1 - EDGE_MAX_ALPHA * worstThreat
-			edgeLeft.BackgroundTransparency, edgeRight.BackgroundTransparency = a, a
 		end
 
 		-- Telegraph: warning chevrons at the top of the lane while a wave is about to appear.

@@ -40,6 +40,9 @@ local BODY_SIZE = Vector3.new(
 	Config.spectators.scatter.bodyHeight,
 	Config.spectators.scatter.bodyDepth
 )
+-- Cylinder parts run along their local X axis in Roblox. Store the body dimensions in that
+-- orientation and rotate the part upright at draw time so the horde reads as people, not blocks.
+local BODY_PART_SIZE = Vector3.new(BODY_SIZE.Y, BODY_SIZE.X, BODY_SIZE.Z)
 local HEAD_SIZE = Config.spectators.scatter.headDiameter
 local ARMS_SIZE = Vector3.new(
 	Config.spectators.scatter.armsWidth,
@@ -153,7 +156,8 @@ function MobView.new(parent: Instance, quality: string): MobView
 	local self = {} :: MobView
 
 	local figures = Pool.new(function(): Figure
-		local body = newPart(folder, Enum.PartType.Block, BODY_SIZE, Color3.fromRGB(214, 58, 46))
+		local body =
+			newPart(folder, Enum.PartType.Cylinder, BODY_PART_SIZE, Color3.fromRGB(214, 58, 46))
 		local head = newPart(
 			folder,
 			Enum.PartType.Ball,
@@ -316,7 +320,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 				local scale = scaleKey * SCALE_STEP
 				if f.scaleKey ~= scaleKey then
 					f.scaleKey = scaleKey
-					f.body.Size = BODY_SIZE * scale
+					f.body.Size = BODY_PART_SIZE * scale
 					f.head.Size = Vector3.new(HEAD_SIZE, HEAD_SIZE, HEAD_SIZE) * scale
 					f.arms.Size = ARMS_SIZE * scale
 				end
@@ -341,7 +345,12 @@ function MobView.new(parent: Instance, quality: string): MobView
 				end
 				local y = hop + m.hop - m.dip * 0.4 - down
 				local root = CFrame.new(ViewMap.x(x), y, z) * CFrame.Angles(-lean, 0, 0)
-				push(f.body, root * CFrame.new(0, BODY_SIZE.Y * scale / 2, 0))
+				push(
+					f.body,
+					root
+						* CFrame.new(0, BODY_SIZE.Y * scale / 2, 0)
+						* CFrame.Angles(0, 0, math.pi / 2)
+				)
 				push(f.head, root * CFrame.new(0, (BODY_SIZE.Y + HEAD_SIZE / 2) * scale, 0))
 				push(f.arms, root * CFrame.new(0, (arm + BODY_SIZE.Y * 0.72) * scale, 0))
 				-- colours only when they change (quantised)
