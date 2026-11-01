@@ -25,6 +25,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local DebugSwitches = require(Shared:WaitForChild("DebugSwitches"))
 local MobCharge = require(Shared:WaitForChild("MobCharge"))
 local MobLod = require(Shared:WaitForChild("MobLod"))
+local MotionSwitches = require(Shared:WaitForChild("MotionSwitches"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local QualityConfig = require(Shared:WaitForChild("QualityConfig"))
 local SpectatorScatter = require(Shared:WaitForChild("SpectatorScatter"))
@@ -331,6 +332,8 @@ function MobView.new(parent: Instance, quality: string): MobView
 					else fade
 				local sink = (1 - SpectatorScatter.risen(k, n, personFade)) * MobCharge.SINK
 				local hop, lean, arm = MobCharge.stride(k + m.id, clock + path.phase)
+				hop, lean, arm =
+					MotionSwitches.mobStride(Config.debug, hop, lean, arm, MobCharge.ARM_UP) -- issue #240
 				local down = sink
 				if m.phase == "slamming" then
 					local rowShare = 1 - math.min(1, dz / math.max(depth, 1))
