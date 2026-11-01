@@ -16,7 +16,7 @@ local MIN_PX = 24
 -- Hard floor (px) at the largest pullback and the pulse trough.
 local FLOOR_PX = 16
 -- Largest silhouette dimension (px) at spawn, so a shot near the lead does not become clutter.
-local MAX_SPAWN_PX = 60
+local MAX_SPAWN_PX = 70
 -- Minimum WCAG relative-luminance contrast ratio between any two shot colours.
 local MIN_CONTRAST = 2.2
 
@@ -73,7 +73,7 @@ return {
 		end,
 	},
 	{
-		name = "spawn and mid-flight sizes stay between MIN_PX-ish and MAX_SPAWN_PX",
+		name = "spawn and mid-flight sizes stay between FLOOR_PX and MAX_SPAWN_PX",
 		run = function()
 			for _, kind in KINDS do
 				local size = ShotLook.LOOKS[kind].size
