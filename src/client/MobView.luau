@@ -97,7 +97,7 @@ type Figure = {
 	headKey: number,
 	scaleKey: number,
 }
-type Dust = { part: Part, emitter: ParticleEmitter }
+type Dust = { part: Part, emitter: ParticleEmitter, sizeKey: number }
 type Spots = { n: number, offsets: { SpectatorScatter.Offset }, paths: { SpectatorMotion.Path } }
 
 local MobView = {}
@@ -192,7 +192,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 		local d = dusts[rank]
 		if d == nil then
 			local part = emitterPart(folder)
-			d = { part = part, emitter = dustEmitter(part) }
+			d = { part = part, emitter = dustEmitter(part), sizeKey = -1 }
 			dusts[rank] = d
 		end
 		return d
@@ -374,7 +374,11 @@ function MobView.new(parent: Instance, quality: string): MobView
 			local d = dustFor(drawn)
 			if d ~= nil then
 				push(d.part, CFrame.new(ViewMap.x(centerX), 0.6, m.z + depth * 0.6))
-				d.part.Size = Vector3.new(2 * scatter.spreadHalfWidth * 0.8, 1, depth * 0.8)
+				-- Issue #147: depth is constant per mob size, so Size is written when it changes.
+				if d.sizeKey ~= depth then
+					d.sizeKey = depth
+					d.part.Size = Vector3.new(2 * scatter.spreadHalfWidth * 0.8, 1, depth * 0.8)
+				end
 				d.emitter.Rate = DebugSwitches.dustRate(
 					Config.debug,
 					if m.phase == "walking" then DUST_RATE * fade else 0

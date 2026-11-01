@@ -258,6 +258,9 @@ function ClusterView.new(layout: any): ClusterView
 		a0: Attachment,
 		a1: Attachment,
 		extras: { Part },
+		parts: { Part }, -- body then extras, built once (issue #147: no per-frame table)
+		shown: number, -- how many of `parts` are parented now (issue #147: reparent only on change)
+		glow: Color3?, -- the trail colour last written
 	}
 	local projectilePool = Pool.new(function(): Shot
 		local body = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
@@ -277,15 +280,26 @@ function ClusterView.new(layout: any): ClusterView
 			e.Material = Enum.Material.Neon
 			table.insert(extras, e)
 		end
-		return { body = body, trail = trail, a0 = a0, a1 = a1, extras = extras }
+		return {
+			body = body,
+			trail = trail,
+			a0 = a0,
+			a1 = a1,
+			extras = extras,
+			parts = { body, extras[1], extras[2], extras[3] },
+			shown = 0,
+			glow = nil,
+		}
 	end, function(p: Shot)
 		p.body.Parent = folder
+		p.shown = 1
 		p.trail:Clear() -- a recycled shot must not streak from its previous flight
 	end, function(p: Shot)
 		p.body.Parent = nil
 		for _, e in p.extras do
 			e.Parent = nil
 		end
+		p.shown = 0
 	end)
 
 	-- Muzzle pops at the lead and impact bursts on the target (issue #67). Display only, capped.
@@ -720,18 +734,22 @@ function ClusterView.new(layout: any): ClusterView
 			local glowColor = Color3.fromRGB(glow[1], glow[2], glow[3])
 			local fade = 1 - alpha
 			p.trail.Enabled = DebugSwitches.trailEnabled(Config.debug, not gone and alpha > 0.15)
-			p.trail.Color = ColorSequence.new(glowColor)
-			for _, e in p.extras do
-				e.Parent = nil
+			if p.glow ~= glowColor then
+				p.glow = glowColor
+				p.trail.Color = ColorSequence.new(glowColor)
 			end
-			p.body.Parent = nil
 			if gone then
+				-- Issue #147: parts are reparented only when the number shown changes, not twice a frame.
+				for j = 1, p.shown do
+					p.parts[j].Parent = nil
+				end
+				p.shown = 0
 				continue
 			end
 			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
 			-- first primitive is the body, which anchors the Trail: its ends are placed in the body's
 			-- frame so the streak still runs through the projectile's centre (x, y, z).
-			local parts = { p.body, p.extras[1], p.extras[2], p.extras[3] }
+			local parts = p.parts
 			local places = ProjectileVisual.place(kind, size)
 			local thickness = size * SILHOUETTE_DEPTH
 			for j, q in places do
@@ -745,8 +763,14 @@ function ClusterView.new(layout: any): ClusterView
 					* CFrame.Angles(0, 0, q.roll)
 				part.Color = if q.ribbon then Color3.new(1, 1, 1) else coreColor
 				part.Transparency = fade
-				part.Parent = folder
+				if j > p.shown then
+					part.Parent = folder
+				end
 			end
+			for j = #places + 1, p.shown do
+				parts[j].Parent = nil
+			end
+			p.shown = #places
 			local first = places[1]
 			local half = size * ShotLook.TRAIL_WIDTH / 2
 			p.a0.Position = Vector3.new(-first.x, -first.y + half, 0)

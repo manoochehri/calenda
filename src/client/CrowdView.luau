@@ -158,7 +158,7 @@ local function buildFollower(parent: Instance): Avatar
 	-- Issue #114: five pieces, no arms (FollowerLook.PIECES).
 	return {
 		id = -1,
-		pieces = { body, head, skirt, hat, flower },
+		pieces = { body, head, skirt },
 		body = body,
 		head = head,
 		skirt = skirt,
@@ -189,8 +189,24 @@ local function restyle(avatar: Avatar, id: number, clock: number)
 	avatar.head.part.Color = rgb(tints.head)
 	avatar.hat.part.Color = rgb(tints.accent)
 	avatar.flower.part.Color = rgb(tints.accent)
-	avatar.hat.part.Transparency = if look.topper == "hat" then 0 else 1
-	avatar.flower.part.Transparency = if look.topper == "flower" then 0 else 1
+	-- Issue #147: only the visible topper is a live Part. The other is never parented (it used to
+	-- sit in Workspace at Transparency 1, sized and moved every frame for nothing).
+	local topper = if look.topper == "hat"
+		then avatar.hat
+		elseif look.topper == "flower" then avatar.flower
+		else nil
+	local pieces = avatar.pieces
+	table.clear(pieces)
+	pieces[1], pieces[2], pieces[3] = avatar.body, avatar.head, avatar.skirt
+	if topper ~= nil then
+		pieces[4] = topper
+	end
+	if topper ~= avatar.hat then
+		avatar.hat.part.Parent = nil
+	end
+	if topper ~= avatar.flower then
+		avatar.flower.part.Parent = nil
+	end
 end
 
 -- A neon ring on the ground under the lead: the steering anchor that never gets lost.
@@ -246,6 +262,11 @@ function CrowdView.new(): CrowdView
 	local cheerAt, flinchAt = -math.huge, -math.huge -- issue #178: total went up / down at this clock
 
 	local view = {} :: CrowdView
+
+	-- Reused per-frame arrays for BulkMoveTo (as MobView does).
+	local moveParts: { Instance } = {}
+	local moveCFrames: { CFrame } = {}
+	local moveCount = 0
 
 	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
 		local avatar = live[id]
@@ -306,7 +327,10 @@ function CrowdView.new(): CrowdView
 		for _, p in avatar.pieces do
 			p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
 			local localFrame = CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
-			p.part.CFrame = base * localFrame
+			-- Issue #147: the CFrames go to the engine in one BulkMoveTo per frame (see view.update).
+			moveCount += 1
+			moveParts[moveCount] = p.part
+			moveCFrames[moveCount] = base * localFrame
 		end
 	end
 
@@ -371,7 +395,9 @@ function CrowdView.new(): CrowdView
 		else
 			lead.Parent = nil
 		end
-		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
+		moveCount = 1
+		moveParts[1] = ring
+		moveCFrames[1] = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
 			* CFrame.Angles(0, 0, math.pi / 2)
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
@@ -398,6 +424,14 @@ function CrowdView.new(): CrowdView
 				end
 				table.insert(free, avatar)
 			end
+		end
+
+		for i = moveCount + 1, #moveParts do
+			moveParts[i] = nil :: any
+			moveCFrames[i] = nil :: any
+		end
+		if moveCount > 0 then
+			Workspace:BulkMoveTo(moveParts, moveCFrames, Enum.BulkMoveMode.FireCFrameChanged)
 		end
 
 		local puffs = dust:active(clock)

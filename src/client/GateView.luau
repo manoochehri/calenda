@@ -51,7 +51,12 @@ type Portal = {
 	icon: TextLabel,
 	strip: Part,
 	shownTotal: number, -- the total the labels were formatted for
-	lastKey: string,
+	-- Issue #147: the inputs last applied, compared as numbers (a formatted key string allocated
+	-- one string per gate per frame).
+	lastTrans: number,
+	lastScale: number,
+	lastGlow: number,
+	lastFlash: number,
 }
 
 export type GateView = {
@@ -220,7 +225,10 @@ local function buildPortal(folder: Instance, desc: PortalGeometry.Portal, total:
 		icon = icon,
 		strip = strip,
 		shownTotal = total,
-		lastKey = "",
+		lastTrans = -1,
+		lastScale = -1,
+		lastGlow = -1,
+		lastFlash = -1,
 	}
 end
 
@@ -354,9 +362,13 @@ function GateView.new(parent: Instance, layout: any): GateView
 			end
 			local trans = 1 - (1 - fade) * (1 - dim)
 			local scale = PortalFx.scale(glow) + FLASH_SCALE * flash
-			local key = `{trans}|{scale}|{glow}|{flash}`
-			if key ~= p.lastKey then
-				p.lastKey = key
+			if
+				trans ~= p.lastTrans
+				or scale ~= p.lastScale
+				or glow ~= p.lastGlow
+				or flash ~= p.lastFlash
+			then
+				p.lastTrans, p.lastScale, p.lastGlow, p.lastFlash = trans, scale, glow, flash
 				p.banner.Transparency = trans
 				p.banner.Size =
 					Vector3.new(p.baseSize.X * scale, p.baseSize.Y * scale, p.baseSize.Z)
