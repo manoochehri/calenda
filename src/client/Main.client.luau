@@ -93,6 +93,7 @@ local MusicPlayer = timedRequire("Client", script.Parent, "MusicPlayer")
 local SfxPlayer = timedRequire("Client", script.Parent, "SfxPlayer")
 local SectionsView = timedRequire("Client", script.Parent, "SectionsView")
 local ObstacleView = timedRequire("Client", script.Parent, "ObstacleView")
+local PickupView = timedRequire("Client", script.Parent, "PickupView")
 local CountdownView = timedRequire("Client", script.Parent, "CountdownView")
 
 local CAMERA_X_RATE = 8 -- [default] easing of the lead's drawn x and the camera
@@ -195,6 +196,8 @@ local clusters = ClusterView.new(DebugLayout)
 stepAt = startupTrace:lap("ClusterView.new", stepAt)
 local obstacleFeedback = ObstacleView.new(DebugLayout)
 stepAt = startupTrace:lap("ObstacleView.new", stepAt)
+local pickupView = PickupView.new(DebugLayout) -- optional +1 pickups in their lane (issue #156)
+stepAt = startupTrace:lap("PickupView.new", stepAt)
 local hitFx = HitFeedback.new() -- hit jolt and screen shake (issue #50)
 stepAt = startupTrace:lap("HitFeedback.new", stepAt)
 local leadZNow = 0 -- last drawn lead z, where shots and peel-offs start
@@ -449,6 +452,7 @@ RunService:BindToRenderStep(
 		local fx = endFlow:frame(state, drawnX, z, dt, total)
 		local hasAvatar = leadAvatar:update(drawnX, z, dt, fx.tumble, fx.lift, total)
 		laneView:update(drawnX, z)
+		pickupView:update(z)
 		crowd:update(
 			drawnX,
 			z,

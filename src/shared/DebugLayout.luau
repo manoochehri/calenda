@@ -90,6 +90,16 @@ while true do
 	end
 end
 
+local pickups: { Level.Pickup } = {}
+for _, start in { 8, 40, 68 } do
+	for i = 0, 5 do
+		table.insert(
+			pickups,
+			{ id = #pickups + 1, z = paceDistance((start + i * 3.4) * BASE_SPEED), lane = "left" }
+		)
+	end
+end
+
 local function deepFreeze<T>(t: T): T
 	if type(t) == "table" then
 		for _, child in t :: any do
@@ -149,11 +159,15 @@ local layout: Level.Layout = {
 		}, -- 80s: crossover 300
 	},
 	obstacles = {
-		{ id = 1, z = paceDistance(640), side = "left" }, -- 40s
+		{ id = 1, z = paceDistance(640), side = "right" }, -- 40s (right: the left lane is the pickup lane, ADR 0014)
 		{ id = 2, z = paceDistance(1024), side = "right" }, -- 64s
 		{ id = 3, z = paceDistance(1408), side = "left" }, -- 88s
 	},
 	clusters = clusters,
+	-- Issue #156 / ADR 0014: the horde lane is right, so pickups are left and recruits come down the
+	-- center. Three strips of six +1 pickups, 3.4 travel-seconds apart, starting at 8, 40 and 68 s.
+	laneRoles = { pickup = "left", horde = "right", recruit = "center" },
+	pickups = pickups,
 	-- Issue #96: the first Oaxacan level's hazards. Tomatoes from the buildings and a tlayuda cart.
 	hazardSet = {
 		kinds = { "tomato", "cart" },

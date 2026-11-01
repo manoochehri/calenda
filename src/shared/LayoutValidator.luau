@@ -262,6 +262,40 @@ local function structure(layout: any, cfg: any, errs: { string })
 			bad(`pickup {p.id} has an invalid lane`)
 		end
 	end
+	-- ADR 0014 (issue #156): fixed lane roles. A layout with laneRoles has a permutation of the three
+	-- lanes; every pickup lies in the pickup lane and every cluster in the horde lane. A layout
+	-- without laneRoles (a fixture) may author no pickup.
+	local roles = layout.laneRoles
+	if roles == nil then
+		if #(layout.pickups or {}) > 0 then
+			bad("pickups need laneRoles")
+		end
+	else
+		local seenRole: { [string]: boolean } = {}
+		local rolesOk = type(roles) == "table"
+		for _, key in { "pickup", "horde", "recruit" } do
+			local lane = if rolesOk then roles[key] else nil
+			if (lane ~= "left" and lane ~= "center" and lane ~= "right") or seenRole[lane] then
+				rolesOk = false
+			else
+				seenRole[lane] = true
+			end
+		end
+		if not rolesOk then
+			bad("laneRoles must assign pickup, horde and recruit to three different lanes")
+		else
+			for _, p in layout.pickups or {} do
+				if p.lane ~= roles.pickup then
+					bad(`pickup {p.id} is outside the pickup lane {roles.pickup}`)
+				end
+			end
+			for _, c in layout.clusters do
+				if c.lane ~= roles.horde then
+					bad(`cluster {c.id} is outside the horde lane {roles.horde}`)
+				end
+			end
+		end
+	end
 	-- Issue #162: route stops. Ids unique, z strictly ascending and inside the street, a known kind.
 	local seenCheckpoint: { [number]: boolean } = {}
 	local prevCheckpointZ = 0

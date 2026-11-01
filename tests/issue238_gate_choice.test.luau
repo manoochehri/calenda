@@ -168,6 +168,7 @@ return {
 			-- beats x4 only at 0 to 2, so the left side wins at crowd 0 alone.
 			local l = clone(DebugLayout)
 			l.name = "test-copy"
+			l.pickups = {} -- issue #156: the optional pickups lift the reached crowds; this case is about runs that collect nothing
 			l.gates[1].z = z(192)
 			l.gates[1].left = op("add", 9)
 			local report = LayoutValidator.check(l)

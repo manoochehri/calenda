@@ -110,6 +110,21 @@ local function deepFreeze<T>(t: T): T
 	return t
 end
 
+-- Issue #156 / ADR 0014: three strips of six optional +1 pickups, 3.4 travel-seconds apart, starting
+-- at travel-seconds 8, 40 and 68, all in the layout's pickup lane (opposite the horde side).
+local STRIP_STARTS = { 8, 40, 68 }
+local STRIP_SIZE = 6
+local STRIP_GAP = 3.4 -- seconds: >= 24 / 7.2, so encounter spans never overlap (PM, #156)
+local function pickupStrips(lane: "left" | "right"): { Level.Pickup }
+	local out: { Level.Pickup } = {}
+	for _, start in STRIP_STARTS do
+		for i = 0, STRIP_SIZE - 1 do
+			table.insert(out, { id = #out + 1, z = at(start + i * STRIP_GAP), lane = lane })
+		end
+	end
+	return out
+end
+
 local function make(
 	name: string,
 	seed: number,
@@ -130,6 +145,12 @@ local function make(
 		gates = gates,
 		obstacles = obstacles,
 		clusters = buildClusters(waves),
+		laneRoles = {
+			pickup = if waves.bigOnLeft then "right" else "left",
+			horde = if waves.bigOnLeft then "left" else "right",
+			recruit = "center",
+		},
+		pickups = pickupStrips(if waves.bigOnLeft then "right" else "left"),
 	} :: Level.Layout)
 end
 
@@ -143,7 +164,7 @@ local calleMercado = make("calle-del-mercado", 0, {
 	gate(6, 72, op("add", 60), op("add", 100)),
 	gate(7, 84, op("multiply", 3), op("add", 150)),
 }, {
-	obstacle(1, 40, "left"),
+	obstacle(1, 40, "right"),
 	obstacle(2, 64, "right"),
 	obstacle(3, 88, "left"),
 }, {
@@ -164,7 +185,7 @@ local portalDelSur = make("portal-del-sur", 1, {
 }, {
 	obstacle(1, 36, "right"),
 	obstacle(2, 60, "left"),
-	obstacle(3, 86, "right"),
+	obstacle(3, 86, "left"),
 }, {
 	waveDelay = 9,
 	soaks = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, -- #206: no soak waves; hordes come only from the single horde lane
@@ -181,9 +202,9 @@ local esquinaDeLaBanda = make("esquina-de-la-banda", 2, {
 	gate(6, 76, op("add", 40), op("add", 80)),
 	gate(7, 86, op("multiply", 3), op("add", 100)),
 }, {
-	obstacle(1, 42, "left"),
+	obstacle(1, 42, "right"),
 	obstacle(2, 66, "right"),
-	obstacle(3, 80, "left"),
+	obstacle(3, 80, "right"),
 }, {
 	waveDelay = 8,
 	soaks = { 1, 1, 2, 2, 2, 3, 3, 3, 4, 4 },
