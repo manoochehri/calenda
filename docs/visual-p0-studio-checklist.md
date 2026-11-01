@@ -38,7 +38,9 @@ The current source rules out several causes without claiming to reproduce Roblox
   red from the nearest approaching wave. PR #223 removes that full-screen tint. The horde
   itself still uses a steady, in-world threat colour; it does not oscillate.
 
-Remaining Studio-only diagnosis, one variable at a time:
+Remaining Studio-only diagnosis, one variable at a time. (Debug switches are rows in
+`src/shared/DebugRegistry.luau`; to set `Config.debug.<name> = true`, set that row's `default = true`
+locally and restore it before committing.)
 
 1. Run from an empty no-Baseplate place on the same phone-sized landscape aspect and route.
 2. Baseline: record whether the road or whole view flashes, and whether the red effect is
