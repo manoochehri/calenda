@@ -222,7 +222,9 @@ Remotes.MAX_Z_VELOCITY = 100 -- [default] studs/s; far above Config.speed, so on
 -- Sane display ranges, derived from Config (no Config value changes). A value beyond them is a forgery
 -- or corruption; refusing it also stops a forged huge simTime from locking a receiver out.
 Remotes.Z_MAX = Config.speed * 1000 -- studs; the longest level is far shorter
-Remotes.SIM_TIME_MAX = 3600 -- [default] seconds of combat clock in one level (a boss fight has no cap)
+Remotes.SIM_TIME_MAX = 86400 -- [default] 24 h of combat clock in one level (boss fights and holds have no cap)
+Remotes.LEVEL_MAX = 99 -- [default] no constant for the level count exists; far above the authored levels
+Remotes.ONCE_MAX = 256 -- [default] keys one once-set holds: far more than the authored encounters per run
 Remotes.TOTAL_MAX = Config.layout.maxTotal
 Remotes.X_MAX = 100 -- studs, far beyond any half width
 
@@ -244,7 +246,7 @@ end
 
 local function isLevelId(v: any): boolean
 	local n = levelIndexOf(v)
-	return n ~= nil and n >= 1
+	return n ~= nil and n >= 1 and n <= Remotes.LEVEL_MAX
 end
 
 -- A roster is an ordered, distinct list of opaque ids (lowercase letters and underscores), at most
@@ -261,6 +263,9 @@ function Remotes.isRoster(r: any, allowed: { [string]: boolean }?): boolean
 	local keys = 0
 	for _ in list do
 		keys += 1
+		if keys > Remotes.ROSTER_MAX then
+			return false
+		end
 	end
 	if keys ~= n then
 		return false
@@ -284,39 +289,59 @@ function Remotes.isRoster(r: any, allowed: { [string]: boolean }?): boolean
 	return true
 end
 
+local function finiteOr0(v: any): number
+	return if type(v) == "number" and v == v then v else 0
+end
+
+local function clampNum(v: number, lo: number, hi: number): number
+	return math.clamp(v, lo, hi)
+end
+
 function Remotes.encodeState(s: Snapshot): StatePayload
 	-- A finished run is always "over"; otherwise a valid supplied phase, else "running".
 	local phase = if s.outcome ~= nil
 		then "over"
 		elseif Remotes.isPhase(s.phase) and s.phase ~= "over" then s.phase :: string
 		else "running"
-	local level = if type(s.level) == "number" and s.level >= 1 then math.floor(s.level) else 1
+	local level = if type(s.level) == "number" and s.level >= 1
+		then math.min(math.floor(s.level), Remotes.LEVEL_MAX)
+		else 1
+	-- Every number is clamped into the range decodeState accepts (NaN becomes 0), so whatever the
+	-- server produces decodes: a legitimate state is never dropped by the client. In particular the
+	-- total can exceed maxTotal (CrowdMath.applyOp has no cap and the validator does not prove
+	-- maxTotal), and the clamp keeps that state decodable.
+	local simTime = clampNum(round2(finiteOr0(s.time)), 0, Remotes.SIM_TIME_MAX)
 	return {
 		v = Remotes.VERSION,
 		runId = if isRunId(s.runId) then s.runId :: number else 1,
-		levelId = if isLevelId(s.levelId) then s.levelId :: string else `level{level}`,
-		simTime = round2(s.time),
-		zVelocity = if isFinite(s.zVelocity)
-			then math.clamp(round2(s.zVelocity :: number), 0, Remotes.MAX_Z_VELOCITY)
-			else 0,
-		boostExpiry = if isFinite(s.boostExpiry) and (s.boostExpiry :: number) >= 0
-			then round2(s.boostExpiry :: number)
+		levelId = `level{level}`,
+		simTime = simTime,
+		zVelocity = clampNum(round2(finiteOr0(s.zVelocity)), 0, Remotes.MAX_Z_VELOCITY),
+		boostExpiry = if type(s.boostExpiry) == "number"
+				and s.boostExpiry == s.boostExpiry
+			then clampNum(round2(s.boostExpiry), 0, Remotes.SIM_TIME_MAX + 60)
 			else nil,
 		roster = if Remotes.isRoster(s.roster) then table.clone(s.roster :: { string }) else {},
 		phase = phase,
-		t = round2(s.time),
-		z = round2(s.z),
-		x = round2(s.x),
-		total = s.total,
-		best = s.best,
+		t = simTime,
+		z = clampNum(round2(finiteOr0(s.z)), 0, Remotes.Z_MAX),
+		x = clampNum(round2(finiteOr0(s.x)), -Remotes.X_MAX, Remotes.X_MAX),
+		total = clampNum(finiteOr0(s.total), 0, Remotes.TOTAL_MAX),
+		best = clampNum(finiteOr0(s.best), 0, Remotes.TOTAL_MAX),
 		over = s.outcome ~= nil,
-		outcome = s.outcome,
-		score = s.score,
+		outcome = if type(s.outcome) == "string" and #s.outcome <= 32 then s.outcome else nil,
+		score = if type(s.score) == "number"
+			then clampNum(finiteOr0(s.score), 0, Remotes.TOTAL_MAX)
+			else nil,
 		level = level,
-		levelName = if type(s.levelName) == "string" and s.levelName ~= "" then s.levelName else "",
+		levelName = if type(s.levelName) == "string" and s.levelName ~= ""
+			then string.sub(s.levelName, 1, 64)
+			else "",
 		encounter = Remotes.decodeEncounter(s.encounter),
 		stage = if Remotes.isStage(s.stage) then s.stage :: string else "traveling",
-		holdZ = if isFinite(s.holdZ) then round2(s.holdZ :: number) else nil,
+		holdZ = if type(s.holdZ) == "number" and s.holdZ == s.holdZ
+			then clampNum(round2(s.holdZ), 0, Remotes.Z_MAX)
+			else nil,
 	}
 end
 
@@ -328,85 +353,98 @@ function Remotes.decodeState(p: any, allowedRoster: { [string]: boolean }?): Sta
 	if type(p) ~= "table" then
 		return nil
 	end
+	-- Each field is read exactly once into a local, so a table with a metatable cannot answer a check
+	-- and the copy differently.
 	local r = p :: any
-	if r.v ~= Remotes.VERSION or not isRunId(r.runId) or not isLevelId(r.levelId) then
+	local v, runId, levelId, level = r.v, r.runId, r.levelId, r.level
+	local phase, stage, over, levelName = r.phase, r.stage, r.over, r.levelName
+	local t, simTime, total, best, z, x = r.t, r.simTime, r.total, r.best, r.z, r.x
+	local zVelocity, boostExpiry, holdZ = r.zVelocity, r.boostExpiry, r.holdZ
+	local outcome, score, roster, encounterIn = r.outcome, r.score, r.roster, r.encounter
+	if v ~= Remotes.VERSION or not isRunId(runId) or not isLevelId(levelId) then
 		return nil
 	end
-	if type(r.level) ~= "number" or r.level ~= math.floor(r.level) or r.level < 1 then
+	if type(level) ~= "number" or level ~= math.floor(level) or level < 1 then
 		return nil
 	end
-	if r.levelId ~= `level{r.level}` then
+	if levelId ~= `level{level}` then
 		return nil
 	end
-	if not Remotes.isPhase(r.phase) or not Remotes.isStage(r.stage) then
+	if not Remotes.isPhase(phase) or not Remotes.isStage(stage) then
 		return nil
 	end
-	if type(r.over) ~= "boolean" or type(r.levelName) ~= "string" or #r.levelName > 64 then
+	if type(over) ~= "boolean" or type(levelName) ~= "string" or #levelName > 64 then
 		return nil
 	end
-	if not inRange(r.simTime, 0, Remotes.SIM_TIME_MAX) or r.t ~= r.simTime then
+	if not inRange(simTime, 0, Remotes.SIM_TIME_MAX) or t ~= simTime then
 		return nil
 	end
-	if not inRange(r.total, 0, Remotes.TOTAL_MAX) or not inRange(r.best, 0, Remotes.TOTAL_MAX) then
+	if not inRange(total, 0, Remotes.TOTAL_MAX) or not inRange(best, 0, Remotes.TOTAL_MAX) then
 		return nil
 	end
-	if not inRange(r.z, 0, Remotes.Z_MAX) or not inRange(r.x, -Remotes.X_MAX, Remotes.X_MAX) then
+	if not inRange(z, 0, Remotes.Z_MAX) or not inRange(x, -Remotes.X_MAX, Remotes.X_MAX) then
 		return nil
 	end
-	if not isFinite(r.zVelocity) or r.zVelocity < 0 or r.zVelocity > Remotes.MAX_Z_VELOCITY then
+	if not inRange(zVelocity, 0, Remotes.MAX_Z_VELOCITY) then
 		return nil
 	end
-	if r.boostExpiry ~= nil and not inRange(r.boostExpiry, 0, Remotes.SIM_TIME_MAX + 60) then
+	if boostExpiry ~= nil and not inRange(boostExpiry, 0, Remotes.SIM_TIME_MAX + 60) then
 		return nil
 	end
-	if r.holdZ ~= nil and not inRange(r.holdZ, 0, Remotes.Z_MAX) then
+	if holdZ ~= nil and not inRange(holdZ, 0, Remotes.Z_MAX) then
 		return nil
 	end
-	if r.outcome ~= nil and (type(r.outcome) ~= "string" or #r.outcome > 32) then
+	if outcome ~= nil and (type(outcome) ~= "string" or #outcome > 32) then
 		return nil
 	end
-	if r.score ~= nil and not inRange(r.score, 0, Remotes.TOTAL_MAX) then
+	if score ~= nil and not inRange(score, 0, Remotes.TOTAL_MAX) then
 		return nil
 	end
-	if not Remotes.isRoster(r.roster, allowedRoster) then
+	if not Remotes.isRoster(roster, allowedRoster) then
 		return nil
 	end
 	local encounter = nil
-	if r.encounter ~= nil then
-		encounter = Remotes.decodeEncounter(r.encounter)
+	if encounterIn ~= nil then
+		encounter = Remotes.decodeEncounter(encounterIn)
 		if encounter == nil then
 			return nil
 		end
 	end
 	return {
-		v = r.v,
-		runId = r.runId,
-		levelId = r.levelId,
-		simTime = r.simTime,
-		zVelocity = r.zVelocity,
-		boostExpiry = r.boostExpiry,
-		roster = table.clone(r.roster),
-		t = r.t,
-		z = r.z,
-		x = r.x,
-		total = r.total,
-		best = r.best,
-		over = r.over,
-		phase = r.phase,
-		outcome = r.outcome,
-		score = r.score,
-		level = r.level,
-		levelName = r.levelName,
+		v = v,
+		runId = runId,
+		levelId = levelId,
+		simTime = simTime,
+		zVelocity = zVelocity,
+		boostExpiry = boostExpiry,
+		roster = table.clone(roster),
+		t = t,
+		z = z,
+		x = x,
+		total = total,
+		best = best,
+		over = over,
+		phase = phase,
+		outcome = outcome,
+		score = score,
+		level = level,
+		levelName = levelName,
 		encounter = encounter,
-		stage = r.stage,
-		holdZ = r.holdZ,
+		stage = stage,
+		holdZ = holdZ,
 	}
 end
+
+export type OnceSet = {
+	claim: (runId: any, levelId: any, encounterId: any) -> boolean,
+	reset: () -> (),
+}
 
 export type Receiver = {
 	accept: (payload: any, allowedRoster: { [string]: boolean }?) -> StatePayload?,
 	runId: () -> number?,
-	reset: () -> (), -- forget the newest state: call on a (re)join / new server session
+	reset: () -> (), -- forget the newest state AND clear `once`: call on a (re)join / new session
+	once: OnceSet, -- this receiver's once-only set (one per session; cleared by reset)
 }
 
 -- A client's gate on incoming States (issue #162: recover from state, not from events). A State is
@@ -419,6 +457,7 @@ function Remotes.newReceiver(): Receiver
 	local lastLevel = 0
 	local lastSim = 0
 	local self = {} :: Receiver
+	self.once = Remotes.newOnceSet()
 	function self.accept(payload: any, allowedRoster: { [string]: boolean }?): StatePayload?
 		local s = Remotes.decodeState(payload, allowedRoster)
 		if s == nil then
@@ -446,6 +485,7 @@ function Remotes.newReceiver(): Receiver
 	-- or rejoins; the next state is then accepted whole.
 	function self.reset()
 		lastRun, lastLevel, lastSim = nil, 0, 0
+		self.once.reset()
 	end
 	return self
 end
@@ -468,19 +508,25 @@ function Remotes.encounterKey(runId: any, levelId: any, encounterId: any): strin
 	return `{runId}|{levelId}|{encounterId}`
 end
 
-export type OnceSet = { claim: (runId: any, levelId: any, encounterId: any) -> boolean }
-
--- True the first time a valid key is claimed, false for a duplicate or an invalid key.
+-- True the first time a valid key is claimed, false for a duplicate, an invalid key, or once the set
+-- holds ONCE_MAX keys (it never throws and never grows past the cap). Create one per driver/session:
+-- runId restarts at 1 in a new driver, so a set reused across sessions would collide. reset() clears
+-- it (Receiver.reset() callers should reset their once-set too).
 function Remotes.newOnceSet(): OnceSet
 	local claimed: { [string]: boolean } = {}
+	local count = 0
 	local self = {} :: OnceSet
 	function self.claim(runId: any, levelId: any, encounterId: any): boolean
 		local key = Remotes.encounterKey(runId, levelId, encounterId)
-		if key == nil or claimed[key] then
+		if key == nil or claimed[key] or count >= Remotes.ONCE_MAX then
 			return false
 		end
 		claimed[key] = true
+		count += 1
 		return true
+	end
+	function self.reset()
+		claimed, count = {}, 0
 	end
 	return self
 end

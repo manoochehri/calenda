@@ -146,7 +146,7 @@ return {
 			eq(encode().boostExpiry, nil, "absent")
 			eq(encode({ boostExpiry = 20.456 }).boostExpiry, 20.46, "rounded")
 			eq(encode({ boostExpiry = 0 / 0 }).boostExpiry, nil, "nan dropped at encode")
-			eq(encode({ boostExpiry = -1 }).boostExpiry, nil, "negative dropped at encode")
+			eq(encode({ boostExpiry = -1 }).boostExpiry, 0, "negative clamped at encode")
 			local d = req("decodeState")
 			local p = encode({ boostExpiry = 20 })
 			eq(d(p).boostExpiry, 20, "round trip")
@@ -449,6 +449,136 @@ return {
 			eq(r.runId(), nil, "forgotten")
 			assert(r.accept(encode({ runId = 1, time = 0.1 })), "accepted after reset")
 			eq(r.runId(), 1, "tracks the new session")
+		end,
+	},
+	{
+		name = "level index is bounded: level999999999 refused, a later normal state still accepted",
+		run = function()
+			local r = newReceiver()
+			assert(r.accept(encode({ time = 10 })), "good")
+			local forged = encode()
+			forged.levelId, forged.level = "level999999999", 999999999
+			eq(r.accept(forged), nil, "huge level refused")
+			eq(req("encounterKey")(1, "level999999999", "p1"), nil, "no key")
+			assert(r.accept(encode({ time = 11 })), "normal state accepted after")
+			eq(encode({ level = 999999999 }).level, Remotes.LEVEL_MAX, "encode clamps the level")
+		end,
+	},
+	{
+		name = "everything encodeState produces decodes: clamps, NaN as 0, total above maxTotal",
+		run = function()
+			local d = req("decodeState")
+			for _, patch in
+				{
+					{ total = 10 ^ 9, best = 10 ^ 9, score = 10 ^ 9 },
+					{ time = 1e308, z = 1e308, x = -1e308, holdZ = 1e308, boostExpiry = 1e308 },
+					{
+						time = 0 / 0,
+						z = 0 / 0,
+						x = 0 / 0,
+						total = 0 / 0,
+						best = 0 / 0,
+						zVelocity = 0 / 0,
+					},
+					{ time = -5, z = -5, total = -5, score = -5, boostExpiry = -5, holdZ = -5 },
+					{ time = math.huge, total = -math.huge },
+				}
+			do
+				assert(d(encode(patch)) ~= nil, "clamped state decodes")
+			end
+			eq(encode({ total = 0 / 0 }).total, 0, "NaN is 0")
+			eq(encode({ total = 10 ^ 9 }).total, Remotes.TOTAL_MAX, "clamped to maxTotal")
+		end,
+	},
+	{
+		name = "property: every snapshot of a real run decodes (level, replay, 2 h hold)",
+		run = function()
+			local function layout(name: string, checkpoints: { any }?): any
+				return {
+					name = name,
+					seed = 3,
+					streetLength = 480,
+					plazaStart = 400,
+					halfWidth = 20,
+					leadLimit = 15,
+					maxTotal = 1000,
+					intendedRecruitTotal = 0,
+					gates = {},
+					obstacles = {},
+					clusters = {},
+					checkpoints = checkpoints,
+				}
+			end
+			local d = RunDriver.new({
+				layout = layout("held", { { id = 1, z = 72.3, kind = "mini-boss" } }),
+				automated = true,
+				runSeed = 5,
+			})
+			local receiver = newReceiver()
+			local function check()
+				local p = Remotes.encodeState(d:snapshot())
+				assert(req("decodeState")(p) ~= nil, "server state must decode")
+				assert(receiver.accept(p) ~= nil, "receiver accepts the server's own state")
+			end
+			for _ = 1, 4000 do
+				d:tick(RunDriver.TICK_DT)
+				check()
+				if (d:snapshot() :: any).stage ~= "traveling" then
+					break
+				end
+			end
+			eq((d:snapshot() :: any).stage, "mini-boss-combat", "held")
+			for _ = 1, 14400 do -- 2 h of simulated hold at 0.5 s
+				d:tick(0.5)
+				if d:outcome() ~= nil then
+					break
+				end
+			end
+			check()
+			-- a full level without a checkpoint, then a replay
+			local e = RunDriver.new({ layout = layout("free"), automated = true, runSeed = 5 })
+			d = e
+			receiver = newReceiver()
+			for _ = 1, 4000 do
+				e:tick(RunDriver.TICK_DT)
+				check()
+				if e:outcome() ~= nil then
+					break
+				end
+			end
+			assert(e:outcome() ~= nil, "level ended")
+			assert(e:replay(1000), "replay")
+			check()
+			e:tick(RunDriver.TICK_DT)
+			check()
+		end,
+	},
+	{
+		name = "once-set is capped, never throws, and is cleared by Receiver.reset",
+		run = function()
+			local once = req("newOnceSet")()
+			for i = 1, Remotes.ONCE_MAX do
+				eq(once.claim(1, "level1", `p{i}`), true, "within cap")
+			end
+			eq(once.claim(1, "level1", `p{Remotes.ONCE_MAX + 1}`), false, "past the cap refused")
+			eq(once.claim(1, "level1", "p1"), false, "still a duplicate")
+			once.reset()
+			eq(once.claim(1, "level1", "p1"), true, "reset clears it")
+			local r = newReceiver()
+			eq(r.once.claim(1, "level1", "p1"), true, "receiver owns a set")
+			eq(r.once.claim(1, "level1", "p1"), false, "duplicate")
+			r.reset()
+			eq(r.once.claim(1, "level1", "p1"), true, "Receiver.reset clears the once-set")
+		end,
+	},
+	{
+		name = "roster: many keys are refused without scanning them all",
+		run = function()
+			local big: { [any]: any } = {}
+			for i = 1, 1000 do
+				big[`k{i}`] = "a"
+			end
+			eq(Remotes.isRoster(big), false, "huge keyed table refused")
 		end,
 	},
 }
