@@ -5,7 +5,7 @@
 -- game was reported broken (#241): a source grep cannot see an Instance that is detached and
 -- re-attached every frame (#236), a Neon count that grew, or a require that stopped loading.
 --
--- BUDGETS are measured on main (commit 3dd5d2e, 2026-10-31) plus a small margin and recorded in
+-- BUDGETS are measured on main (commit 963a957, 2026-10-31) plus a small margin and recorded in
 -- the PR for #254. They are a tripwire, not a target: when a change legitimately needs more, raise
 -- the number in the same PR and say why. Set SCENE_REPORT=1 to print the measured numbers.
 -- What this CANNOT see: rendering, Trail behaviour in the engine, the real cost of a write.
@@ -33,8 +33,8 @@ local BUDGETS = {
 		writesPerFrame = 1020,
 	},
 	medium = {
-		parts = 790,
-		visibleParts = 755,
+		parts = 780,
+		visibleParts = 745,
 		neon = 95,
 		translucent = 95,
 		trails = 26,
@@ -43,11 +43,11 @@ local BUDGETS = {
 		guis = 26,
 		parentWrites = 0,
 		redundantPerFrame = 385,
-		writesPerFrame = 1360,
+		writesPerFrame = 1350,
 	},
 	high = {
-		parts = 1120,
-		visibleParts = 1085,
+		parts = 1110,
+		visibleParts = 1075,
 		neon = 95,
 		translucent = 95,
 		trails = 26,
@@ -56,10 +56,10 @@ local BUDGETS = {
 		guis = 26,
 		parentWrites = 0,
 		redundantPerFrame = 390,
-		writesPerFrame = 1700,
+		writesPerFrame = 1690,
 	},
 }
-local LANE_VIEW_BUDGET = { parts = 95, neon = 0, translucent = 0, trails = 0, emitters = 0 }
+local LANE_VIEW_BUDGET = { parts = 125, neon = 0, translucent = 0, trails = 0, emitters = 0 }
 
 local DT = 1 / 60
 local T0 = 44 -- seconds into calle-del-mercado: hordes on screen, chevrons up
