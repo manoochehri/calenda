@@ -25,6 +25,7 @@ local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
 local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
+local MotionSwitches = require(Shared:WaitForChild("MotionSwitches"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
@@ -273,9 +274,12 @@ function CrowdView.new(): CrowdView
 		else
 			danceHop, danceSway, _arm, spin = Dance.pose(avatar.variant, beat, danceAmplitude)
 		end
+		danceHop, danceSway, spin = MotionSwitches.dance(Config.debug, danceHop, danceSway, spin) -- issue #240
 		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
 		local marchY, marchSquashY, marchSquashXZ =
 			FollowerLook.marchValues(look, clock * danceTempo)
+		marchY, marchSquashY, marchSquashXZ =
+			MotionSwitches.march(Config.debug, marchY, marchSquashY, marchSquashXZ) -- issue #240
 		local hop, sy, sxz = y + danceHop * DanceConfig.followerDanceHopScale + eventHop, 1, 1
 		if marching then
 			hop += marchY
@@ -292,12 +296,17 @@ function CrowdView.new(): CrowdView
 		-- Issue #178: join bounce (members only), and the cheer or flinch shared by everyone drawn.
 		local joinAge = if marching then clock - avatar.joinedAt else math.huge
 		local feelHop, feelY, feelXZ = CrowdFeel.combine(joinAge, clock - cheerAt, clock - flinchAt)
+		feelHop, feelY, feelXZ = MotionSwitches.crowdFeel(Config.debug, feelHop, feelY, feelXZ) -- issue #240
 		hop += feelHop
 		sy *= feelY
 		sxz *= feelXZ
 		avatar.lastClock = clock
 		-- Each follower breathes at its own offset, so the crowd does not pulse in lockstep.
-		local k = look.scale * FollowerLook.breath(clock, CrowdFeel.breathPhase(id))
+		local k = look.scale
+			* MotionSwitches.breath(
+				Config.debug,
+				FollowerLook.breath(clock, CrowdFeel.breathPhase(id))
+			) -- issue #240
 		local base = CFrame.new(ViewMap.x(x), hop, z)
 			* CFrame.Angles(
 				eventRoll,
