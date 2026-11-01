@@ -85,6 +85,7 @@ export type ConfigType = {
 		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
 		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
 		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
+		legacyLaneLabelPlates: boolean, -- issue #222: restore the opaque dark lane-label plates
 		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
 	},
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
@@ -160,6 +161,7 @@ local function validate(c: any): (boolean, string?)
 			"noHitShake",
 			"noTransparentStrips",
 			"noDust",
+			"legacyLaneLabelPlates",
 		}
 	do
 		if type(c.debug[flag]) ~= "boolean" then
@@ -578,6 +580,7 @@ local config: ConfigType = {
 		noHitShake = false, -- hit camera shake off
 		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque
 		noDust = false, -- chevron and mob dust ParticleEmitters off
+		legacyLaneLabelPlates = false, -- issue #222: true brings back the dark rectangles behind lane labels
 	},
 	validate = validate,
 }

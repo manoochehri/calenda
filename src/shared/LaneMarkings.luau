@@ -63,6 +63,12 @@ export type LabelSpec = {
 	roleText: string,
 }
 
+-- Issue #222: the lane role labels are text on the road. Their solid dark backing plate read as an
+-- unexplained black rectangle, so it is fully transparent unless Config.debug.legacyLaneLabelPlates.
+function LaneMarkings.labelBackingTransparency(legacyPlates: boolean): number
+	return if legacyPlates then 0 else 1
+end
+
 local nearLine: (number, LayoutInfo) -> boolean
 
 -- Repeated static wayfinding labels; roles are projected from authored layout data only.
