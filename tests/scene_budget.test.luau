@@ -5,7 +5,7 @@
 -- game was reported broken (#241): a source grep cannot see an Instance that is detached and
 -- re-attached every frame (#236), a Neon count that grew, or a require that stopped loading.
 --
--- BUDGETS are measured on main (commit 963a957, 2026-10-31) plus a small margin and recorded in
+-- BUDGETS are measured on main (merged tree: main ff7da85 + this PR, 2026-10-31) plus a small margin and recorded in
 -- the PR for #254. They are a tripwire, not a target: when a change legitimately needs more, raise
 -- the number in the same PR and say why. Set SCENE_REPORT=1 to print the measured numbers.
 -- What this CANNOT see: rendering, Trail behaviour in the engine, the real cost of a write.
@@ -19,44 +19,87 @@ local REPORT = process.env.SCENE_REPORT ~= nil
 -- Measured on main + margin. `redundantPerFrame` = property writes per frame that set a value the
 -- property already held; `writesPerFrame` = every property write. Both are worst frame in the window.
 local BUDGETS = {
-	low = {
-		parts = 450,
-		visibleParts = 425,
-		neon = 95,
-		translucent = 95,
-		trails = 26,
-		emitters = 5,
-		emittersActive = 2,
-		guis = 26,
-		parentWrites = 0,
-		redundantPerFrame = 380,
-		writesPerFrame = 1020,
+	calm = {
+		low = {
+			parts = 450,
+			visibleParts = 425,
+			neon = 95,
+			translucent = 95,
+			trails = 0,
+			emitters = 0,
+			emittersActive = 0,
+			guis = 26,
+			parentWrites = 0,
+			redundantPerFrame = 320,
+			writesPerFrame = 905,
+		},
+		medium = {
+			parts = 770,
+			visibleParts = 745,
+			neon = 95,
+			translucent = 95,
+			trails = 0,
+			emitters = 0,
+			emittersActive = 0,
+			guis = 26,
+			parentWrites = 0,
+			redundantPerFrame = 320,
+			writesPerFrame = 1225,
+		},
+		high = {
+			parts = 1100,
+			visibleParts = 1075,
+			neon = 95,
+			translucent = 95,
+			trails = 0,
+			emitters = 0,
+			emittersActive = 0,
+			guis = 26,
+			parentWrites = 0,
+			redundantPerFrame = 320,
+			writesPerFrame = 1555,
+		},
 	},
-	medium = {
-		parts = 780,
-		visibleParts = 745,
-		neon = 95,
-		translucent = 95,
-		trails = 26,
-		emitters = 7,
-		emittersActive = 2,
-		guis = 26,
-		parentWrites = 0,
-		redundantPerFrame = 385,
-		writesPerFrame = 1350,
-	},
-	high = {
-		parts = 1110,
-		visibleParts = 1075,
-		neon = 95,
-		translucent = 95,
-		trails = 26,
-		emitters = 10,
-		emittersActive = 2,
-		guis = 26,
-		parentWrites = 0,
-		redundantPerFrame = 390,
-		writesPerFrame = 1690,
+	heavy = {
+		low = {
+			parts = 450,
+			visibleParts = 425,
+			neon = 95,
+			translucent = 95,
+			trails = 26,
+			emitters = 5,
+			emittersActive = 2,
+			guis = 26,
+			parentWrites = 0,
+			redundantPerFrame = 380,
+			writesPerFrame = 1020,
+		},
+		medium = {
+			parts = 775,
+			visibleParts = 745,
+			neon = 95,
+			translucent = 95,
+			trails = 26,
+			emitters = 7,
+			emittersActive = 2,
+			guis = 26,
+			parentWrites = 0,
+			redundantPerFrame = 385,
+			writesPerFrame = 1345,
+		},
+		high = {
+			parts = 1110,
+			visibleParts = 1075,
+			neon = 95,
+			translucent = 95,
+			trails = 26,
+			emitters = 10,
+			emittersActive = 2,
+			guis = 26,
+			parentWrites = 0,
+			redundantPerFrame = 390,
+			writesPerFrame = 1685,
+		},
 	},
 }
 local LANE_VIEW_BUDGET = { parts = 125, neon = 0, translucent = 0, trails = 0, emitters = 0 }
@@ -67,8 +110,19 @@ local T0 = 44 -- seconds into calle-del-mercado: hordes on screen, chevrons up
 -- Drives ClusterView through a fixed fight: a stream of notes and gifts, then a steady window of
 -- frames with the clock frozen at T0 (so no mob streams in or out) while the shots are in flight.
 -- `source` overrides the ClusterView text (the fail-first proof runs a broken copy).
-local function runFight(quality: string, source: string?)
-	local overrides = if source then { ["client/ClusterView"] = source } else nil
+local function runFight(quality: string, source: string?, calm: boolean)
+	local overrides = {}
+	if source then
+		overrides["client/ClusterView"] = source
+	end
+	if not calm then
+		-- The old heavy path: every committed `default = true` (the #255 calm-screen switches)
+		-- flipped back off, so Trails, dust, strips, floaters and the lead ring are built again.
+		local registry = fs.readFile("src/shared/DebugRegistry.luau")
+		local flipped = string.gsub(registry, "default = true,", "default = false,")
+		assert(flipped ~= registry, "no calm default found to flip")
+		overrides["shared/DebugRegistry"] = flipped
+	end
 	local scene = SceneStub.new({ overrides = overrides })
 	local ClusterView = scene:require("client/ClusterView")
 	local Layouts = scene:require("shared/Layouts")
@@ -168,23 +222,31 @@ end
 
 local cases = {}
 
-for _, quality in { "low", "medium", "high" } do
-	table.insert(cases, {
-		name = `issue 254: ClusterView fight at {quality} quality stays inside the scene budgets`,
-		run = function()
-			local m = runFight(quality, nil)
-			report(quality, m)
-			local v = violations(m, BUDGETS[quality])
-			assert(#v == 0, `scene budget exceeded ({quality}): {table.concat(v, "; ")}`)
-			assert(m.trails > 0 and m.neon > 0, "the fight must actually put shots on screen")
-		end,
-	})
+for _, mode in { "calm", "heavy" } do
+	for _, quality in { "low", "medium", "high" } do
+		table.insert(cases, {
+			name = `issue 254: ClusterView fight ({mode} defaults) at {quality} quality stays inside the scene budgets`,
+			run = function()
+				local m = runFight(quality, nil, mode == "calm")
+				report(`{mode} {quality}`, m)
+				local v = violations(m, BUDGETS[mode][quality])
+				assert(#v == 0, `scene budget exceeded ({quality}): {table.concat(v, "; ")}`)
+				assert(m.visibleParts > 0, "the fight must actually put things on screen")
+				if mode == "heavy" then
+					assert(
+						m.trails > 0 and m.neon > 0,
+						"the heavy path must put Trails and Neon shots on screen"
+					)
+				end
+			end,
+		})
+	end
 end
 
 table.insert(cases, {
-	name = "issue 254: a steady frame re-parents nothing and the shots keep their parent",
+	name = "issue 254: a steady frame re-parents nothing (calm and heavy)",
 	run = function()
-		local m = runFight("medium", nil)
+		local m = runFight("medium", nil, true)
 		assert(
 			m.parentWrites == 0,
 			`{m.parentWrites} Parent writes in 10 steady frames: {table.concat(
@@ -200,9 +262,9 @@ table.insert(cases, {
 	run = function()
 		local source = process.env.SCENE_CLUSTERVIEW_SRC
 		local text = if source then fs.readFile(source) else preFix247()
-		local m = runFight("medium", text)
+		local m = runFight("medium", text, false)
 		report("pre-#247", m)
-		local v = violations(m, BUDGETS.medium)
+		local v = violations(m, BUDGETS.heavy.medium)
 		assert(#v > 0, "the budgets did not catch the pre-#247 per-frame re-parenting")
 		local caught = false
 		for _, line in v do

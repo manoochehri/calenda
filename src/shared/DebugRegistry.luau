@@ -4,25 +4,24 @@
 -- and the registry test (tests/debugregistry.test.luau) iterates the rows, so a new row is
 -- defaulted, validated and tested without touching any of them.
 --
---   boolean row: { name, describe, group, default? }        default false (= normal game)
+--   boolean row: { name, describe, group, default? }        default false unless `default = true`
 --   enum row:    { name, kind = "enum", values, describe }  default nil (= automatic)
 --
 -- Read a switch at its one call site as `Config.debug.<name>`. If the decision is worth a pure,
 -- testable function, put it in DebugSwitches / MotionSwitches (they take Config.debug); that is
 -- optional and is not part of adding a switch.
 --
--- To flip a switch for a Studio A/B run, set that row's `default = true` locally (this replaces
--- editing a literal in Config.luau) and put it back before committing: the registry test fails on a
--- committed row that is not off.
--- Every boolean switch defaults to false and a default must never change behaviour: with every
--- row at its default the game is the normal game. Only the human flips a switch, in Studio.
+-- A switch's committed `default` is the shipped behaviour: most are false (the effect is on), the
+-- issue #255 calm-screen switches are true (the effect is gone). To flip one for a Studio A/B run,
+-- change that row's `default` locally and put it back before committing: the registry test pins every
+-- committed default, so an accidental flip fails there.
 local DebugRegistry = {}
 
 export type Row = {
 	name: string,
 	describe: string,
 	group: string,
-	default: boolean?, -- boolean rows: local A/B flip only; the committed value is always false/absent
+	default: boolean?, -- boolean rows: the shipped value; absent = false
 	kind: ("boolean" | "enum")?,
 	values: { string }?, -- enum rows: the allowed values; the default is nil
 }
@@ -61,14 +60,48 @@ DebugRegistry.rows = table.freeze({
 		describe = "nil = automatic (medium on touch, high otherwise); or force the mob quality",
 	},
 	-- Issue #171 A/B switches (flip one, replay the same route):
-	{ name = "noTrails", group = "issue171", describe = "shot Trails (Neon streaks) off" },
-	{ name = "noHitShake", group = "issue171", describe = "hit camera shake off" },
+	-- Issue #255 calm screen: these are ON by default (the effect is gone); false restores it.
+	{
+		name = "noTrails",
+		group = "issue171",
+		default = true,
+		describe = "shot Trails (Neon streaks) off; false builds and shows them again",
+	},
+	{
+		name = "noHitShake",
+		group = "issue171",
+		default = true,
+		describe = "hit camera shake off; false restores it",
+	},
 	{
 		name = "noTransparentStrips",
 		group = "issue171",
 		describe = "GateView crossing strip and LeadRing drawn opaque",
 	},
-	{ name = "noDust", group = "issue171", describe = "chevron and mob dust ParticleEmitters off" },
+	{
+		name = "noDust",
+		group = "issue171",
+		default = true,
+		describe = "chevron and mob dust ParticleEmitters off; false restores them",
+	},
+	{
+		name = "noGateStrip",
+		group = "issue255",
+		default = true,
+		describe = "no translucent crossing strip under gates; false restores it",
+	},
+	{
+		name = "noRewardFloaters",
+		group = "issue255",
+		default = true,
+		describe = 'no "+N" floaters over the lane; false restores them',
+	},
+	{
+		name = "noLeadRing",
+		group = "issue255",
+		default = true,
+		describe = "no neon ring under the lead; false restores it",
+	},
 	-- Issue #222: lane-label plates
 	{
 		name = "legacyLaneLabelPlates",

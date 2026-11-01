@@ -26,6 +26,9 @@ local MIGRATED = {
 	"noFollowerMarch",
 	"legacyLaneLabelPlates",
 	"perfOverlay",
+	"noGateStrip",
+	"noRewardFloaters",
+	"noLeadRing",
 }
 
 local function sourceFiles(dir: string, out: { string }): { string }
@@ -66,14 +69,29 @@ return {
 		end,
 	},
 	{
-		name = "issue 254: Config.debug is exactly the registry, every default off (normal game)",
+		name = "issue 254: Config.debug is exactly the registry and every shipped default is pinned",
 		run = function()
+			-- The shipped (committed) defaults. The issue #255 calm-screen switches are true; every
+			-- other switch is false/nil. Changing a default means changing this table in the same PR.
+			local TRUE_BY_DEFAULT = {
+				noTrails = true,
+				noHitShake = true,
+				noDust = true,
+				noGateStrip = true,
+				noRewardFloaters = true,
+				noLeadRing = true,
+			}
 			for _, row in DebugRegistry.rows do
 				local v = (Config.debug :: any)[row.name]
 				if row.kind == "enum" then
 					assert(v == nil, `{row.name} must default to nil (automatic)`)
 				else
-					assert(v == false, `{row.name} must default to false, got {tostring(v)}`)
+					assert(
+						v == (TRUE_BY_DEFAULT[row.name] == true),
+						`{row.name} default is {tostring(v)}, pinned {tostring(
+							TRUE_BY_DEFAULT[row.name] == true
+						)}`
+					)
 				end
 			end
 			for name in Config.debug :: any do
