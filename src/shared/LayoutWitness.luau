@@ -19,6 +19,7 @@ export type View = { time: number, z: number, x: number, total: number, layout: 
 -- decide returns the lateral target to steer to, or nil to send no steer this decision.
 export type Policy = { name: string, period: number, decide: (view: View) -> number? }
 export type Witness = { policy: string, seed: number, total: number, outcome: string? }
+export type GateSample = { policy: string, seed: number, crowd: number }
 export type Result = {
 	runs: number, -- policies x seeds actually simulated
 	policies: number,
@@ -27,6 +28,9 @@ export type Result = {
 	-- Issue #238: the crowd on arrival at each gate (keyed by gate id), one entry per run that
 	-- reached it. Recorded on the same runs, so it adds no simulation.
 	gateCrowds: { [number]: { number } },
+	-- Issue #257: the same arrivals with their policy and seed, so a gate can be judged by the number
+	-- of distinct policies (about independent trajectories), not by runs.
+	gateSamples: { [number]: { GateSample } },
 }
 
 LayoutWitness.SEEDS = { 1, 2, 3, 4, 5 } -- [default] run seeds; seed drives hazards and random policies
@@ -194,7 +198,8 @@ local function play(
 	layout: Level.Layout,
 	policy: Policy,
 	seed: number,
-	gateCrowds: { [number]: { number } }
+	gateCrowds: { [number]: { number } },
+	gateSamples: { [number]: { GateSample } }
 ): (number, string?)
 	local clock = 0 -- session clock: the steer limiter's time (server seconds in production)
 	local driver = RunDriver.new({
@@ -228,6 +233,10 @@ local function play(
 		for _, g in layout.gates do
 			if g.z > snap.z and g.z <= after.z then
 				table.insert(gateCrowds[g.id], snap.total) -- the crowd arriving at the gate
+				table.insert(
+					gateSamples[g.id],
+					{ policy = policy.name, seed = seed, crowd = snap.total }
+				)
 			end
 		end
 		if driver:outcome() ~= nil then
@@ -240,16 +249,23 @@ end
 -- Runs every fixed policy under every seed and returns the highest final total with its witness.
 local function searchUncached(layout: Level.Layout, seeds: { number }?): Result
 	local seedList = seeds or LayoutWitness.SEEDS
-	local result: Result =
-		{ runs = 0, policies = 0, seeds = #seedList, worst = nil, gateCrowds = {} }
+	local result: Result = {
+		runs = 0,
+		policies = 0,
+		seeds = #seedList,
+		worst = nil,
+		gateCrowds = {},
+		gateSamples = {},
+	}
 	for _, g in layout.gates do
 		result.gateCrowds[g.id] = {}
+		result.gateSamples[g.id] = {}
 	end
 	for _, seed in seedList do
 		local list = policies(seed)
 		result.policies = #list
 		for _, policy in list do
-			local total, outcome = play(layout, policy, seed, result.gateCrowds)
+			local total, outcome = play(layout, policy, seed, result.gateCrowds, result.gateSamples)
 			result.runs += 1
 			local worst = result.worst
 			if worst == nil or total > worst.total then

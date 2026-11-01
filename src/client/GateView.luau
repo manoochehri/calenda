@@ -49,7 +49,7 @@ type Portal = {
 	operation: TextLabel,
 	result: TextLabel,
 	icon: TextLabel,
-	strip: Part,
+	strip: Part?, -- nil when Config.debug.noGateStrip (calm screen, issue #255)
 	shownTotal: number, -- the total the labels were formatted for
 	lastKey: string,
 }
@@ -164,15 +164,18 @@ local function buildPortal(folder: Instance, desc: PortalGeometry.Portal, total:
 	)
 
 	-- The crossing line on the ground, visible from far, under the opening.
-	local strip = part(
-		model,
-		"Strip",
-		Enum.PartType.Block,
-		Vector3.new(desc.opening, 0.2, 1.2),
-		CFrame.new(ViewMap.x(x), LayerHeights.DECAL - 0.1, desc.z),
-		pal.banner
-	)
-	strip.Transparency = DebugSwitches.stripTransparency(Config.debug, 0.25)
+	local strip: Part? = nil
+	if DebugSwitches.gateStripBuilt(Config.debug) then
+		strip = part(
+			model,
+			"Strip",
+			Enum.PartType.Block,
+			Vector3.new(desc.opening, 0.2, 1.2),
+			CFrame.new(ViewMap.x(x), LayerHeights.DECAL - 0.1, desc.z),
+			pal.banner
+		)
+		strip.Transparency = DebugSwitches.stripTransparency(Config.debug, 0.25)
+	end
 
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "GateLabel"
@@ -361,8 +364,10 @@ function GateView.new(parent: Instance, layout: any): GateView
 				p.banner.Size =
 					Vector3.new(p.baseSize.X * scale, p.baseSize.Y * scale, p.baseSize.Z)
 				p.banner.Color = p.baseColor:Lerp(WHITE, math.clamp(glow * 0.3 + flash * 0.8, 0, 1))
-				p.strip.Transparency =
-					DebugSwitches.stripTransparency(Config.debug, 0.25 + 0.75 * trans)
+				if p.strip then
+					p.strip.Transparency =
+						DebugSwitches.stripTransparency(Config.debug, 0.25 + 0.75 * trans)
+				end
 				for _, l in { p.operation, p.result, p.icon } do
 					l.TextTransparency = trans
 					l.TextStrokeTransparency = math.max(0.1, trans)
