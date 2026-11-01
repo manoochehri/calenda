@@ -30,10 +30,6 @@ local function with(flag: string?): any
 	return d
 end
 
-local function has(path: string, needle: string): boolean
-	return string.find(fs.readFile(path), needle, 1, true) ~= nil
-end
-
 return {
 	{
 		name = "issue 240: the switches default to false and validate as booleans",
