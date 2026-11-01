@@ -726,10 +726,6 @@ function ClusterView.new(layout: any): ClusterView
 			end
 			local core = look.core
 			local glow = look.glow
-			if gift then
-				local w = GiftVisual.WRAPPERS[GiftVisual.look(f.data.hits).wrapper]
-				core = w
-			end
 			local coreColor = Color3.fromRGB(core[1], core[2], core[3])
 			local glowColor = Color3.fromRGB(glow[1], glow[2], glow[3])
 			local fade = 1 - alpha
