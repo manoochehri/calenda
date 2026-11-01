@@ -85,7 +85,6 @@ export type ConfigType = {
 		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
 		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
 		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
-		noShotExtras: boolean, -- issue #255 calm screen: a shot is its body Part only (no extra Neon parts)
 		noGateStrip: boolean, -- issue #255 calm screen: no translucent gate crossing strip
 		noRewardFloaters: boolean, -- issue #255 calm screen: no "+N" floaters over the lane
 		noLeadRing: boolean, -- issue #255 calm screen: no neon ring under the lead
@@ -170,7 +169,6 @@ local function validate(c: any): (boolean, string?)
 			"noHitShake",
 			"noTransparentStrips",
 			"noDust",
-			"noShotExtras",
 			"noGateStrip",
 			"noRewardFloaters",
 			"noLeadRing",
@@ -600,7 +598,6 @@ local config: ConfigType = {
 		noHitShake = true, -- hit camera shake off; false restores it
 		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque (A/B only)
 		noDust = true, -- chevron and mob dust ParticleEmitters off; false restores them
-		noShotExtras = true, -- a shot is its body Part only; false restores the extra Neon parts
 		noGateStrip = true, -- no translucent crossing strip under gates; false restores it
 		noRewardFloaters = true, -- no "+N" floaters; false restores them
 		noLeadRing = true, -- no neon ring under the lead; false restores it

@@ -263,7 +263,7 @@ function ClusterView.new(layout: any): ClusterView
 		trail: Trail?, -- nil when Config.debug.noTrails (calm screen, issue #255)
 		a0: Attachment?,
 		a1: Attachment?,
-		extras: { Part }, -- empty when Config.debug.noShotExtras (calm screen, issue #255)
+		extras: { Part }, -- silhouette pieces (note stem/flag, heart lobe/point, gift lid/ribbons): always built
 	}
 	local projectilePool = Pool.new(function(): Shot
 		local body = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
@@ -282,7 +282,7 @@ function ClusterView.new(layout: any): ClusterView
 			a0, a1, trail = b0, b1, t
 		end
 		local extras = {}
-		for _ = 1, DebugSwitches.shotExtraParts(Config.debug, 3) do
+		for _ = 1, 3 do
 			local e = newPart(folder, Enum.PartType.Block, Vector3.one, NOTE_COLOR)
 			e.Material = Enum.Material.Neon
 			table.insert(extras, e)
@@ -750,17 +750,11 @@ function ClusterView.new(layout: any): ClusterView
 			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
 			-- first primitive is the body, which anchors the Trail: its ends are placed in the body's
 			-- frame so the streak still runs through the projectile's centre (x, y, z).
-			local parts = { p.body }
-			for _, e in p.extras do
-				table.insert(parts, e)
-			end
+			local parts = { p.body, p.extras[1], p.extras[2], p.extras[3] }
 			local places = ProjectileVisual.place(kind, size)
 			local thickness = size * SILHOUETTE_DEPTH
 			for j, q in places do
 				local part = parts[j]
-				if part == nil then
-					break -- calm screen (#255): only the body Part is drawn
-				end
 				local ball = q.shape == "ball"
 				part.Shape = if ball then Enum.PartType.Ball else Enum.PartType.Block
 				part.Size = Vector3.new(q.w, q.h, if ball then math.min(q.w, q.h) else thickness)

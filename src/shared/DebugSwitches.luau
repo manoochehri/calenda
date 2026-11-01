@@ -9,7 +9,6 @@ export type Flags = {
 	noHitShake: boolean,
 	noTransparentStrips: boolean,
 	noDust: boolean,
-	noShotExtras: boolean?,
 	noGateStrip: boolean?,
 	noRewardFloaters: boolean?,
 	noLeadRing: boolean?,
@@ -52,19 +51,14 @@ function DebugSwitches.shotTrailBuilt(debug: Flags): boolean
 	return not debug.noTrails
 end
 
--- Extra Neon parts per shot: `wanted`, or 0 when `noShotExtras`.
-function DebugSwitches.shotExtraParts(debug: Flags, wanted: number): number
-	return if debug.noShotExtras then 0 else wanted
-end
-
 -- Dust ParticleEmitters (chevron and mob) are built only when `noDust` is off.
 function DebugSwitches.dustBuilt(debug: Flags): boolean
 	return not debug.noDust
 end
 
--- The translucent gate crossing strip: hidden (1) when `noGateStrip`.
-function DebugSwitches.gateStripTransparency(debug: Flags, transparency: number): number
-	return if debug.noGateStrip then 1 else transparency
+-- The translucent gate crossing strip Part is built only when `noGateStrip` is off.
+function DebugSwitches.gateStripBuilt(debug: Flags): boolean
+	return not debug.noGateStrip
 end
 
 -- "+N" reward floaters over the lane.
