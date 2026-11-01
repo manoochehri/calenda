@@ -398,10 +398,11 @@ return {
 		gate(l, 2).z = 28 * Config.speed
 	end),
 	rejects("first section too late", "first section", function(l)
-		gate(l, 1).left = { kind = "add", value = 1 }
-		gate(l, 1).right = { kind = "add", value = 1 }
-		gate(l, 2).left = { kind = "add", value = 1 }
-		gate(l, 2).right = { kind = "add", value = 1 }
+		-- Weak but real choices (+2 versus x2; +1 versus x2 only wins at crowd 0, which #238 does not count): equal rows would be rejected as dominated (#238).
+		gate(l, 1).left = { kind = "add", value = 2 }
+		gate(l, 1).right = { kind = "multiply", value = 2 }
+		gate(l, 2).left = { kind = "add", value = 2 }
+		gate(l, 2).right = { kind = "multiply", value = 2 }
 		-- At the continuous-fire rate (6/s base, ADR 0004) the early clusters alone reach a section
 		-- in time, so the late clusters are also pushed past the 25 s window.
 		for _, c in l.clusters do
@@ -431,22 +432,18 @@ return {
 		table.remove(l.gates)
 	end),
 	rejects("largest growth not in 65-90 s", "largest growth", function(l)
-		gate(l, 3).right = { kind = "multiply", value = 60 }
-		gate(l, 3).left = { kind = "multiply", value = 60 }
-		l.maxTotal = 10 ^ 9
-		for _, id in { 4, 5, 6, 7 } do
-			gate(l, id).left = { kind = "add", value = 1 }
-			gate(l, id).right = { kind = "add", value = 1 }
-		end
+		-- Every real gate has a multiply side (#238), so the biggest gain is always the last multiplying
+		-- gate: move that one out of the window (62 s) to put the biggest gain there.
+		gate(l, 4).z = 62 * Config.speed
 	end),
 	rejects("growth unbounded", "maxTotal", function(l)
-		l.maxTotal = 100
+		l.maxTotal = 600 -- below the best route (1000+) but above every gate crossover (#238)
 	end),
 	rejects("worst route collapses (needs spending to recover)", "worst route", function(l)
 		for _, g in l.gates do
 			if Level.timeAtZ(g.z) > 30 then
-				g.left = { kind = "add", value = 1 }
-				g.right = { kind = "add", value = 1 }
+				g.left = { kind = "add", value = 2 }
+				g.right = { kind = "multiply", value = 2 }
 			end
 		end
 		for _, o in l.obstacles do
