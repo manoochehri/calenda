@@ -19,18 +19,18 @@ export type Look = {
 ShotLook.LOOKS = (
 	table.freeze({
 		note = table.freeze({
-			size = 4, -- [default] was 1.9; the note's stem and flag must read at phone size (#151)
-			core = table.freeze({ 255, 235, 60 }),
+			size = 6, -- [default] was 4; smallest side >= 24 px on the 390 px phone at impact (#151, UNVERIFIED)
+			core = table.freeze({ 255, 235, 60 }), -- light yellow, luminance 0.81
 			glow = table.freeze({ 255, 190, 40 }),
 		}),
 		heart = table.freeze({
-			size = 3.45, -- [default] was 2.3; 1.5x, as the note (#151)
-			core = table.freeze({ 255, 80, 140 }),
+			size = 6.5, -- [default] was 3.45; same 24 px target (#151, UNVERIFIED)
+			core = table.freeze({ 255, 90, 130 }), -- mid red-pink, luminance 0.30
 			glow = table.freeze({ 255, 120, 190 }),
 		}),
 		gift = table.freeze({
-			size = 3.8, -- [default] the wrapped treat's width; its colors come from GiftVisual (was 2.3)
-			core = table.freeze({ 200, 30, 200 }),
+			size = 4.7, -- [default] was 3.8; same 24 px target (#151, UNVERIFIED)
+			core = table.freeze({ 50, 60, 200 }), -- dark indigo with white ribbons, luminance 0.08
 			glow = table.freeze({ 90, 220, 255 }),
 		}),
 	}) :: any
