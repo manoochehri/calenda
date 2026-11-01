@@ -160,7 +160,7 @@ local function buildFollower(parent: Instance): Avatar
 	-- Issue #114: five pieces, no arms (FollowerLook.PIECES).
 	return {
 		id = -1,
-		pieces = { body, head, skirt, hat, flower },
+		pieces = { body, head, skirt },
 		body = body,
 		head = head,
 		skirt = skirt,
@@ -191,8 +191,24 @@ local function restyle(avatar: Avatar, id: number, clock: number)
 	avatar.head.part.Color = rgb(tints.head)
 	avatar.hat.part.Color = rgb(tints.accent)
 	avatar.flower.part.Color = rgb(tints.accent)
-	avatar.hat.part.Transparency = if look.topper == "hat" then 0 else 1
-	avatar.flower.part.Transparency = if look.topper == "flower" then 0 else 1
+	-- Issue #147: only the visible topper is a live Part. The other is never parented (it used to
+	-- sit in Workspace at Transparency 1, sized and moved every frame for nothing).
+	local topper = if look.topper == "hat"
+		then avatar.hat
+		elseif look.topper == "flower" then avatar.flower
+		else nil
+	local pieces = avatar.pieces
+	table.clear(pieces)
+	pieces[1], pieces[2], pieces[3] = avatar.body, avatar.head, avatar.skirt
+	if topper ~= nil then
+		pieces[4] = topper
+	end
+	if topper ~= avatar.hat then
+		avatar.hat.part.Parent = nil
+	end
+	if topper ~= avatar.flower then
+		avatar.flower.part.Parent = nil
+	end
 end
 
 -- A neon ring on the ground under the lead: the steering anchor that never gets lost.

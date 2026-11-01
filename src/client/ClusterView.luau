@@ -264,6 +264,8 @@ function ClusterView.new(layout: any): ClusterView
 		a0: Attachment?,
 		a1: Attachment?,
 		extras: { Part }, -- silhouette pieces (note stem/flag, heart lobe/point, gift lid/ribbons): always built
+		parts: { Part }, -- body then extras, built once (issue #147: no per-frame table)
+		glow: Color3?, -- the trail colour last written (issue #147)
 	}
 	local projectilePool = Pool.new(function(): Shot
 		local body = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
@@ -287,7 +289,15 @@ function ClusterView.new(layout: any): ClusterView
 			e.Material = Enum.Material.Neon
 			table.insert(extras, e)
 		end
-		return { body = body, trail = trail, a0 = a0, a1 = a1, extras = extras }
+		return {
+			body = body,
+			trail = trail,
+			a0 = a0,
+			a1 = a1,
+			extras = extras,
+			parts = { body, extras[1], extras[2], extras[3] },
+			glow = nil,
+		}
 	end, function(p: Shot)
 		p.body.Parent = folder
 		if p.trail then
@@ -736,7 +746,10 @@ function ClusterView.new(layout: any): ClusterView
 			if p.trail then
 				p.trail.Enabled =
 					DebugSwitches.trailEnabled(Config.debug, not gone and alpha > 0.15)
-				p.trail.Color = ColorSequence.new(glowColor)
+				if p.glow ~= glowColor then
+					p.glow = glowColor
+					p.trail.Color = ColorSequence.new(glowColor)
+				end
 			end
 			if gone then
 				-- Hide only on the frame it goes (issue #171): a part that stays shown is never
@@ -750,7 +763,7 @@ function ClusterView.new(layout: any): ClusterView
 			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
 			-- first primitive is the body, which anchors the Trail: its ends are placed in the body's
 			-- frame so the streak still runs through the projectile's centre (x, y, z).
-			local parts = { p.body, p.extras[1], p.extras[2], p.extras[3] }
+			local parts = p.parts
 			local places = ProjectileVisual.place(kind, size)
 			local thickness = size * SILHOUETTE_DEPTH
 			for j, q in places do
