@@ -25,6 +25,7 @@ local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
 local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
+local MoveBatch = require(Shared:WaitForChild("MoveBatch"))
 local MotionSwitches = require(Shared:WaitForChild("MotionSwitches"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
@@ -195,7 +196,7 @@ local function restyle(avatar: Avatar, id: number, clock: number)
 end
 
 -- A neon ring on the ground under the lead: the steering anchor that never gets lost.
-local function buildRing(parent: Instance): Part?
+local function buildRing(): Part?
 	if not DebugSwitches.leadRingBuilt(Config.debug) then
 		return nil -- calm screen (#255): no ring under the lead
 	end
@@ -211,7 +212,8 @@ local function buildRing(parent: Instance): Part?
 	ring.CanCollide = false
 	ring.CanQuery = false
 	ring.CastShadow = false
-	ring.Parent = parent
+	-- Issue #242/#244: not parented here. Built at the origin on edge it showed as a cyan disc
+	-- behind the title avatar; `update` lays it flat under the lead, then parents it.
 	return ring
 end
 
@@ -223,10 +225,15 @@ function CrowdView.new(): CrowdView
 	local lead = buildLead(folder) -- stand-in only; the avatar is the lead (spec s3, issue #55)
 	lead.Parent = nil
 	local absent = 0
-	local ring = buildRing(folder)
+	local ring = buildRing()
 
 	local live: { [number]: Avatar } = {} -- drawn avatars by follower id
 	local free: { Avatar } = {} -- hidden, ready for reuse
+	-- MobView uses the same path for its larger spectator population; keep the dense parade on it
+	-- too (issue #147). The pure buffer keeps this engine boundary testable.
+	local moveBatch = MoveBatch.new(function(parts, cframes)
+		Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
+	end)
 
 	local dust: Effects.Effects<{ x: number, z: number }> = Effects.new(FollowerLook.DUST_CAP)
 	local dustPool = Pool.new(function(): Part
@@ -250,6 +257,10 @@ function CrowdView.new(): CrowdView
 	local cheerAt, flinchAt = -math.huge, -math.huge -- issue #178: total went up / down at this clock
 
 	local view = {} :: CrowdView
+
+	local function push(instance: Instance, cf: CFrame)
+		moveBatch:push(instance, cf)
+	end
 
 	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
 		local avatar = live[id]
@@ -318,7 +329,7 @@ function CrowdView.new(): CrowdView
 		for _, p in avatar.pieces do
 			p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
 			local localFrame = CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
-			p.part.CFrame = base * localFrame
+			push(p.part, base * localFrame)
 		end
 	end
 
@@ -353,6 +364,7 @@ function CrowdView.new(): CrowdView
 		hasAvatar: boolean?,
 		fallbackGrace: number?
 	)
+		moveBatch:reset()
 		clock = os.clock() -- shared local monotonic beat clock with SectionsView and LeadAvatar
 		absent = LeadPose.absence(absent, hasAvatar == true, dt)
 		if lastLeadZ ~= nil and leadZ < lastLeadZ - REPLAY_JUMP then
@@ -386,6 +398,9 @@ function CrowdView.new(): CrowdView
 		if ring then
 			ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
 				* CFrame.Angles(0, 0, math.pi / 2)
+			if ring.Parent ~= folder then
+				ring.Parent = folder
+			end
 		end
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
@@ -413,6 +428,11 @@ function CrowdView.new(): CrowdView
 				table.insert(free, avatar)
 			end
 		end
+
+		-- Moving the anchored follower pieces one at a time makes the engine process every
+		-- CFrame change separately. The pose and size work above stay per-piece; only the
+		-- equivalent engine movement is batched (the same representation and visual result).
+		moveBatch:flush()
 
 		local puffs = dust:active(clock)
 		local ds = dustPool:setCount(#puffs)

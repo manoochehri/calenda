@@ -13,11 +13,13 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local LaneMarkings = require(Shared:WaitForChild("LaneMarkings"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
+local Config = require(Shared:WaitForChild("Config"))
 
 local LaneView = {}
 LaneView.__index = LaneView
 
 local LINE_COLOR = Color3.fromRGB(240, 236, 220) -- pale paint, readable on the road
+local LABEL_BACKING = Color3.fromRGB(24, 26, 30) -- only drawn under Config.debug.legacyLaneLabelPlates
 local LEAD_COLOR = Color3.fromRGB(255, 196, 40) -- the lead's bracket: bright, but fixed
 local MARK_THICKNESS = 0.2 -- [default] studs; the Part sits with its top at the named layer
 
@@ -44,13 +46,10 @@ local function place(p: Part, x: number, z: number, top: number, yawDegrees: num
 end
 
 local function buildLabel(parent: Instance, spec: LaneMarkings.LabelSpec)
-	local plate = flat(
-		parent,
-		`LaneLabel_{spec.lane}_{math.floor(spec.z)}`,
-		4.4,
-		8,
-		Color3.fromRGB(30, 32, 36)
-	)
+	local plate = flat(parent, `LaneLabel_{spec.lane}_{math.floor(spec.z)}`, 4.4, 8, LABEL_BACKING)
+	-- Issue #222: the plate only carries the text; no dark rectangle on the road.
+	local backing = LaneMarkings.labelBackingTransparency(Config.debug.legacyLaneLabelPlates)
+	plate.Transparency = backing
 	place(plate, spec.x, spec.z, spec.top, 0)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "LaneRoleText"
@@ -61,7 +60,10 @@ local function buildLabel(parent: Instance, spec: LaneMarkings.LabelSpec)
 	local label = Instance.new("TextLabel")
 	label.Name = "LaneRole"
 	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundColor3 = Color3.fromRGB(30, 32, 36)
+	label.BackgroundColor3 = LABEL_BACKING
+	label.BackgroundTransparency = backing
+	label.TextStrokeColor3 = Color3.fromRGB(20, 20, 24)
+	label.TextStrokeTransparency = 0.2
 	label.Font = Enum.Font.GothamBold
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextScaled = true
