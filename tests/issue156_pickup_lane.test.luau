@@ -1,6 +1,6 @@
 --!strict
 -- Issue #156 (ADR 0014 / Amendment 15): +1 pickups live only in their layout's pickup lane, authored
--- in strips of six 3.4 travel-seconds apart starting at travel-seconds 8, 40 and 68. Lane roles are
+-- 10 pickups in strips of 4, 4 and 2, 3.4 travel-seconds apart (Amendment 15 schedule). Lane roles are
 -- authored per layout as laneRoles = { pickup, horde, recruit }. Gate times are NOT touched here.
 local Config = require("../src/shared/Config")
 local LayoutValidator = require("../src/shared/LayoutValidator")
@@ -46,24 +46,41 @@ return {
 		end,
 	},
 	{
-		name = "strips: three of six pickups, 3.4 travel-seconds apart, starting at 8, 40, 68 s, pickup lane only",
+		name = "schedule: 10 pickups at the Amendment 15 times (strips of 4, 4, 2, 3.4 s apart), pickup lane only",
 		run = function()
+			local times = { 8, 11.4, 14.8, 18.2, 39, 42.4, 45.8, 49.2, 73.5, 76.9 }
 			for _, l in layouts() do
 				local ps = l.pickups
 				assert(ps ~= nil, `{l.name} has pickups`)
-				eq(#ps, 18, `{l.name} pickup count`)
-				for strip, start in { 8, 40, 68 } do
-					for i = 0, 5 do
-						local p = ps[(strip - 1) * 6 + i + 1]
-						local want = (start + i * 3.4) * Config.speed
-						assert(
-							math.abs(p.z - want) < 1e-9,
-							`{l.name} strip {strip} pickup {i} z {p.z} ~= {want}`
-						)
-						eq(p.lane, l.laneRoles.pickup, `{l.name} pickup {p.id} lane`)
-					end
+				eq(#ps, #times, `{l.name} pickup count`)
+				for i, t in times do
+					assert(
+						math.abs(ps[i].z - t * Config.speed) < 1e-9,
+						`{l.name} pickup {i} at {t} s`
+					)
+					eq(ps[i].lane, l.laneRoles.pickup, `{l.name} pickup {i} lane`)
 				end
 			end
+		end,
+	},
+	{
+		name = "checkpointClearance: a pickup span within 1.5 travel-seconds of a checkpoint plane is rejected",
+		run = function()
+			local base = layouts()[1]
+			local near = clone(base)
+			near.checkpoints =
+				{ { id = 1, z = base.pickups[4].z + 1.4 * Config.speed, kind = "mini-boss" } }
+			local ok, why = LayoutValidator.validate(near)
+			eq(ok, false, "checkpoint 1.4 s after a pickup plane")
+			assert(string.find(tostring(why), "checkpoint", 1, true), tostring(why))
+			local before = clone(base)
+			before.checkpoints =
+				{ { id = 1, z = base.pickups[5].z - 24 - 1.4 * Config.speed, kind = "mini-boss" } }
+			eq((LayoutValidator.validate(before)), false, "checkpoint 1.4 s before a span start")
+			local clear = clone(base)
+			clear.checkpoints = { { id = 1, z = 30 * Config.speed, kind = "mini-boss" } }
+			local ok2, why2 = LayoutValidator.validate(clear)
+			assert(ok2, tostring(why2))
 		end,
 	},
 	{
@@ -160,7 +177,7 @@ return {
 				return n
 			end
 			local px = if DebugLayout.laneRoles.pickup == "left" then -10 else 10
-			eq(collected(px), 18, "pickup-lane lead collects all 18 once")
+			eq(collected(px), 10, "pickup-lane lead collects all 10 once")
 			eq(collected(0), 0, "center lead collects none")
 		end,
 	},

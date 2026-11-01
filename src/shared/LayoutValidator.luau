@@ -23,6 +23,8 @@ local Level = require("./Level")
 local LayoutWitness = require("./LayoutWitness")
 local RunDriver = require("./RunDriver")
 
+local CHECKPOINT_CLEARANCE_SECONDS = 1.5 -- [default] travel-seconds (Amendment 15 checkpointClearance)
+
 type Layout = Level.Layout
 
 export type ClusterInfo = { encounterTime: number?, convertTime: number?, reachTime: number? }
@@ -292,6 +294,21 @@ local function structure(layout: any, cfg: any, errs: { string })
 			for _, c in layout.clusters do
 				if c.lane ~= roles.horde then
 					bad(`cluster {c.id} is outside the horde lane {roles.horde}`)
+				end
+			end
+		end
+	end
+	-- Spec Amendment 15: every pickup span [z - SPAN, z] lies at least checkpointClearance (1.5
+	-- travel-seconds) from any checkpoint plane. Vacuous when a layout authors no checkpoint.
+	local clearance = CHECKPOINT_CLEARANCE_SECONDS * cfg.speed
+	for _, cp in layout.checkpoints or {} do
+		for _, p in layout.pickups or {} do
+			if isNum(p.z) and isNum(cp.z) then
+				local lo, hi = Encounters.spanOf(p)
+				if cp.z > lo - clearance and cp.z < hi + clearance then
+					bad(
+						`pickup {p.id} span is within {CHECKPOINT_CLEARANCE_SECONDS} s of checkpoint {cp.id}`
+					)
 				end
 			end
 		end

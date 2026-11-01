@@ -1,6 +1,6 @@
 --!strict
 -- Issue #156: how often the pickup lane versus horde lane steering choice comes up in a 90 s run
--- (architect report R4 aims for about one every 6 s). Measured by driving the production RunDriver
+-- (architect report R4 aims for about one every 6 s; with the Amendment 15 schedule pickups alone give one per 9 s). Measured by driving the production RunDriver
 -- with scripted lane policies on every authored layout. Two numbers are reported and pinned:
 --   choices   = pickups presented (each is a take-or-skip decision), per 90 s;
 --   switches  = lane changes between the pickup lane and the horde lane by a policy that takes every
@@ -105,9 +105,10 @@ return {
 				)
 				eq(collected, presented, `{l.name} collect-all takes each pickup once`)
 				eq(count(h.events, "pickup"), 0, `{l.name} staying in the horde lane takes none`)
+				eq(presented, 10, `{l.name} presents the 10 Amendment 15 pickups`)
 				assert(
-					secs / presented <= 6,
-					`{l.name} presents a pickup choice at least every 6 s`
+					secs / presented <= 9.01,
+					`{l.name} presents a pickup choice about every 9 s`
 				)
 				eq(switches, 6, `{l.name} three strips = six lane switches`)
 			end

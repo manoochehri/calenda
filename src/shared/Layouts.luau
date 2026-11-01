@@ -110,17 +110,14 @@ local function deepFreeze<T>(t: T): T
 	return t
 end
 
--- Issue #156 / ADR 0014: three strips of six optional +1 pickups, 3.4 travel-seconds apart, starting
--- at travel-seconds 8, 40 and 68, all in the layout's pickup lane (opposite the horde side).
-local STRIP_STARTS = { 8, 40, 68 }
-local STRIP_SIZE = 6
-local STRIP_GAP = 3.4 -- seconds: >= 24 / 7.2, so encounter spans never overlap (PM, #156)
+-- Issue #156 / ADR 0014, spec Amendment 15 schedule: 10 optional +1 pickups in three strips (4, 4, 2),
+-- 3.4 travel-seconds apart (>= 24 / 7.2, so encounter spans never overlap), all in the layout's pickup
+-- lane (opposite the horde side). Unlock targets, recruit stations and checkpoints fit between them.
+local PICKUP_SECONDS = { 8, 11.4, 14.8, 18.2, 39, 42.4, 45.8, 49.2, 73.5, 76.9 }
 local function pickupStrips(lane: "left" | "right"): { Level.Pickup }
 	local out: { Level.Pickup } = {}
-	for _, start in STRIP_STARTS do
-		for i = 0, STRIP_SIZE - 1 do
-			table.insert(out, { id = #out + 1, z = at(start + i * STRIP_GAP), lane = lane })
-		end
+	for _, seconds in PICKUP_SECONDS do
+		table.insert(out, { id = #out + 1, z = at(seconds), lane = lane })
 	end
 	return out
 end
