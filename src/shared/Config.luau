@@ -85,6 +85,7 @@ export type ConfigType = {
 		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
 		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
 		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
+		legacyLaneLabelPlates: boolean, -- issue #222: restore the opaque dark lane-label plates
 		noMobStride: boolean, -- issue #240 A/B: horde figures do not hop or pump their arms
 		calmMobStride: boolean, -- issue #240 A/B: horde figures hop a little, no arm pump
 		noBreath: boolean, -- issue #240 A/B: parade has no per-beat size pulse
@@ -166,6 +167,7 @@ local function validate(c: any): (boolean, string?)
 			"noHitShake",
 			"noTransparentStrips",
 			"noDust",
+			"legacyLaneLabelPlates",
 			"noMobStride",
 			"calmMobStride",
 			"noBreath",
@@ -590,6 +592,7 @@ local config: ConfigType = {
 		noHitShake = false, -- hit camera shake off
 		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque
 		noDust = false, -- chevron and mob dust ParticleEmitters off
+		legacyLaneLabelPlates = false, -- issue #222: true brings back the dark rectangles behind lane labels
 		-- Issue #240 A/B switches for horde and parade motion (flip one; all false = normal game):
 		noMobStride = false, -- horde: no hop, no arm pump (lean and advance remain)
 		calmMobStride = false, -- horde: hop at 30%, no arm pump (the recommended readable look)
