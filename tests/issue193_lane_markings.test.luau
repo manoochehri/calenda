@@ -193,13 +193,19 @@ return {
 					"TweenService",
 					"RenderStepped",
 					"Heartbeat",
-					"Transparency",
 					"Brightness",
 					"os.clock",
 				}
 			do
 				assert(string.find(view, banned, 1, true) == nil, `LaneView animates ({banned})`)
 			end
+			-- Issue #222: Transparency is written once at build (the label backing), never per frame.
+			local updateBody = string.match(view, "function LaneView%.update.-\nend\n") or ""
+			assert(updateBody ~= "", "LaneView.update not found")
+			assert(
+				string.find(updateBody, "Transparency", 1, true) == nil,
+				"LaneView.update animates Transparency"
+			)
 			local markings = fs.readFile("src/shared/LaneMarkings.luau")
 			for _, literal in { "-10", "x = 10", "= -5", "x = 5" } do
 				assert(

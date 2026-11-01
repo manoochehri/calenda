@@ -212,7 +212,10 @@ local function restyle(avatar: Avatar, id: number, clock: number)
 end
 
 -- A neon ring on the ground under the lead: the steering anchor that never gets lost.
-local function buildRing(parent: Instance): Part
+local function buildRing(): Part?
+	if not DebugSwitches.leadRingBuilt(Config.debug) then
+		return nil -- calm screen (#255): no ring under the lead
+	end
 	local ring = Instance.new("Part")
 	ring.Name = "LeadRing"
 	ring.Shape = Enum.PartType.Cylinder
@@ -225,7 +228,8 @@ local function buildRing(parent: Instance): Part
 	ring.CanCollide = false
 	ring.CanQuery = false
 	ring.CastShadow = false
-	ring.Parent = parent
+	-- Issue #242/#244: not parented here. Built at the origin on edge it showed as a cyan disc
+	-- behind the title avatar; `update` lays it flat under the lead, then parents it.
 	return ring
 end
 
@@ -237,7 +241,7 @@ function CrowdView.new(): CrowdView
 	local lead = buildLead(folder) -- stand-in only; the avatar is the lead (spec s3, issue #55)
 	lead.Parent = nil
 	local absent = 0
-	local ring = buildRing(folder)
+	local ring = buildRing()
 
 	local live: { [number]: Avatar } = {} -- drawn avatars by follower id
 	local free: { Avatar } = {} -- hidden, ready for reuse
@@ -407,8 +411,13 @@ function CrowdView.new(): CrowdView
 		else
 			lead.Parent = nil
 		end
-		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
-			* CFrame.Angles(0, 0, math.pi / 2)
+		if ring then
+			ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
+				* CFrame.Angles(0, 0, math.pi / 2)
+			if ring.Parent ~= folder then
+				ring.Parent = folder
+			end
+		end
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
 		danceAmplitude, danceTempo = Dance.intensity(total, total // Config.sectionSize)

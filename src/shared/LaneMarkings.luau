@@ -63,6 +63,12 @@ export type LabelSpec = {
 	roleText: string,
 }
 
+-- Issue #222: the lane role labels are text on the road. Their solid dark backing plate read as an
+-- unexplained black rectangle, so it is fully transparent unless Config.debug.legacyLaneLabelPlates.
+function LaneMarkings.labelBackingTransparency(legacyPlates: boolean): number
+	return if legacyPlates then 0 else 1
+end
+
 local nearLine: (number, LayoutInfo) -> boolean
 
 -- Repeated static wayfinding labels; roles are projected from authored layout data only.
@@ -161,22 +167,35 @@ function LaneMarkings.specs(layout: LayoutInfo): { Spec }
 			yaw = 0,
 		})
 	end
-	-- One arrow on each lane centre, row by row, skipping rows that would sit on a gate line or
-	-- obstacle line (those have their own crossing strips and cones).
+	-- One arrow on each lane centre, row by row. A row that would sit on a gate line or obstacle line
+	-- (those have their own crossing strips and cones) is nudged a quarter row ahead or behind
+	-- (issue #257) and only dropped if both nudges are also blocked, so where a gate sits does not
+	-- decide how many arrows a lane has.
 	local z = math.ceil((z0 + LaneMarkings.ARROW_LENGTH) / LaneMarkings.ARROW_SPACING)
 		* LaneMarkings.ARROW_SPACING
+	local nudge = LaneMarkings.ARROW_SPACING / 4
 	while z + LaneMarkings.ARROW_LENGTH / 2 < z1 do
-		if not nearLine(z, layout) then
-			for _, lane in LANES do
-				if lane == "center" and onDash(z, layout) then
-					continue
+		for _, lane in LANES do
+			local rowZ: number? = nil
+			for _, offset in { 0, nudge, -nudge } do
+				local candidate = z + offset
+				if
+					candidate - LaneMarkings.ARROW_LENGTH / 2 >= z0
+					and candidate + LaneMarkings.ARROW_LENGTH / 2 < z1
+					and not nearLine(candidate, layout)
+					and not (lane == "center" and onDash(candidate, layout))
+				then
+					rowZ = candidate
+					break
 				end
+			end
+			if rowZ ~= nil then
 				table.insert(list, {
-					name = `Arrow_{lane}_{math.floor(z)}`,
+					name = `Arrow_{lane}_{math.floor(rowZ)}`,
 					kind = "arrow",
 					lane = lane,
 					x = LaneGeometry.centerOf(lane :: LaneGeometry.Lane),
-					z = z,
+					z = rowZ,
 					sx = LaneMarkings.ARROW_WIDTH,
 					sz = LaneMarkings.ARROW_LENGTH,
 					top = LayerHeights.MARKING,

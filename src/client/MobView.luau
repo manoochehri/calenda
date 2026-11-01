@@ -24,6 +24,7 @@ local CameraRig = require(Shared:WaitForChild("CameraRig"))
 local Config = require(Shared:WaitForChild("Config"))
 local DebugSwitches = require(Shared:WaitForChild("DebugSwitches"))
 local MobCharge = require(Shared:WaitForChild("MobCharge"))
+local MobFigureLod = require(Shared:WaitForChild("MobFigureLod"))
 local MobLod = require(Shared:WaitForChild("MobLod"))
 local MotionSwitches = require(Shared:WaitForChild("MotionSwitches"))
 local Pool = require(Shared:WaitForChild("Pool"))
@@ -86,7 +87,7 @@ export type MobView = {
 	rankFade: (self: MobView, id: number) -> number, -- 0 when the mob is not drawn (its tag must hide)
 	setQuality: (self: MobView, name: string) -> (),
 	quality: (self: MobView) -> string,
-	counts: (self: MobView) -> { figures: number, mobs: number, emitters: number },
+	counts: (self: MobView) -> { figures: number, mobs: number, emitters: number, parts: number },
 	clear: (self: MobView) -> (),
 }
 
@@ -97,6 +98,7 @@ type Figure = {
 	bodyKey: number,
 	headKey: number,
 	scaleKey: number,
+	tier: number, -- Parts drawn: 3 body+head+arms, 2 body+head, 1 body (MobFigureLod, issue #256)
 }
 type Dust = { part: Part, emitter: ParticleEmitter, sizeKey: number }
 type Spots = { n: number, offsets: { SpectatorScatter.Offset }, paths: { SpectatorMotion.Path } }
@@ -167,9 +169,18 @@ function MobView.new(parent: Instance, quality: string): MobView
 			Color3.fromRGB(255, 214, 170)
 		)
 		local arms = newPart(folder, Enum.PartType.Block, ARMS_SIZE, Color3.fromRGB(214, 58, 46))
-		return { body = body, head = head, arms = arms, bodyKey = -1, headKey = -1, scaleKey = -1 }
+		return {
+			body = body,
+			head = head,
+			arms = arms,
+			bodyKey = -1,
+			headKey = -1,
+			scaleKey = -1,
+			tier = 3,
+		}
 	end, function(f: Figure)
 		f.body.Parent, f.head.Parent, f.arms.Parent = folder, folder, folder
+		f.tier, f.scaleKey = 3, -1 -- a reused figure starts at full detail and is resized
 	end, function(f: Figure)
 		f.body.Parent, f.head.Parent, f.arms.Parent = nil, nil, nil
 	end)
@@ -179,7 +190,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 	local admission = MobLod.admission(level.maxMobs)
 	local rankFades: { [number]: number } = {}
 	local spots: { [number]: Spots } = {} -- each mob's seeded spots and independent paths, kept by id
-	local usedFigures, usedMobs, usedEmitters = 0, 0, 0
+	local usedFigures, usedMobs, usedEmitters, usedParts = 0, 0, 0, 0
 
 	-- Reused per-frame arrays for BulkMoveTo.
 	local moveParts: { Instance } = {}
@@ -187,7 +198,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 	local moveCount = 0
 
 	local function dustFor(rank: number): Dust?
-		if rank > level.maxDust then
+		if rank > level.maxDust or not DebugSwitches.dustBuilt(Config.debug) then
 			return nil
 		end
 		local d = dusts[rank]
@@ -284,7 +295,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 			needed += s
 		end
 		local figureSlots = figures:setCount(needed)
-		local figureCursor, drawn = 0, 0
+		local figureCursor, drawn, partCursor = 0, 0, 0
 
 		for i, m in sorted do
 			local count = shown[i]
@@ -320,11 +331,27 @@ function MobView.new(parent: Instance, quality: string): MobView
 				local personScale = SpectatorScatter.legibleScale(frac, scatter)
 				local scaleKey = math.floor(personScale / SCALE_STEP + 0.5)
 				local scale = scaleKey * SCALE_STEP
-				if f.scaleKey ~= scaleKey then
-					f.scaleKey = scaleKey
-					f.body.Size = BODY_PART_SIZE * scale
+				-- LOD (#256): fewer Parts per figure at distance; the figure count is unchanged.
+				-- Judged on the unscaled screen share so the enlarged far figures still drop Parts.
+				local tier = MobFigureLod.tier(frac, f.tier)
+				local stretch =
+					MobFigureLod.bodyStretch(tier, scatter.bodyHeight, scatter.headDiameter)
+				local sizeKey = scaleKey * 4 + tier
+				if f.scaleKey ~= sizeKey then
+					local was = f.tier
+					f.scaleKey = sizeKey
+					f.tier = tier
+					f.body.Size = Vector3.new(
+						BODY_PART_SIZE.X * stretch,
+						BODY_PART_SIZE.Y,
+						BODY_PART_SIZE.Z
+					) * scale
 					f.head.Size = Vector3.new(HEAD_SIZE, HEAD_SIZE, HEAD_SIZE) * scale
 					f.arms.Size = ARMS_SIZE * scale
+					if was ~= tier then
+						f.head.Parent = if tier >= 2 then folder else nil
+						f.arms.Parent = if tier >= 3 then folder else nil
+					end
 				end
 				-- each individual rises out of the road as the mob's fade passes it (no pop)
 				local personFade = if movingAlone
@@ -352,11 +379,16 @@ function MobView.new(parent: Instance, quality: string): MobView
 				push(
 					f.body,
 					root
-						* CFrame.new(0, BODY_SIZE.Y * scale / 2, 0)
+						* CFrame.new(0, BODY_SIZE.Y * stretch * scale / 2, 0)
 						* CFrame.Angles(0, 0, math.pi / 2)
 				)
-				push(f.head, root * CFrame.new(0, (BODY_SIZE.Y + HEAD_SIZE / 2) * scale, 0))
-				push(f.arms, root * CFrame.new(0, (arm + BODY_SIZE.Y * 0.72) * scale, 0))
+				partCursor += tier
+				if tier >= 2 then
+					push(f.head, root * CFrame.new(0, (BODY_SIZE.Y + HEAD_SIZE / 2) * scale, 0))
+				end
+				if tier >= 3 then
+					push(f.arms, root * CFrame.new(0, (arm + BODY_SIZE.Y * 0.72) * scale, 0))
+				end
 				-- colours only when they change (quantised)
 				local qk = math.floor(party * 4 + 0.5) * 8 + math.floor(pulse * 4 + 0.5)
 				local key = qk * 4 + (k + m.id) % 4
@@ -397,6 +429,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 			end
 		end
 		usedFigures, usedMobs = figureCursor, drawn
+		usedParts = partCursor
 		-- mobs that are gone (or no longer drawn) forget their spots
 		for id in table.clone(spots) do
 			if not seen[id] then
@@ -439,7 +472,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 	end
 
 	function self.counts(_)
-		return { figures = usedFigures, mobs = usedMobs, emitters = usedEmitters }
+		return { figures = usedFigures, mobs = usedMobs, emitters = usedEmitters, parts = usedParts }
 	end
 
 	function self.clear(_)
@@ -451,7 +484,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 		table.clear(spots)
 		admission:clear()
 		rankFades = {}
-		usedFigures, usedMobs, usedEmitters = 0, 0, 0
+		usedFigures, usedMobs, usedEmitters, usedParts = 0, 0, 0, 0
 	end
 
 	return self
