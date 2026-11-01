@@ -85,6 +85,12 @@ export type ConfigType = {
 		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
 		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
 		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
+		noMobStride: boolean, -- issue #240 A/B: horde figures do not hop or pump their arms
+		calmMobStride: boolean, -- issue #240 A/B: horde figures hop a little, no arm pump
+		noBreath: boolean, -- issue #240 A/B: parade has no per-beat size pulse
+		noCrowdFeel: boolean, -- issue #240 A/B: no join bounce, cheer hop or flinch dip
+		noFollowerDance: boolean, -- issue #240 A/B: parade has no beat-synced dance
+		noFollowerMarch: boolean, -- issue #240 A/B: parade has no march hop or squash
 		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
 	},
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
@@ -160,6 +166,12 @@ local function validate(c: any): (boolean, string?)
 			"noHitShake",
 			"noTransparentStrips",
 			"noDust",
+			"noMobStride",
+			"calmMobStride",
+			"noBreath",
+			"noCrowdFeel",
+			"noFollowerDance",
+			"noFollowerMarch",
 		}
 	do
 		if type(c.debug[flag]) ~= "boolean" then
@@ -578,6 +590,13 @@ local config: ConfigType = {
 		noHitShake = false, -- hit camera shake off
 		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque
 		noDust = false, -- chevron and mob dust ParticleEmitters off
+		-- Issue #240 A/B switches for horde and parade motion (flip one; all false = normal game):
+		noMobStride = false, -- horde: no hop, no arm pump (lean and advance remain)
+		calmMobStride = false, -- horde: hop at 30%, no arm pump (the recommended readable look)
+		noBreath = false, -- parade: per-beat size pulse off
+		noCrowdFeel = false, -- parade: join bounce, cheer hop, flinch dip off
+		noFollowerDance = false, -- parade: beat-synced dance hop/sway/spin off
+		noFollowerMarch = false, -- parade: march hop and squash/stretch off
 	},
 	validate = validate,
 }
