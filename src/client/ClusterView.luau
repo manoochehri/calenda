@@ -721,11 +721,13 @@ function ClusterView.new(layout: any): ClusterView
 			local fade = 1 - alpha
 			p.trail.Enabled = DebugSwitches.trailEnabled(Config.debug, not gone and alpha > 0.15)
 			p.trail.Color = ColorSequence.new(glowColor)
-			for _, e in p.extras do
-				e.Parent = nil
-			end
-			p.body.Parent = nil
 			if gone then
+				-- Hide only on the frame it goes (issue #171): a part that stays shown is never
+				-- re-parented, so the Trail's attachments stay in the DataModel and its history lives.
+				for _, e in p.extras do
+					e.Parent = nil
+				end
+				p.body.Parent = nil
 				continue
 			end
 			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
@@ -745,7 +747,14 @@ function ClusterView.new(layout: any): ClusterView
 					* CFrame.Angles(0, 0, q.roll)
 				part.Color = if q.ribbon then Color3.new(1, 1, 1) else coreColor
 				part.Transparency = fade
-				part.Parent = folder
+				if part.Parent ~= folder then
+					part.Parent = folder
+				end
+			end
+			for j = #places + 1, #parts do
+				if parts[j].Parent ~= nil then
+					parts[j].Parent = nil
+				end
 			end
 			local first = places[1]
 			local half = size * ShotLook.TRAIL_WIDTH / 2
