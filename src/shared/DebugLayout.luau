@@ -148,9 +148,9 @@ local layout: Level.Layout = {
 		{
 			id = 3,
 			z = paceDistance(800),
-			left = { kind = "add", value = 40 },
+			left = { kind = "add", value = 80 },
 			right = { kind = "multiply", value = 2 },
-		}, -- 50s: crossover 40
+		}, -- 50s: crossover 80 (refit from 40 for the #156 pickups, which lift the crowd reached here to 44 to 164)
 		{
 			id = 4,
 			z = paceDistance(1280),
