@@ -241,6 +241,8 @@ function RunDriver.new(opts: Options): RunDriver
 	local bound = Steering.bound(layout.halfWidth, layout.leadLimit)
 
 	local time, z, x, target = 0, 0, 0, 0
+	-- Issue #162: the wire's run id; +1 per accepted replay (a client drops States from older runs).
+	local runId = 1
 	-- Issue #162: the route clock and the checkpoint lifecycle (level-local ids; cleared with the level
 	-- and on replay). `active` is the checkpoint the lead is held at; `resolved` is never re-entered.
 	local routeTime = 0
@@ -532,6 +534,7 @@ function RunDriver.new(opts: Options): RunDriver
 			return false
 		end
 		lastReplay = now :: number
+		runId += 1
 		-- The replay is recorded as an event on the NEXT run's log (runLog().replays); the finished
 		-- run is logged once, when it ends. History is capped so a long session cannot grow it.
 		table.insert(replays, { time = now :: number })
@@ -596,6 +599,14 @@ function RunDriver.new(opts: Options): RunDriver
 			score = finalScore,
 			level = levelIndex,
 			levelName = layout.name,
+			runId = runId,
+			levelId = `level{levelIndex}`,
+			zVelocity = if started
+					and not ended
+					and activeCheckpoint == nil
+				then Config.speed
+				else 0,
+			roster = {}, -- #232: the ledger lands later; the contract carries it now
 			encounter = Encounters.current(layout, z, pickupOutcome),
 			stage = if activeCheckpoint ~= nil
 				then STAGE_OF[activeCheckpoint.kind]
