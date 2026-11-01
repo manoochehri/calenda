@@ -196,7 +196,10 @@ local function restyle(avatar: Avatar, id: number, clock: number)
 end
 
 -- A neon ring on the ground under the lead: the steering anchor that never gets lost.
-local function buildRing(): Part
+local function buildRing(): Part?
+	if not DebugSwitches.leadRingBuilt(Config.debug) then
+		return nil -- calm screen (#255): no ring under the lead
+	end
 	local ring = Instance.new("Part")
 	ring.Name = "LeadRing"
 	ring.Shape = Enum.PartType.Cylinder
@@ -392,10 +395,12 @@ function CrowdView.new(): CrowdView
 		else
 			lead.Parent = nil
 		end
-		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
-			* CFrame.Angles(0, 0, math.pi / 2)
-		if ring.Parent ~= folder then
-			ring.Parent = folder
+		if ring then
+			ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
+				* CFrame.Angles(0, 0, math.pi / 2)
+			if ring.Parent ~= folder then
+				ring.Parent = folder
+			end
 		end
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)

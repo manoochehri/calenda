@@ -9,6 +9,9 @@ export type Flags = {
 	noHitShake: boolean,
 	noTransparentStrips: boolean,
 	noDust: boolean,
+	noGateStrip: boolean?,
+	noRewardFloaters: boolean?,
+	noLeadRing: boolean?,
 }
 
 -- Shot Trail: off when `noTrails`, otherwise whatever the shot wants.
@@ -39,6 +42,33 @@ end
 
 function DebugSwitches.allowDustPuff(debug: Flags): boolean
 	return not debug.noDust
+end
+
+-- Issue #255 calm screen. Builders ask first so an off effect creates no Instance at all.
+
+-- Shot Trail and its two Attachments are built only when `noTrails` is off.
+function DebugSwitches.shotTrailBuilt(debug: Flags): boolean
+	return not debug.noTrails
+end
+
+-- Dust ParticleEmitters (chevron and mob) are built only when `noDust` is off.
+function DebugSwitches.dustBuilt(debug: Flags): boolean
+	return not debug.noDust
+end
+
+-- The translucent gate crossing strip Part is built only when `noGateStrip` is off.
+function DebugSwitches.gateStripBuilt(debug: Flags): boolean
+	return not debug.noGateStrip
+end
+
+-- "+N" reward floaters over the lane.
+function DebugSwitches.rewardFloaters(debug: Flags): boolean
+	return not debug.noRewardFloaters
+end
+
+-- The lead ring Part is built only when `noLeadRing` is off.
+function DebugSwitches.leadRingBuilt(debug: Flags): boolean
+	return not debug.noLeadRing
 end
 
 return DebugSwitches

@@ -85,6 +85,9 @@ export type ConfigType = {
 		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
 		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
 		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
+		noGateStrip: boolean, -- issue #255 calm screen: no translucent gate crossing strip
+		noRewardFloaters: boolean, -- issue #255 calm screen: no "+N" floaters over the lane
+		noLeadRing: boolean, -- issue #255 calm screen: no neon ring under the lead
 		legacyLaneLabelPlates: boolean, -- issue #222: restore the opaque dark lane-label plates
 		noMobStride: boolean, -- issue #240 A/B: horde figures do not hop or pump their arms
 		calmMobStride: boolean, -- issue #240 A/B: horde figures hop a little, no arm pump
@@ -168,6 +171,9 @@ local function validate(c: any): (boolean, string?)
 			"noHitShake",
 			"noTransparentStrips",
 			"noDust",
+			"noGateStrip",
+			"noRewardFloaters",
+			"noLeadRing",
 			"legacyLaneLabelPlates",
 			"noMobStride",
 			"calmMobStride",
@@ -590,10 +596,15 @@ local config: ConfigType = {
 		quality = nil, -- [default] nil = automatic (medium on touch, high otherwise); or "low" | "medium" | "high"
 		rawExtrapolation = false, -- the pre-#85 snap-to-State lead path instead of ServerClock
 		-- Issue #171 A/B switches (flip one, replay the same route; all false = normal game):
-		noTrails = false, -- shot Trails (Neon streaks) off
-		noHitShake = false, -- hit camera shake off
-		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque
-		noDust = false, -- chevron and mob dust ParticleEmitters off
+		-- Issue #255 calm screen: these are ON by default (the effect is gone). Set one to false to
+		-- bring that one effect back; nothing else needs to change.
+		noTrails = true, -- shot Trails (Neon streaks) off; false builds and shows them again
+		noHitShake = true, -- hit camera shake off; false restores it
+		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque (A/B only)
+		noDust = true, -- chevron and mob dust ParticleEmitters off; false restores them
+		noGateStrip = true, -- no translucent crossing strip under gates; false restores it
+		noRewardFloaters = true, -- no "+N" floaters; false restores them
+		noLeadRing = true, -- no neon ring under the lead; false restores it
 		legacyLaneLabelPlates = false, -- issue #222: true brings back the dark rectangles behind lane labels
 		-- Issue #240 A/B switches for horde and parade motion (flip one; all false = normal game):
 		noMobStride = false, -- horde: no hop, no arm pump (lean and advance remain)
