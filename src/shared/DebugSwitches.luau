@@ -2,17 +2,11 @@
 -- Issue #171: the pure decisions behind the Config.debug A/B switches for the road-flash
 -- candidates. With every switch false (the default) each function returns its input unchanged, so
 -- the normal game is untouched. The client calls these at the one site where each effect is set.
+local DebugRegistry = require("./DebugRegistry")
+
 local DebugSwitches = {}
 
-export type Flags = {
-	noTrails: boolean,
-	noHitShake: boolean,
-	noTransparentStrips: boolean,
-	noDust: boolean,
-	noGateStrip: boolean?,
-	noRewardFloaters: boolean?,
-	noLeadRing: boolean?,
-}
+export type Flags = DebugRegistry.Flags -- the switches are declared once, in DebugRegistry
 
 -- Shot Trail: off when `noTrails`, otherwise whatever the shot wants.
 function DebugSwitches.trailEnabled(debug: Flags, wanted: boolean): boolean
