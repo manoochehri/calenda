@@ -370,7 +370,7 @@ return {
 			local overlap = deepCopy(base)
 			overlap.pickups = {
 				{ id = 1, z = 500, lane = "left" },
-				{ id = 2, z = 500 + Encounters.SPAN / 2, lane = "right" },
+				{ id = 2, z = 500 + Encounters.SPAN / 2, lane = "left" },
 			}
 			local ok, msg = LayoutValidator.validate(overlap)
 			eq(ok, false, "overlapping encounters fail validation")
@@ -378,7 +378,7 @@ return {
 			local spaced = deepCopy(base)
 			spaced.pickups = {
 				{ id = 1, z = 500, lane = "left" },
-				{ id = 2, z = 530, lane = "right" },
+				{ id = 2, z = 530, lane = "left" },
 			}
 			eq(LayoutValidator.validate(spaced), true, "spaced pickups validate")
 		end,

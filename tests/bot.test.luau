@@ -91,6 +91,11 @@ local function checkTotalsChain(result: BotHarness.Result, layout: Level.Layout)
 			check(e.after == running + def.reward, `credit {e.id} after {e.after}`, result)
 			running = e.after
 			changes += 1
+		elseif e.kind == "pickup" then
+			check(e.before == running, `pickup {e.id} before ~= running`, result)
+			check(e.after == running + 1, `pickup {e.id} adds exactly one`, result)
+			running = e.after
+			changes += 1
 		elseif e.kind == "obstacle" then
 			check(e.before == running, `obstacle {e.id} before ~= running`, result)
 			check(

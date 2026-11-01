@@ -23,6 +23,8 @@ local Level = require("./Level")
 local LayoutWitness = require("./LayoutWitness")
 local RunDriver = require("./RunDriver")
 
+local CHECKPOINT_CLEARANCE_SECONDS = 1.5 -- [default] travel-seconds (Amendment 15 checkpointClearance)
+
 type Layout = Level.Layout
 
 export type ClusterInfo = { encounterTime: number?, convertTime: number?, reachTime: number? }
@@ -260,6 +262,55 @@ local function structure(layout: any, cfg: any, errs: { string })
 		end
 		if p.lane ~= "left" and p.lane ~= "center" and p.lane ~= "right" then
 			bad(`pickup {p.id} has an invalid lane`)
+		end
+	end
+	-- ADR 0014 (issue #156): fixed lane roles. A layout with laneRoles has a permutation of the three
+	-- lanes; every pickup lies in the pickup lane and every cluster in the horde lane. A layout
+	-- without laneRoles (a fixture) may author no pickup.
+	local roles = layout.laneRoles
+	if roles == nil then
+		if #(layout.pickups or {}) > 0 then
+			bad("pickups need laneRoles")
+		end
+	else
+		local seenRole: { [string]: boolean } = {}
+		local rolesOk = type(roles) == "table"
+		for _, key in { "pickup", "horde", "recruit" } do
+			local lane = if rolesOk then roles[key] else nil
+			if (lane ~= "left" and lane ~= "center" and lane ~= "right") or seenRole[lane] then
+				rolesOk = false
+			else
+				seenRole[lane] = true
+			end
+		end
+		if not rolesOk then
+			bad("laneRoles must assign pickup, horde and recruit to three different lanes")
+		else
+			for _, p in layout.pickups or {} do
+				if p.lane ~= roles.pickup then
+					bad(`pickup {p.id} is outside the pickup lane {roles.pickup}`)
+				end
+			end
+			for _, c in layout.clusters do
+				if c.lane ~= roles.horde then
+					bad(`cluster {c.id} is outside the horde lane {roles.horde}`)
+				end
+			end
+		end
+	end
+	-- Spec Amendment 15: every pickup span [z - SPAN, z] lies at least checkpointClearance (1.5
+	-- travel-seconds) from any checkpoint plane. Vacuous when a layout authors no checkpoint.
+	local clearance = CHECKPOINT_CLEARANCE_SECONDS * cfg.speed
+	for _, cp in layout.checkpoints or {} do
+		for _, p in layout.pickups or {} do
+			if isNum(p.z) and isNum(cp.z) then
+				local lo, hi = Encounters.spanOf(p)
+				if cp.z > lo - clearance and cp.z < hi + clearance then
+					bad(
+						`pickup {p.id} span is within {CHECKPOINT_CLEARANCE_SECONDS} s of checkpoint {cp.id}`
+					)
+				end
+			end
 		end
 	end
 	-- Issue #162: route stops. Ids unique, z strictly ascending and inside the street, a known kind.

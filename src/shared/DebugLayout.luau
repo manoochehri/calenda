@@ -90,6 +90,15 @@ while true do
 	end
 end
 
+-- Spec Amendment 15 schedule (travel-seconds): strips of 4, 4 and 2, 3.4 s apart (spans never overlap).
+local pickups: { Level.Pickup } = {}
+for _, seconds in { 8, 11.4, 14.8, 18.2, 39, 42.4, 45.8, 49.2, 73.5, 76.9 } do
+	table.insert(
+		pickups,
+		{ id = #pickups + 1, z = paceDistance(seconds * BASE_SPEED), lane = "left" }
+	)
+end
+
 local function deepFreeze<T>(t: T): T
 	if type(t) == "table" then
 		for _, child in t :: any do
@@ -138,9 +147,9 @@ local layout: Level.Layout = {
 		{
 			id = 3,
 			z = paceDistance(800),
-			left = { kind = "add", value = 40 },
+			left = { kind = "add", value = 80 },
 			right = { kind = "multiply", value = 2 },
-		}, -- 50s: crossover 40
+		}, -- 50s: crossover 80 (refit from 40 for the #156 pickups, which lift the crowd reached here to 44 to 164)
 		{
 			id = 4,
 			z = paceDistance(1280),
@@ -149,11 +158,15 @@ local layout: Level.Layout = {
 		}, -- 80s: crossover 300
 	},
 	obstacles = {
-		{ id = 1, z = paceDistance(640), side = "left" }, -- 40s
+		{ id = 1, z = paceDistance(640), side = "right" }, -- 40s (right: the left lane is the pickup lane, ADR 0014)
 		{ id = 2, z = paceDistance(1024), side = "right" }, -- 64s
 		{ id = 3, z = paceDistance(1408), side = "left" }, -- 88s
 	},
 	clusters = clusters,
+	-- Issue #156 / ADR 0014: the horde lane is right, so pickups are left and recruits come down the
+	-- center. Ten +1 pickups in three strips (Amendment 15 schedule).
+	laneRoles = { pickup = "left", horde = "right", recruit = "center" },
+	pickups = pickups,
 	-- Issue #96: the first Oaxacan level's hazards. Tomatoes from the buildings and a tlayuda cart.
 	hazardSet = {
 		kinds = { "tomato", "cart" },
