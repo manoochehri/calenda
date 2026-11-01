@@ -382,4 +382,73 @@ return {
 			eq(p.zVelocity, 0, "wire zero")
 		end,
 	},
+	{
+		name = "canonical keys: leading zeros are refused so one encounter has exactly one key",
+		run = function()
+			local once = req("newOnceSet")()
+			eq(once.claim(1, "level1", "p1"), true, "canonical")
+			eq(once.claim(1, "level1", "p01"), false, "p01 is not p1")
+			eq(once.claim(1, "level01", "p1"), false, "level01 is not level1")
+			eq(once.claim(1, "level1", "p0"), false, "zero id")
+			eq(req("encounterKey")(1, "level0", "p1"), nil, "level0")
+			eq(encode({ encounter = enc("pickup", "p01") }).encounter, nil, "p01 dropped")
+			eq(encode({ encounter = enc("boss", "b007") }).encounter, nil, "b007 dropped")
+			eq(encode({ levelId = "level01" }).levelId, "level1", "level01 falls back")
+			local p = encode()
+			p.levelId = "level01"
+			eq(req("decodeState")(p), nil, "decode refuses level01")
+		end,
+	},
+	{
+		name = "bounds: 1e308 and out-of-range values are refused, and cannot lock a receiver out",
+		run = function()
+			local d = req("decodeState")
+			for _, patch in
+				{
+					{ simTime = 1e308, t = 1e308 },
+					{ simTime = Remotes.SIM_TIME_MAX + 1, t = Remotes.SIM_TIME_MAX + 1 },
+					{ total = Remotes.TOTAL_MAX + 1 },
+					{ best = 1e308 },
+					{ score = 1e308 },
+					{ z = 1e308 },
+					{ z = -1 },
+					{ x = 1e6 },
+					{ holdZ = 1e308 },
+					{ boostExpiry = 1e308 },
+				}
+			do
+				local p = encode()
+				for k, v in patch do
+					p[k] = v
+				end
+				eq(d(p), nil, "out of range refused")
+			end
+			local r = newReceiver()
+			assert(r.accept(encode({ time = 10 })), "good")
+			local forged = encode({ time = 11 })
+			forged.simTime, forged.t = 1e308, 1e308
+			eq(r.accept(forged), nil, "forged refused")
+			assert(r.accept(encode({ time = 12 })), "later legitimate state still accepted")
+		end,
+	},
+	{
+		name = "t must equal simTime",
+		run = function()
+			local p = encode()
+			p.t = p.simTime + 1
+			eq(req("decodeState")(p), nil, "t differs")
+		end,
+	},
+	{
+		name = "receiver reset: a new session's first state (runId back at 1) is accepted",
+		run = function()
+			local r = newReceiver()
+			assert(r.accept(encode({ runId = 7, time = 90 })), "old session")
+			eq(r.accept(encode({ runId = 1, time = 0.1 })), nil, "refused without a reset")
+			r.reset()
+			eq(r.runId(), nil, "forgotten")
+			assert(r.accept(encode({ runId = 1, time = 0.1 })), "accepted after reset")
+			eq(r.runId(), 1, "tracks the new session")
+		end,
+	},
 }

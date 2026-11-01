@@ -1,4 +1,5 @@
 --!strict
+local Config = require("./Config")
 -- The one remote contract between server and client (issue #8). Names and payload shapes live
 -- here and nowhere else; the server creates the instances, the client looks them up by `names`.
 --
@@ -122,7 +123,7 @@ function Remotes.decodeEncounter(e: any): Encounter?
 		type(id) ~= "string"
 		or #id < 2
 		or #id > 16
-		or string.match(id, `^{ENCOUNTER_ID_PREFIX[kind]}%d+$`) == nil
+		or string.match(id, `^{ENCOUNTER_ID_PREFIX[kind]}[1-9]%d*$`) == nil
 	then
 		return nil
 	end
@@ -218,6 +219,17 @@ Remotes.RUN_ID_MAX = 1000000 -- [default] bound so a forged huge id cannot lock 
 Remotes.ROSTER_MAX = 8 -- [default] the roster size ceiling (spec Amendment 16)
 Remotes.MAX_Z_VELOCITY = 100 -- [default] studs/s; far above Config.speed, so only forgeries exceed it
 
+-- Sane display ranges, derived from Config (no Config value changes). A value beyond them is a forgery
+-- or corruption; refusing it also stops a forged huge simTime from locking a receiver out.
+Remotes.Z_MAX = Config.speed * 1000 -- studs; the longest level is far shorter
+Remotes.SIM_TIME_MAX = 3600 -- [default] seconds of combat clock in one level (a boss fight has no cap)
+Remotes.TOTAL_MAX = Config.layout.maxTotal
+Remotes.X_MAX = 100 -- studs, far beyond any half width
+
+local function inRange(v: any, lo: number, hi: number): boolean
+	return isFinite(v) and v >= lo and v <= hi
+end
+
 local function isRunId(v: any): boolean
 	return isFinite(v) and v >= 1 and v <= Remotes.RUN_ID_MAX and v == math.floor(v)
 end
@@ -226,7 +238,7 @@ local function levelIndexOf(levelId: any): number?
 	if type(levelId) ~= "string" or #levelId > 14 then
 		return nil
 	end
-	local n = string.match(levelId, "^level(%d+)$")
+	local n = string.match(levelId, "^level([1-9]%d*)$")
 	return if n ~= nil then tonumber(n) else nil
 end
 
@@ -332,27 +344,28 @@ function Remotes.decodeState(p: any, allowedRoster: { [string]: boolean }?): Sta
 	if type(r.over) ~= "boolean" or type(r.levelName) ~= "string" or #r.levelName > 64 then
 		return nil
 	end
-	for _, key in { "t", "simTime", "total", "best" } do
-		if not isFinite(r[key]) or r[key] < 0 then
-			return nil
-		end
+	if not inRange(r.simTime, 0, Remotes.SIM_TIME_MAX) or r.t ~= r.simTime then
+		return nil
 	end
-	if not isFinite(r.z) or not isFinite(r.x) then
+	if not inRange(r.total, 0, Remotes.TOTAL_MAX) or not inRange(r.best, 0, Remotes.TOTAL_MAX) then
+		return nil
+	end
+	if not inRange(r.z, 0, Remotes.Z_MAX) or not inRange(r.x, -Remotes.X_MAX, Remotes.X_MAX) then
 		return nil
 	end
 	if not isFinite(r.zVelocity) or r.zVelocity < 0 or r.zVelocity > Remotes.MAX_Z_VELOCITY then
 		return nil
 	end
-	if r.boostExpiry ~= nil and (not isFinite(r.boostExpiry) or r.boostExpiry < 0) then
+	if r.boostExpiry ~= nil and not inRange(r.boostExpiry, 0, Remotes.SIM_TIME_MAX + 60) then
 		return nil
 	end
-	if r.holdZ ~= nil and not isFinite(r.holdZ) then
+	if r.holdZ ~= nil and not inRange(r.holdZ, 0, Remotes.Z_MAX) then
 		return nil
 	end
 	if r.outcome ~= nil and (type(r.outcome) ~= "string" or #r.outcome > 32) then
 		return nil
 	end
-	if r.score ~= nil and not isFinite(r.score) then
+	if r.score ~= nil and not inRange(r.score, 0, Remotes.TOTAL_MAX) then
 		return nil
 	end
 	if not Remotes.isRoster(r.roster, allowedRoster) then
@@ -393,6 +406,7 @@ end
 export type Receiver = {
 	accept: (payload: any, allowedRoster: { [string]: boolean }?) -> StatePayload?,
 	runId: () -> number?,
+	reset: () -> (), -- forget the newest state: call on a (re)join / new server session
 }
 
 -- A client's gate on incoming States (issue #162: recover from state, not from events). A State is
@@ -427,6 +441,12 @@ function Remotes.newReceiver(): Receiver
 	function self.runId(): number?
 		return lastRun
 	end
+	-- runId is a per-driver counter that starts at 1, so a new session's first state looks older than
+	-- a persistent receiver's memory of the previous session. The client calls reset() when it joins
+	-- or rejoins; the next state is then accepted whole.
+	function self.reset()
+		lastRun, lastLevel, lastSim = nil, 0, 0
+	end
 	return self
 end
 
@@ -441,7 +461,7 @@ function Remotes.encounterKey(runId: any, levelId: any, encounterId: any): strin
 		type(encounterId) ~= "string"
 		or #encounterId < 2
 		or #encounterId > 16
-		or string.match(encounterId, "^[prub]%d+$") == nil
+		or string.match(encounterId, "^[prub][1-9]%d*$") == nil
 	then
 		return nil
 	end
