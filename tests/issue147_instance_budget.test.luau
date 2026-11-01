@@ -22,6 +22,8 @@ for _, n in
 		"LeadPose",
 		"Pool",
 		"ViewMap",
+		"MoveBatch",
+		"MotionSwitches",
 	}
 do
 	MODS[n] = require(`../src/shared/{n}`)
@@ -84,24 +86,17 @@ return {
 				`CrowdView per steady frame (n={s.frames}): CFrame writes {s.writesCFrame / s.frames},`
 					.. ` Size writes {s.writesSize / s.frames}, BulkMoveTo parts {s.bulk / s.frames}`
 			)
-			assert(s.writesCFrame == 0, `{s.writesCFrame} per-Part CFrame writes`)
+			-- the lead ring keeps its own single CFrame write per frame (PR 249)
+			assert(s.writesCFrame <= s.frames, `{s.writesCFrame} per-Part CFrame writes`)
 			assert(s.bulk > 0, "no BulkMoveTo")
 		end,
 	},
 	{
 		-- Source-text checks (ClusterView, GateView and MobView need the whole engine tree to load).
-		name = "issue 147: projectiles reparent only on change; gates and dust skip unchanged writes",
+		name = "issue 147: projectile trail colour is cached; gates and dust skip unchanged writes",
 		run = function()
 			local fs = require("@lune/fs")
 			local cluster = fs.readFile("src/client/ClusterView.luau")
-			assert(
-				string.find(cluster, "if j > p.shown then", 1, true),
-				"projectile reparents every frame"
-			)
-			assert(
-				not string.find(cluster, "p.body.Parent = nil\n\t\t\tif gone", 1, true),
-				"per-frame detach"
-			)
 			assert(
 				string.find(cluster, "if p.glow ~= glowColor then", 1, true),
 				"trail colour rebuilt every frame"

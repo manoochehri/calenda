@@ -25,6 +25,8 @@ local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
 local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
+local MoveBatch = require(Shared:WaitForChild("MoveBatch"))
+local MotionSwitches = require(Shared:WaitForChild("MotionSwitches"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
@@ -239,6 +241,11 @@ function CrowdView.new(): CrowdView
 
 	local live: { [number]: Avatar } = {} -- drawn avatars by follower id
 	local free: { Avatar } = {} -- hidden, ready for reuse
+	-- MobView uses the same path for its larger spectator population; keep the dense parade on it
+	-- too (issue #147). The pure buffer keeps this engine boundary testable.
+	local moveBatch = MoveBatch.new(function(parts, cframes)
+		Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
+	end)
 
 	local dust: Effects.Effects<{ x: number, z: number }> = Effects.new(FollowerLook.DUST_CAP)
 	local dustPool = Pool.new(function(): Part
@@ -263,10 +270,9 @@ function CrowdView.new(): CrowdView
 
 	local view = {} :: CrowdView
 
-	-- Reused per-frame arrays for BulkMoveTo (as MobView does).
-	local moveParts: { Instance } = {}
-	local moveCFrames: { CFrame } = {}
-	local moveCount = 0
+	local function push(instance: Instance, cf: CFrame)
+		moveBatch:push(instance, cf)
+	end
 
 	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
 		local avatar = live[id]
@@ -293,9 +299,12 @@ function CrowdView.new(): CrowdView
 		else
 			danceHop, danceSway, _arm, spin = Dance.pose(avatar.variant, beat, danceAmplitude)
 		end
+		danceHop, danceSway, spin = MotionSwitches.dance(Config.debug, danceHop, danceSway, spin) -- issue #240
 		local eventHop, eventRoll, eventTurn = Dance.reaction(reactionKind, clock - reactionAt)
 		local marchY, marchSquashY, marchSquashXZ =
 			FollowerLook.marchValues(look, clock * danceTempo)
+		marchY, marchSquashY, marchSquashXZ =
+			MotionSwitches.march(Config.debug, marchY, marchSquashY, marchSquashXZ) -- issue #240
 		local hop, sy, sxz = y + danceHop * DanceConfig.followerDanceHopScale + eventHop, 1, 1
 		if marching then
 			hop += marchY
@@ -312,12 +321,17 @@ function CrowdView.new(): CrowdView
 		-- Issue #178: join bounce (members only), and the cheer or flinch shared by everyone drawn.
 		local joinAge = if marching then clock - avatar.joinedAt else math.huge
 		local feelHop, feelY, feelXZ = CrowdFeel.combine(joinAge, clock - cheerAt, clock - flinchAt)
+		feelHop, feelY, feelXZ = MotionSwitches.crowdFeel(Config.debug, feelHop, feelY, feelXZ) -- issue #240
 		hop += feelHop
 		sy *= feelY
 		sxz *= feelXZ
 		avatar.lastClock = clock
 		-- Each follower breathes at its own offset, so the crowd does not pulse in lockstep.
-		local k = look.scale * FollowerLook.breath(clock, CrowdFeel.breathPhase(id))
+		local k = look.scale
+			* MotionSwitches.breath(
+				Config.debug,
+				FollowerLook.breath(clock, CrowdFeel.breathPhase(id))
+			) -- issue #240
 		local base = CFrame.new(ViewMap.x(x), hop, z)
 			* CFrame.Angles(
 				eventRoll,
@@ -327,10 +341,7 @@ function CrowdView.new(): CrowdView
 		for _, p in avatar.pieces do
 			p.part.Size = Vector3.new(p.size.X * sxz, p.size.Y * sy, p.size.Z * sxz) * k
 			local localFrame = CFrame.new(p.x * sxz * k, p.y * sy * k, 0)
-			-- Issue #147: the CFrames go to the engine in one BulkMoveTo per frame (see view.update).
-			moveCount += 1
-			moveParts[moveCount] = p.part
-			moveCFrames[moveCount] = base * localFrame
+			push(p.part, base * localFrame)
 		end
 	end
 
@@ -365,6 +376,7 @@ function CrowdView.new(): CrowdView
 		hasAvatar: boolean?,
 		fallbackGrace: number?
 	)
+		moveBatch:reset()
 		clock = os.clock() -- shared local monotonic beat clock with SectionsView and LeadAvatar
 		absent = LeadPose.absence(absent, hasAvatar == true, dt)
 		if lastLeadZ ~= nil and leadZ < lastLeadZ - REPLAY_JUMP then
@@ -395,9 +407,7 @@ function CrowdView.new(): CrowdView
 		else
 			lead.Parent = nil
 		end
-		moveCount = 1
-		moveParts[1] = ring
-		moveCFrames[1] = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
+		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
 			* CFrame.Angles(0, 0, math.pi / 2)
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
@@ -426,13 +436,10 @@ function CrowdView.new(): CrowdView
 			end
 		end
 
-		for i = moveCount + 1, #moveParts do
-			moveParts[i] = nil :: any
-			moveCFrames[i] = nil :: any
-		end
-		if moveCount > 0 then
-			Workspace:BulkMoveTo(moveParts, moveCFrames, Enum.BulkMoveMode.FireCFrameChanged)
-		end
+		-- Moving the anchored follower pieces one at a time makes the engine process every
+		-- CFrame change separately. The pose and size work above stay per-piece; only the
+		-- equivalent engine movement is batched (the same representation and visual result).
+		moveBatch:flush()
 
 		local puffs = dust:active(clock)
 		local ds = dustPool:setCount(#puffs)

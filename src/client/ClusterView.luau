@@ -259,8 +259,7 @@ function ClusterView.new(layout: any): ClusterView
 		a1: Attachment,
 		extras: { Part },
 		parts: { Part }, -- body then extras, built once (issue #147: no per-frame table)
-		shown: number, -- how many of `parts` are parented now (issue #147: reparent only on change)
-		glow: Color3?, -- the trail colour last written
+		glow: Color3?, -- the trail colour last written (issue #147)
 	}
 	local projectilePool = Pool.new(function(): Shot
 		local body = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
@@ -287,19 +286,16 @@ function ClusterView.new(layout: any): ClusterView
 			a1 = a1,
 			extras = extras,
 			parts = { body, extras[1], extras[2], extras[3] },
-			shown = 0,
 			glow = nil,
 		}
 	end, function(p: Shot)
 		p.body.Parent = folder
-		p.shown = 1
 		p.trail:Clear() -- a recycled shot must not streak from its previous flight
 	end, function(p: Shot)
 		p.body.Parent = nil
 		for _, e in p.extras do
 			e.Parent = nil
 		end
-		p.shown = 0
 	end)
 
 	-- Muzzle pops at the lead and impact bursts on the target (issue #67). Display only, capped.
@@ -739,11 +735,12 @@ function ClusterView.new(layout: any): ClusterView
 				p.trail.Color = ColorSequence.new(glowColor)
 			end
 			if gone then
-				-- Issue #147: parts are reparented only when the number shown changes, not twice a frame.
-				for j = 1, p.shown do
-					p.parts[j].Parent = nil
+				-- Hide only on the frame it goes (issue #171): a part that stays shown is never
+				-- re-parented, so the Trail's attachments stay in the DataModel and its history lives.
+				for _, e in p.extras do
+					e.Parent = nil
 				end
-				p.shown = 0
+				p.body.Parent = nil
 				continue
 			end
 			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
@@ -763,14 +760,15 @@ function ClusterView.new(layout: any): ClusterView
 					* CFrame.Angles(0, 0, q.roll)
 				part.Color = if q.ribbon then Color3.new(1, 1, 1) else coreColor
 				part.Transparency = fade
-				if j > p.shown then
+				if part.Parent ~= folder then
 					part.Parent = folder
 				end
 			end
-			for j = #places + 1, p.shown do
-				parts[j].Parent = nil
+			for j = #places + 1, #parts do
+				if parts[j].Parent ~= nil then
+					parts[j].Parent = nil
+				end
 			end
-			p.shown = #places
 			local first = places[1]
 			local half = size * ShotLook.TRAIL_WIDTH / 2
 			p.a0.Position = Vector3.new(-first.x, -first.y + half, 0)
