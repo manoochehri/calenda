@@ -45,4 +45,18 @@ return {
 			)
 		end,
 	},
+	{
+		name = "issue 147: crowd follower parts move through one BulkMoveTo batch",
+		run = function()
+			local text = source("src/client/CrowdView.luau")
+			assert(
+				string.find(text, "Workspace:BulkMoveTo(moveParts, moveCFrames", 1, true) ~= nil,
+				"CrowdView moves follower parts individually"
+			)
+			assert(
+				string.find(text, "moveParts[moveCount] = instance", 1, true) ~= nil,
+				"CrowdView does not collect follower parts for batching"
+			)
+		end,
+	},
 }
