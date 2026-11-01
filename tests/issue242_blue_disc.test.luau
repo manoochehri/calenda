@@ -31,7 +31,9 @@ return {
 			local upd =
 				between(src, "ring.CFrame = CFrame.new(ViewMap.x(leadX)", "local frame = flow:step")
 			local cf = upd:find("ring.CFrame", 1, true)
-			local par = upd:find("ring.Parent = folder", 1, true)
+			local guard = upd:find("if ring.Parent ~= folder then", 1, true)
+			assert(guard, "ring re-parenting must be guarded (no per-frame Parent write)")
+			local par = upd:find("ring.Parent = folder", guard, true)
 			assert(cf and par and cf < par, "ring must be parented after it is placed flat")
 		end,
 	},

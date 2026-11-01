@@ -374,7 +374,9 @@ function CrowdView.new(): CrowdView
 		end
 		ring.CFrame = CFrame.new(ViewMap.x(leadX), LayerHeights.RING - 0.1, leadZ)
 			* CFrame.Angles(0, 0, math.pi / 2)
-		ring.Parent = folder
+		if ring.Parent ~= folder then
+			ring.Parent = folder
+		end
 
 		local frame = flow:step(dt, leadX, leadZ, swirl)
 		danceAmplitude, danceTempo = Dance.intensity(total, total // Config.sectionSize)
