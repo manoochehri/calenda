@@ -94,6 +94,7 @@ export type ConfigType = {
 		noBreath: boolean, -- issue #240 A/B: parade has no per-beat size pulse
 		noCrowdFeel: boolean, -- issue #240 A/B: no join bounce, cheer hop or flinch dip
 		noFollowerDance: boolean, -- issue #240 A/B: parade has no beat-synced dance
+		perfOverlay: boolean, -- issue #256/#147: on-screen Parts / emitters / trails / dt p50,p95
 		noFollowerMarch: boolean, -- issue #240 A/B: no march hop or squash (parade and runners/leavers)
 		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
 	},
@@ -180,6 +181,7 @@ local function validate(c: any): (boolean, string?)
 			"noCrowdFeel",
 			"noFollowerDance",
 			"noFollowerMarch",
+			"perfOverlay",
 		}
 	do
 		if type(c.debug[flag]) ~= "boolean" then
@@ -610,6 +612,7 @@ local config: ConfigType = {
 		noBreath = false, -- parade: per-beat size pulse off
 		noCrowdFeel = false, -- parade: join bounce, cheer hop, flinch dip off
 		noFollowerDance = false, -- parade: beat-synced dance hop/sway/spin off
+		perfOverlay = false, -- on-screen Parts / emitters / trails / dt p50,p95 (issue #256, #147)
 		noFollowerMarch = false, -- parade and runners/leavers: march hop and squash/stretch off (runners lose their hop too)
 	},
 	validate = validate,
