@@ -125,16 +125,16 @@ local layout: Level.Layout = {
 	gates = {
 		{
 			id = 1,
-			z = paceDistance(240),
+			z = paceDistance(208),
 			left = { kind = "add", value = 20 },
 			right = { kind = "multiply", value = 4 },
-		}, -- 15s: crossover 7 (reached non-zero crowds 5, 9, 10)
+		}, -- 13s: crossover 7 (reached non-zero crowds 5, 10)
 		{
 			id = 2,
-			z = paceDistance(320),
+			z = paceDistance(392),
 			left = { kind = "multiply", value = 2 },
 			right = { kind = "add", value = 35 },
-		}, -- 20s: crossover 35
+		}, -- 24.5s: crossover 35
 		{
 			id = 3,
 			z = paceDistance(800),
