@@ -3,16 +3,11 @@
 -- With every switch false (the default) each function returns its input unchanged, so the normal
 -- game is untouched. The client calls these at the one site where each motion is applied.
 -- Display only; nothing here touches a hit, a credit, a count or a target.
+local DebugRegistry = require("./DebugRegistry")
+
 local MotionSwitches = {}
 
-export type Flags = {
-	noMobStride: boolean, -- horde figures: no hop, no arm pump (lean and advance remain)
-	calmMobStride: boolean, -- horde figures: small hop, no arm pump
-	noBreath: boolean, -- parade: no per-beat size pulse
-	noCrowdFeel: boolean, -- parade: no join bounce, cheer hop or flinch dip
-	noFollowerDance: boolean, -- parade: no beat-synced dance hop, sway or spin
-	noFollowerMarch: boolean, -- parade: no march hop and no squash/stretch
-}
+export type Flags = DebugRegistry.Flags -- the switches are declared once, in DebugRegistry
 
 MotionSwitches.CALM_HOP_SHARE = 0.3 -- [default] share of the stride hop kept by calmMobStride
 

@@ -3,6 +3,8 @@
 -- Values marked [spec] come from docs/Calenda-Prototype-Spec.md; values marked [default] are
 -- placeholders chosen by the engineer because the spec gives no number (all are tuning defaults).
 
+local DebugRegistry = require("./DebugRegistry")
+
 export type ClusterType = { hits: number, reward: number }
 -- Issue #234: one row of the recruit -> fire table (see FireTable). From `minRecruits` parade people:
 -- `shotsPerSecond` is the most shots started per second, `speed` the projectile speed in studs per
@@ -76,25 +78,7 @@ export type ConfigType = {
 	durations: { assemblySeconds: number, dispersalSeconds: number },
 	musicLayerSections: { number },
 	music: MusicConfig,
-	debug: {
-		startupTiming: boolean,
-		freezeCamera: boolean,
-		noShadows: boolean,
-		rawExtrapolation: boolean,
-		noTrails: boolean, -- issue #171 A/B: no shot Trails
-		noHitShake: boolean, -- issue #171 A/B: no hit camera shake
-		noTransparentStrips: boolean, -- issue #171 A/B: gate crossing strip and lead ring opaque
-		noDust: boolean, -- issue #171 A/B: no dust ParticleEmitter output
-		legacyLaneLabelPlates: boolean, -- issue #222: restore the opaque dark lane-label plates
-		noMobStride: boolean, -- issue #240 A/B: horde figures do not hop or pump their arms
-		calmMobStride: boolean, -- issue #240 A/B: horde figures hop a little, no arm pump
-		noBreath: boolean, -- issue #240 A/B: parade has no per-beat size pulse
-		noCrowdFeel: boolean, -- issue #240 A/B: no join bounce, cheer hop or flinch dip
-		noFollowerDance: boolean, -- issue #240 A/B: parade has no beat-synced dance
-		perfOverlay: boolean, -- issue #256/#147: on-screen Parts / emitters / trails / dt p50,p95
-		noFollowerMarch: boolean, -- issue #240 A/B: no march hop or squash (parade and runners/leavers)
-		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
-	},
+	debug: DebugRegistry.Flags, -- one row per switch in DebugRegistry (issue #254)
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
 	sfx: { [string]: string }, -- sound effect asset ids by slot, empty = silent (issue #62)
 	validate: (config: any) -> (boolean, string?),
@@ -156,35 +140,9 @@ local function validate(c: any): (boolean, string?)
 	then
 		return false, "startingTotal must be a non-negative integer"
 	end
-	if type(c.debug) ~= "table" or type(c.debug.startupTiming) ~= "boolean" then
-		return false, "debug.startupTiming must be a boolean"
-	end
-	for _, flag in
-		{
-			"freezeCamera",
-			"noShadows",
-			"rawExtrapolation",
-			"noTrails",
-			"noHitShake",
-			"noTransparentStrips",
-			"noDust",
-			"legacyLaneLabelPlates",
-			"noMobStride",
-			"calmMobStride",
-			"noBreath",
-			"noCrowdFeel",
-			"noFollowerDance",
-			"noFollowerMarch",
-			"perfOverlay",
-		}
-	do
-		if type(c.debug[flag]) ~= "boolean" then
-			return false, `debug.{flag} must be a boolean`
-		end
-	end
-	local q = c.debug.quality
-	if q ~= nil and q ~= "low" and q ~= "medium" and q ~= "high" then
-		return false, 'debug.quality must be nil, "low", "medium" or "high"'
+	local debugOk, debugErr = DebugRegistry.validate(c.debug)
+	if not debugOk then
+		return false, debugErr
 	end
 	if not isPositive(c.speed) then
 		return false, "speed must be a positive number"
@@ -582,28 +540,7 @@ local config: ConfigType = {
 		replayClick = "",
 		crowdLoop = "", -- looping crowd ambience whose volume follows the follower count
 	},
-	debug = {
-		startupTiming = false, -- [default] opt-in local startup trace; no Output logging unless enabled
-		-- Issue #85 A/B switches for Studio (all default false = normal game):
-		freezeCamera = false, -- hold the camera at its first pose: does the flicker survive a still camera?
-		noShadows = false, -- Lighting.GlobalShadows = false: is it shadow flicker?
-		quality = nil, -- [default] nil = automatic (medium on touch, high otherwise); or "low" | "medium" | "high"
-		rawExtrapolation = false, -- the pre-#85 snap-to-State lead path instead of ServerClock
-		-- Issue #171 A/B switches (flip one, replay the same route; all false = normal game):
-		noTrails = false, -- shot Trails (Neon streaks) off
-		noHitShake = false, -- hit camera shake off
-		noTransparentStrips = false, -- GateView crossing strip and LeadRing drawn opaque
-		noDust = false, -- chevron and mob dust ParticleEmitters off
-		legacyLaneLabelPlates = false, -- issue #222: true brings back the dark rectangles behind lane labels
-		-- Issue #240 A/B switches for horde and parade motion (flip one; all false = normal game):
-		noMobStride = false, -- horde: no hop, no arm pump (lean and advance remain)
-		calmMobStride = false, -- horde: hop at 30%, no arm pump (the recommended readable look)
-		noBreath = false, -- parade: per-beat size pulse off
-		noCrowdFeel = false, -- parade: join bounce, cheer hop, flinch dip off
-		noFollowerDance = false, -- parade: beat-synced dance hop/sway/spin off
-		perfOverlay = false, -- on-screen Parts / emitters / trails / dt p50,p95 (issue #256, #147)
-		noFollowerMarch = false, -- parade and runners/leavers: march hop and squash/stretch off (runners lose their hop too)
-	},
+	debug = DebugRegistry.defaults(), -- every switch off = the normal game (issue #254)
 	validate = validate,
 }
 
