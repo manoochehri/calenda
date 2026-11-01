@@ -104,7 +104,11 @@ return {
 	{
 		name = "reach: slots and bases (with their footprint) fit the cloud reach, which fits the road",
 		run = function()
-			eq(FollowerSlots.roadHalfWidth(), DebugLayout.halfWidth - 6, "road half width")
+			eq(
+				FollowerSlots.roadHalfWidth(),
+				DebugLayout.halfWidth - 5,
+				"road half width (the sidewalk WorldBuilder draws)"
+			)
 			assert(
 				FollowerSlots.REACH < FollowerSlots.roadHalfWidth(),
 				"the cloud is narrower than the road"

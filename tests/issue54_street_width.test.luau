@@ -14,15 +14,15 @@ end
 
 return {
 	{
-		name = "the road surface is 30 studs wide: half width 15, one stud out per edge from 14",
+		name = "the road surface is 36 studs wide: half width 18 (ADR 0012, was 30)",
 		run = function()
-			near(StreetSurface.roadHalfWidth(DebugLayout.halfWidth), 15, 1e-9, "road half width")
-			near(StreetSurface.roadHalfWidth(20), 15, 1e-9, "road half width at corridor 20")
-			near(StreetSurface.roadHalfWidth(20) * 2, 30, 1e-9, "road surface width")
+			near(StreetSurface.roadHalfWidth(DebugLayout.halfWidth), 18, 1e-9, "road half width")
+			near(StreetSurface.roadHalfWidth(23), 18, 1e-9, "road half width at corridor 23")
+			near(StreetSurface.roadHalfWidth(23) * 2, 36, 1e-9, "road surface width")
 		end,
 	},
 	{
-		name = "the sidewalks take the rest of the unchanged 40-stud corridor",
+		name = "the sidewalks take the rest of the 46-stud corridor",
 		run = function()
 			near(StreetSurface.sidewalkWidth(DebugLayout.halfWidth), 5, 1e-9, "sidewalk width")
 			near(
@@ -32,7 +32,7 @@ return {
 				1e-9,
 				"road plus sidewalk reaches the corridor edge"
 			)
-			near(DebugLayout.halfWidth, 20, 1e-9, "corridor unchanged")
+			near(DebugLayout.halfWidth, 23, 1e-9, "corridor widened by ADR 0012")
 		end,
 	},
 	{

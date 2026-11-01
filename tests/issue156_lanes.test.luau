@@ -79,27 +79,27 @@ end
 
 return {
 	{
-		name = "LaneGeometry: bands [-15,-5) [-5,5) [5,15], boundary belongs to the right lane",
+		name = "LaneGeometry: bands [-18,-6) [-6,6) [6,18], boundary belongs to the right lane",
 		run = function()
 			local LaneGeometry = require("../src/shared/LaneGeometry")
-			eq(LaneGeometry.laneOf(-15), "left", "left edge")
-			eq(LaneGeometry.laneOf(-5.0001), "left", "just left of -5")
-			eq(LaneGeometry.laneOf(-5), "center", "-5 belongs to center")
+			eq(LaneGeometry.laneOf(-18), "left", "left edge")
+			eq(LaneGeometry.laneOf(-6.0001), "left", "just left of -6")
+			eq(LaneGeometry.laneOf(-6), "center", "-6 belongs to center")
 			eq(LaneGeometry.laneOf(0), "center", "middle")
-			eq(LaneGeometry.laneOf(4.9999), "center", "just left of 5")
-			eq(LaneGeometry.laneOf(5), "right", "5 belongs to right")
-			eq(LaneGeometry.laneOf(15), "right", "right edge")
-			eq(LaneGeometry.laneOf(15.0001), nil, "outside the street lanes")
-			eq(LaneGeometry.laneOf(-15.0001), nil, "outside the street lanes, left")
+			eq(LaneGeometry.laneOf(5.9999), "center", "just left of 6")
+			eq(LaneGeometry.laneOf(6), "right", "6 belongs to right")
+			eq(LaneGeometry.laneOf(18), "right", "right edge")
+			eq(LaneGeometry.laneOf(18.0001), nil, "outside the street lanes")
+			eq(LaneGeometry.laneOf(-18.0001), nil, "outside the street lanes, left")
 		end,
 	},
 	{
-		name = "LaneGeometry: centers are -10, 0, 10 and each lays in its own lane",
+		name = "LaneGeometry: centers are -12, 0, 12 and each lays in its own lane",
 		run = function()
 			local LaneGeometry = require("../src/shared/LaneGeometry")
-			near(LaneGeometry.centerOf("left"), -10, "left center")
+			near(LaneGeometry.centerOf("left"), -12, "left center")
 			near(LaneGeometry.centerOf("center"), 0, "center")
-			near(LaneGeometry.centerOf("right"), 10, "right center")
+			near(LaneGeometry.centerOf("right"), 12, "right center")
 			for _, lane in { "left", "center", "right" } do
 				eq(LaneGeometry.laneOf(LaneGeometry.centerOf(lane)), lane, `{lane} center in lane`)
 			end
@@ -144,10 +144,10 @@ return {
 					{ id = 3, z = 5, lane = "center" },
 				},
 			} :: any
-			-- moving 0 -> 12 over z 0 -> 10: x at z=5 is 6 (right)
-			eq(ids(Crossing.pickupsAwarded(layout, 0, 10, 0, 12)), "1", "x 6 is right only")
-			-- moving 0 -> 10: x at z=5 is exactly 5, which belongs to right
-			eq(ids(Crossing.pickupsAwarded(layout, 0, 10, 0, 10)), "1", "exact 5 is right")
+			-- moving 0 -> 14 over z 0 -> 10: x at z=5 is 7 (right)
+			eq(ids(Crossing.pickupsAwarded(layout, 0, 10, 0, 14)), "1", "x 7 is right only")
+			-- moving 0 -> 12: x at z=5 is exactly 6, which belongs to right
+			eq(ids(Crossing.pickupsAwarded(layout, 0, 10, 0, 12)), "1", "exact 6 is right")
 			-- standing at 0: center only
 			eq(ids(Crossing.pickupsAwarded(layout, 0, 10, 0, 0)), "3", "center only")
 			-- already passed (z0 == z): not crossed again
@@ -364,27 +364,27 @@ return {
 		end,
 	},
 	{
-		name = "Layouts: every outer spawn is at a lane center (+-10) and its lane is authored",
+		name = "Layouts: every outer spawn is at a lane center (+-12) and its lane is authored",
 		run = function()
 			local Layouts = require("../src/shared/Layouts")
 			local LaneGeometry = require("../src/shared/LaneGeometry")
 			for _, layout in Layouts.all do
-				eq(layout.leadLimit, 15, `{layout.name} leadLimit`)
+				eq(layout.leadLimit, 18, `{layout.name} leadLimit`)
 				for _, c in layout.clusters do
-					near(math.abs(c.spawn.x), 10, `{layout.name} cluster {c.id} spawn x`)
+					near(math.abs(c.spawn.x), 12, `{layout.name} cluster {c.id} spawn x`)
 					eq(c.lane, LaneGeometry.laneOf(c.spawn.x), `{layout.name} cluster {c.id} lane`)
 				end
 			end
 		end,
 	},
 	{
-		name = "DebugLayout (the played level): outer spawns at +-10 with authored lanes",
+		name = "DebugLayout (the played level): outer spawns at +-12 with authored lanes",
 		run = function()
 			local DebugLayout = require("../src/shared/DebugLayout")
 			local LaneGeometry = require("../src/shared/LaneGeometry")
-			eq(DebugLayout.leadLimit, 15, "leadLimit")
+			eq(DebugLayout.leadLimit, 18, "leadLimit")
 			for _, c in DebugLayout.clusters do
-				near(math.abs(c.spawn.x), 10, `cluster {c.id} spawn x`)
+				near(math.abs(c.spawn.x), 12, `cluster {c.id} spawn x`)
 				eq(c.lane, LaneGeometry.laneOf(c.spawn.x), `cluster {c.id} lane`)
 			end
 		end,

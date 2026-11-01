@@ -6,6 +6,7 @@
 -- Coordinates are WORLD x (left = negative); the client applies ViewMap.x when it builds Parts.
 local CameraRig = require("./CameraRig")
 local PortalGeometry = require("./PortalGeometry")
+local StreetGeometry = require("./StreetGeometry")
 
 local LevelTheme = {}
 
@@ -243,20 +244,23 @@ LevelTheme.level1 = {
 	},
 	heights = { facadeMin = 13, facadeMax = 20, roofExtra = 1.5, lampHeight = 9 },
 	layout = {
-		facadeInset = 28,
+		facadeInset = StreetGeometry.HALF_WIDTH + 8, -- ADR 0012: 8 studs of ground between corridor and facades
 		facadeDepth = 9,
 		moduleWidthMin = 22,
 		moduleWidthMax = 32,
 		runIn = 80,
 		endExtra = 60,
 		floorHeight = 8,
-		flagLanes = { { x = 23.5, y = 22 }, { x = 26.5, y = 25 } },
+		flagLanes = {
+			{ x = StreetGeometry.HALF_WIDTH + 3.5, y = 22 },
+			{ x = StreetGeometry.HALF_WIDTH + 6.5, y = 25 },
+		},
 		flagHeight = 2.4,
 		flagPitch = 4,
 		flagStripLength = 160,
-		lampX = 21.5,
+		lampX = StreetGeometry.HALF_WIDTH + 1.5,
 		lampSpacing = 96,
-		curbX = 14.6, -- road edge 15 (StreetSurface, issue #54 Amendment 9) less 0.4
+		curbX = StreetGeometry.ROAD_HALF_WIDTH - 0.4, -- just inside the road edge
 		courses = 6,
 	},
 } :: Theme
