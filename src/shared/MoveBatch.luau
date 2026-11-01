@@ -32,6 +32,10 @@ function MoveBatch.new(send: ({ any }, { any }) -> ()): MoveBatch
 		end
 		send(items, frames)
 		local sent = count
+		for i = 1, count do
+			items[i] = nil
+			frames[i] = nil
+		end
 		count = 0
 		return sent
 	end

@@ -68,16 +68,26 @@ return {
 			local sentFrames = {}
 			local batch = MoveBatch.new(function(parts, frames)
 				calls += 1
-				sentParts, sentFrames = parts, frames
+				sentParts, sentFrames = table.clone(parts), table.clone(frames)
 			end)
-			local a, b = {}, {}
+			local a, b, c = {}, {}, {}
 			batch:push(a, 10)
 			batch:push(b, 20)
-			assert(batch:flush() == 2, "flush reports both queued moves")
-			assert(calls == 1, "flush sends one batch")
+			batch:push(c, 30)
+			assert(batch:flush() == 3, "flush reports all queued moves")
+			assert(calls == 1, "flush sends one larger batch")
 			assert(sentParts[1] == a and sentParts[2] == b, "parts keep queue order")
-			assert(sentFrames[1] == 10 and sentFrames[2] == 20, "frames keep queue order")
-			assert(batch:flush() == 0 and calls == 1, "empty flush sends nothing")
+			assert(sentParts[3] == c, "larger batch includes its final part")
+			assert(
+				sentFrames[1] == 10 and sentFrames[2] == 20 and sentFrames[3] == 30,
+				"frames keep queue order"
+			)
+			batch:push(a, 40)
+			assert(batch:flush() == 1, "flush reports the smaller batch")
+			assert(calls == 2, "flush sends the smaller batch once")
+			assert(sentParts[1] == a and sentParts[2] == nil, "smaller batch has no stale part")
+			assert(sentFrames[1] == 40 and sentFrames[2] == nil, "smaller batch has no stale frame")
+			assert(batch:flush() == 0 and calls == 2, "empty flush sends nothing")
 		end,
 	},
 }
