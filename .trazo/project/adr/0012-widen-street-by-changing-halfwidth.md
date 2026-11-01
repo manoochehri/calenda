@@ -1,6 +1,7 @@
 # 0012: Widen the street by changing one number (`StreetGeometry.HALF_WIDTH`)
 
-**Date:** 2026-10-30  **Status:** proposed
+**Date:** 2026-10-30  **Status:** accepted
+Accepted: 2026-10-31 on issue #54 by PM decision (owner direction in the milestone: "street only slightly wider; no checkerboard void around scenery"), with one change to the proposal: `HALF_WIDTH` is **23** (a 46-stud corridor, +15 percent), not 28. 28 is +40 percent, which is a redesign of lane spacing and scatter rather than the slight widening the owner asked for; 23 also gives whole-number lanes (road 36, lanes 12, bands +-6 and +-18, lane centers 0 and +-12, lead limit 18, sidewalks 5). Everywhere the Decision below says 28 (and the numbers derived from it), read 23; the mechanism, the supersession list, the sidewalk-drift resolution and every "unchanged" item stand as written. Recorded in spec Amendment 17.
 Proposed by architect finding on issue #54 and issue #220; the owner confirms the half-width below. This record changes no code; it gates step 2.
 
 ## Context

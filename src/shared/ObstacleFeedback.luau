@@ -26,8 +26,8 @@ local ObstacleFeedback = {}
 
 ObstacleFeedback.PUFFS = 12 -- [default] dust/rubble chunks per hit
 ObstacleFeedback.PEEL_MAX = 6 -- [default] followers peeling off per obstacle
--- Issue #220: still 6 (WorldBuilder draws 5; see StreetGeometry.FOLLOWER_SIDEWALK_WIDTH).
-ObstacleFeedback.SIDEWALK_WIDTH = StreetGeometry.FOLLOWER_SIDEWALK_WIDTH
+-- ADR 0012: the sidewalk WorldBuilder draws.
+ObstacleFeedback.SIDEWALK_WIDTH = StreetGeometry.sidewalkWidth(StreetGeometry.HALF_WIDTH)
 ObstacleFeedback.PEEL_SPACING = 2.4 -- [default] studs between cheering followers along the street
 
 function ObstacleFeedback.new(layout: Level.Layout): Feedback

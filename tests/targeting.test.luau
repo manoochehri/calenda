@@ -263,11 +263,11 @@ return {
 		end,
 	},
 	{
-		name = "lane bands decide engagement: -5 is center, -5.5 is left",
+		name = "lane bands decide engagement: -6 is center, -6.5 is left",
 		run = function()
-			local list = { cand(1, -5, 10), cand(2, -5.5, 50) }
+			local list = { cand(1, -6, 10), cand(2, -6.5, 50) }
 			assert(Targeting.selectTarget(list, 0, "left") == 2, "strictly left only")
-			assert(Targeting.selectTarget(list, 0, "center") == 1, "boundary -5 is center")
+			assert(Targeting.selectTarget(list, 0, "center") == 1, "boundary -6 is center")
 		end,
 	},
 	{

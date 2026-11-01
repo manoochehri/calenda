@@ -1,8 +1,8 @@
 --!strict
 -- Issue #220 (architect finding on #54, step 1): one street definition. StreetGeometry derives the
--- road, lanes, lead limit and spawn x from a single HALF_WIDTH. This is a pure refactor, so the
--- values below are the LITERALS the code used before the module existed; any difference is a
--- behavior change and fails here. Changing the street's width is step 2 (an ADR), not this test.
+-- road, lanes, lead limit and spawn x from a single HALF_WIDTH. Width-dependent values are
+-- checked against HALF_WIDTH by formula; the pinned numbers for the accepted width (ADR 0012) are in
+-- issue54_width_flow.test.luau.
 local DebugLayout = require("../src/shared/DebugLayout")
 local FollowerSlots = require("../src/shared/FollowerSlots")
 local LaneGeometry = require("../src/shared/LaneGeometry")
@@ -17,41 +17,40 @@ end
 
 return {
 	{
-		name = "issue 220: StreetGeometry at its default equals the old literals",
+		name = "issue 220: every derived value follows HALF_WIDTH by formula (the values are pinned in issue54_width_flow)",
 		run = function()
-			eq(StreetGeometry.HALF_WIDTH, 20, "corridor half width")
+			local h = StreetGeometry.HALF_WIDTH
 			eq(StreetGeometry.ROAD_INSET, 5, "road inset")
-			eq(StreetGeometry.ROAD_HALF_WIDTH, 15, "road half width")
-			eq(StreetGeometry.LANE_WIDTH, 10, "lane width")
-			eq(StreetGeometry.LANE_INNER_EDGE, 5, "center lane edge")
-			eq(StreetGeometry.LANE_CENTER, 10, "outer lane center")
-			eq(StreetGeometry.LEAD_LIMIT, 15, "lead limit")
+			eq(StreetGeometry.ROAD_HALF_WIDTH, h - 5, "road half width")
+			eq(StreetGeometry.LANE_WIDTH, (h - 5) * 2 / 3, "lane width")
+			eq(StreetGeometry.LANE_INNER_EDGE, StreetGeometry.LANE_WIDTH / 2, "center lane edge")
+			eq(StreetGeometry.LANE_CENTER, StreetGeometry.LANE_WIDTH, "outer lane center")
+			eq(StreetGeometry.LEAD_LIMIT, h - 5, "lead limit")
 		end,
 	},
 	{
-		name = "issue 220: lane bands and centers are unchanged (-15 / -5 / 5 / 15, centers -10 / 0 / 10)",
+		name = "issue 220: lane bands and centers follow the road (edges at +-ROAD_HALF_WIDTH, inner +-LANE_INNER_EDGE)",
 		run = function()
-			eq(LaneGeometry.MIN_X, -15, "MIN_X")
-			eq(LaneGeometry.MAX_X, 15, "MAX_X")
-			eq(LaneGeometry.LEFT_EDGE, -5, "LEFT_EDGE")
-			eq(LaneGeometry.RIGHT_EDGE, 5, "RIGHT_EDGE")
-			eq(LaneGeometry.centerOf("left"), -10, "left center")
+			eq(LaneGeometry.MIN_X, -StreetGeometry.ROAD_HALF_WIDTH, "MIN_X")
+			eq(LaneGeometry.MAX_X, StreetGeometry.ROAD_HALF_WIDTH, "MAX_X")
+			eq(LaneGeometry.LEFT_EDGE, -StreetGeometry.LANE_INNER_EDGE, "LEFT_EDGE")
+			eq(LaneGeometry.RIGHT_EDGE, StreetGeometry.LANE_INNER_EDGE, "RIGHT_EDGE")
+			eq(LaneGeometry.centerOf("left"), -StreetGeometry.LANE_CENTER, "left center")
 			eq(LaneGeometry.centerOf("center"), 0, "center center")
-			eq(LaneGeometry.centerOf("right"), 10, "right center")
+			eq(LaneGeometry.centerOf("right"), StreetGeometry.LANE_CENTER, "right center")
+			local e = StreetGeometry.LANE_INNER_EDGE
+			local r = StreetGeometry.ROAD_HALF_WIDTH
 			assert(
-				LaneGeometry.laneOf(-15) == "left" and LaneGeometry.laneOf(-5.01) == "left",
-				"left band"
+				LaneGeometry.laneOf(-r) == "left" and LaneGeometry.laneOf(-e - 0.01) == "left",
+				"left"
 			)
 			assert(
-				LaneGeometry.laneOf(-5) == "center" and LaneGeometry.laneOf(4.99) == "center",
-				"center band"
+				LaneGeometry.laneOf(-e) == "center" and LaneGeometry.laneOf(e - 0.01) == "center",
+				"center"
 			)
+			assert(LaneGeometry.laneOf(e) == "right" and LaneGeometry.laneOf(r) == "right", "right")
 			assert(
-				LaneGeometry.laneOf(5) == "right" and LaneGeometry.laneOf(15) == "right",
-				"right band"
-			)
-			assert(
-				LaneGeometry.laneOf(15.01) == nil and LaneGeometry.laneOf(-15.01) == nil,
+				LaneGeometry.laneOf(r + 0.01) == nil and LaneGeometry.laneOf(-r - 0.01) == nil,
 				"outside"
 			)
 		end,
@@ -60,22 +59,26 @@ return {
 		name = "issue 220: StreetSurface road and sidewalk widths are unchanged (30 stud road, 5 stud sidewalks)",
 		run = function()
 			eq(StreetSurface.ROAD_INSET, 5, "ROAD_INSET")
-			eq(StreetSurface.roadHalfWidth(20), 15, "road half width")
+			eq(
+				StreetSurface.roadHalfWidth(20),
+				15,
+				"road half width (pure function of its argument)"
+			)
 			eq(StreetSurface.sidewalkWidth(20), 5, "sidewalk width")
 		end,
 	},
 	{
 		name = "issue 220: every layout takes its width, lead limit and spawn x from StreetGeometry",
 		run = function()
-			eq(DebugLayout.halfWidth, 20, "debug halfWidth")
-			eq(DebugLayout.leadLimit, 15, "debug leadLimit")
+			eq(DebugLayout.halfWidth, StreetGeometry.HALF_WIDTH, "debug halfWidth")
+			eq(DebugLayout.leadLimit, StreetGeometry.LEAD_LIMIT, "debug leadLimit")
 			assert(
 				DebugLayout.halfWidth == StreetGeometry.HALF_WIDTH,
 				"debug layout reads HALF_WIDTH"
 			)
 			for _, layout in Layouts.all do
-				eq(layout.halfWidth, 20, `{layout.name} halfWidth`)
-				eq(layout.leadLimit, 15, `{layout.name} leadLimit`)
+				eq(layout.halfWidth, StreetGeometry.HALF_WIDTH, `{layout.name} halfWidth`)
+				eq(layout.leadLimit, StreetGeometry.LEAD_LIMIT, `{layout.name} leadLimit`)
 			end
 			for _, cluster in DebugLayout.clusters do
 				eq(
@@ -87,17 +90,16 @@ return {
 		end,
 	},
 	{
-		-- Known drift, pinned on purpose so step 2 changes it deliberately rather than by accident.
-		name = "issue 220: the 6-stud follower/obstacle sidewalk drift is pinned (WorldBuilder draws 5)",
+		name = "issue 220 / ADR 0012: followers and obstacle feedback use the sidewalk WorldBuilder draws (drift resolved)",
 		run = function()
-			eq(StreetGeometry.FOLLOWER_SIDEWALK_WIDTH, 6, "pinned follower sidewalk")
-			eq(FollowerSlots.SIDEWALK_WIDTH, 6, "FollowerSlots.SIDEWALK_WIDTH")
-			eq(ObstacleFeedback.SIDEWALK_WIDTH, 6, "ObstacleFeedback.SIDEWALK_WIDTH")
-			eq(FollowerSlots.roadHalfWidth(), 14, "road half width followers assume")
+			local drawn = StreetGeometry.sidewalkWidth(StreetGeometry.HALF_WIDTH)
+			eq(drawn, 5, "sidewalk actually drawn")
+			eq(FollowerSlots.SIDEWALK_WIDTH, drawn, "FollowerSlots.SIDEWALK_WIDTH")
+			eq(ObstacleFeedback.SIDEWALK_WIDTH, drawn, "ObstacleFeedback.SIDEWALK_WIDTH")
 			eq(
-				StreetGeometry.sidewalkWidth(StreetGeometry.HALF_WIDTH),
-				5,
-				"sidewalk actually drawn"
+				FollowerSlots.roadHalfWidth(),
+				StreetGeometry.ROAD_HALF_WIDTH,
+				"follower road = drawn road"
 			)
 		end,
 	},

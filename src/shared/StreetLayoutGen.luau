@@ -449,7 +449,7 @@ local function makePlaza(theme: LevelTheme.Theme, info: LayoutInfo, rng: () -> n
 		local z = info.plazaStart + 16
 		while z < info.streetLength - 8 do
 			for _, sign in { -1, 1 } do
-				local x = sign * 24.5
+				local x = sign * (info.halfWidth + 4.5) -- outside the corridor (ADR 0012)
 				local name = `Tree{#plaza}`
 				table.insert(
 					plaza,
