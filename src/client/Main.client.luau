@@ -176,6 +176,10 @@ music = MusicPlayer.new() -- one selected full-mix loop (issue #21)
 stepAt = startupTrace:lap("MusicPlayer.new", stepAt)
 local sfx = SfxPlayer.new() -- silent while Config.sfx ids are empty (issue #62)
 stepAt = startupTrace:lap("SfxPlayer.new", stepAt)
+-- Issue #256: opt-in on-device perf overlay (Config.debug.perfOverlay); nil costs nothing.
+local perfOverlay = if Config.debug.perfOverlay
+	then require(script.Parent:WaitForChild("PerfOverlay")).new()
+	else nil
 local hud = Hud.new(function()
 	replayRemote:FireServer()
 	sfx:play("replayClick", music:intensity(), os.clock())
@@ -362,6 +366,9 @@ RunService:BindToRenderStep(
 	"CalendaFrame",
 	Enum.RenderPriority.Camera.Value + 1,
 	function(dt: number)
+		if perfOverlay ~= nil then
+			perfOverlay:frame(dt)
+		end
 		if awaitingFirstFrame then
 			awaitingFirstFrame = false
 			startupTrace:mark("first CalendaFrame render-step callback")
