@@ -79,7 +79,7 @@ type Group = {
 	reward: TextLabel,
 	meter: MeterDisplay.Meter, -- smoothed bar fill bound to the cluster id (cleared on hide/reset)
 }
-type Chevron = { left: Part, right: Part, dust: ParticleEmitter }
+type Chevron = { left: Part, right: Part, dust: ParticleEmitter? }
 
 export type ClusterView = {
 	onCluster: (self: ClusterView, payload: any) -> boolean,
@@ -170,16 +170,20 @@ local function buildChevron(folder: Folder): Chevron
 		return p
 	end
 	local left, right = arm(), arm()
-	local dust = Instance.new("ParticleEmitter")
-	dust.Rate = 0
-	dust.Lifetime = NumberRange.new(0.8, 1.4)
-	dust.Speed = NumberRange.new(2, 5)
-	dust.SpreadAngle = Vector2.new(40, 40)
-	dust.LockedToPart = false
-	dust.Color = ColorSequence.new(Color3.fromRGB(214, 190, 150))
-	dust.Size = NumberSequence.new(2, 5)
-	dust.Transparency = NumberSequence.new(0.5, 1)
-	dust.Parent = left
+	local dust: ParticleEmitter? = nil
+	if DebugSwitches.dustBuilt(Config.debug) then
+		local e = Instance.new("ParticleEmitter")
+		e.Rate = 0
+		e.Lifetime = NumberRange.new(0.8, 1.4)
+		e.Speed = NumberRange.new(2, 5)
+		e.SpreadAngle = Vector2.new(40, 40)
+		e.LockedToPart = false
+		e.Color = ColorSequence.new(Color3.fromRGB(214, 190, 150))
+		e.Size = NumberSequence.new(2, 5)
+		e.Transparency = NumberSequence.new(0.5, 1)
+		e.Parent = left
+		dust = e
+	end
 	return { left = left, right = right, dust = dust }
 end
 
@@ -212,7 +216,9 @@ function ClusterView.new(layout: any): ClusterView
 		c.left.Parent, c.right.Parent = folder, folder
 	end, function(c: Chevron)
 		c.left.Parent, c.right.Parent = nil, nil
-		c.dust.Rate = 0
+		if c.dust then
+			c.dust.Rate = 0
+		end
 	end)
 	local tracker = ClusterVisual.new(layout)
 
@@ -254,25 +260,29 @@ function ClusterView.new(layout: any): ClusterView
 	local SILHOUETTE_DEPTH = 0.3
 	type Shot = {
 		body: Part,
-		trail: Trail,
-		a0: Attachment,
-		a1: Attachment,
-		extras: { Part },
+		trail: Trail?, -- nil when Config.debug.noTrails (calm screen, issue #255)
+		a0: Attachment?,
+		a1: Attachment?,
+		extras: { Part }, -- empty when Config.debug.noShotExtras (calm screen, issue #255)
 	}
 	local projectilePool = Pool.new(function(): Shot
 		local body = newPart(folder, Enum.PartType.Ball, Vector3.one, NOTE_COLOR)
 		body.Material = Enum.Material.Neon
-		local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
-		a0.Parent, a1.Parent = body, body
-		local trail = Instance.new("Trail")
-		trail.Attachment0, trail.Attachment1 = a0, a1
-		trail.Lifetime = ShotLook.TRAIL_SECONDS
-		trail.LightEmission = 1
-		trail.MinLength = 0.05
-		trail.Transparency = NumberSequence.new(ShotLook.TRAIL_ALPHA, 1)
-		trail.Parent = body
+		local a0: Attachment?, a1: Attachment?, trail: Trail? = nil, nil, nil
+		if DebugSwitches.shotTrailBuilt(Config.debug) then
+			local b0, b1 = Instance.new("Attachment"), Instance.new("Attachment")
+			b0.Parent, b1.Parent = body, body
+			local t = Instance.new("Trail")
+			t.Attachment0, t.Attachment1 = b0, b1
+			t.Lifetime = ShotLook.TRAIL_SECONDS
+			t.LightEmission = 1
+			t.MinLength = 0.05
+			t.Transparency = NumberSequence.new(ShotLook.TRAIL_ALPHA, 1)
+			t.Parent = body
+			a0, a1, trail = b0, b1, t
+		end
 		local extras = {}
-		for _ = 1, 3 do
+		for _ = 1, DebugSwitches.shotExtraParts(Config.debug, 3) do
 			local e = newPart(folder, Enum.PartType.Block, Vector3.one, NOTE_COLOR)
 			e.Material = Enum.Material.Neon
 			table.insert(extras, e)
@@ -280,7 +290,9 @@ function ClusterView.new(layout: any): ClusterView
 		return { body = body, trail = trail, a0 = a0, a1 = a1, extras = extras }
 	end, function(p: Shot)
 		p.body.Parent = folder
-		p.trail:Clear() -- a recycled shot must not streak from its previous flight
+		if p.trail then
+			p.trail:Clear()
+		end -- a recycled shot must not streak from its previous flight
 	end, function(p: Shot)
 		p.body.Parent = nil
 		for _, e in p.extras do
@@ -372,7 +384,7 @@ function ClusterView.new(layout: any): ClusterView
 			visible = at ~= nil,
 			inBudget = shotBudget:take(),
 		})
-		if plan.float and result.reward then
+		if plan.float and result.reward and DebugSwitches.rewardFloaters(Config.debug) then
 			floats:start(clock, FLOAT_SECONDS, {
 				x = result.x,
 				z = result.z,
@@ -637,7 +649,9 @@ function ClusterView.new(layout: any): ClusterView
 			c.left.CFrame = CFrame.new(bars[1].x, y, bars[1].z) * CFrame.Angles(0, bars[1].yaw, 0)
 			c.right.CFrame = CFrame.new(bars[2].x, y, bars[2].z) * CFrame.Angles(0, bars[2].yaw, 0)
 			c.left.Transparency, c.right.Transparency = tr, tr
-			c.dust.Rate = DebugSwitches.dustRate(Config.debug, 12 * sc.alpha)
+			if c.dust then
+				c.dust.Rate = DebugSwitches.dustRate(Config.debug, 12 * sc.alpha)
+			end
 		end
 
 		local rs = runnerPool:setCount(
@@ -719,8 +733,11 @@ function ClusterView.new(layout: any): ClusterView
 			local coreColor = Color3.fromRGB(core[1], core[2], core[3])
 			local glowColor = Color3.fromRGB(glow[1], glow[2], glow[3])
 			local fade = 1 - alpha
-			p.trail.Enabled = DebugSwitches.trailEnabled(Config.debug, not gone and alpha > 0.15)
-			p.trail.Color = ColorSequence.new(glowColor)
+			if p.trail then
+				p.trail.Enabled =
+					DebugSwitches.trailEnabled(Config.debug, not gone and alpha > 0.15)
+				p.trail.Color = ColorSequence.new(glowColor)
+			end
 			if gone then
 				-- Hide only on the frame it goes (issue #171): a part that stays shown is never
 				-- re-parented, so the Trail's attachments stay in the DataModel and its history lives.
@@ -733,11 +750,17 @@ function ClusterView.new(layout: any): ClusterView
 			-- The silhouette (issue #151): one Part per primitive, in order, from the pure layer. The
 			-- first primitive is the body, which anchors the Trail: its ends are placed in the body's
 			-- frame so the streak still runs through the projectile's centre (x, y, z).
-			local parts = { p.body, p.extras[1], p.extras[2], p.extras[3] }
+			local parts = { p.body }
+			for _, e in p.extras do
+				table.insert(parts, e)
+			end
 			local places = ProjectileVisual.place(kind, size)
 			local thickness = size * SILHOUETTE_DEPTH
 			for j, q in places do
 				local part = parts[j]
+				if part == nil then
+					break -- calm screen (#255): only the body Part is drawn
+				end
 				local ball = q.shape == "ball"
 				part.Shape = if ball then Enum.PartType.Ball else Enum.PartType.Block
 				part.Size = Vector3.new(q.w, q.h, if ball then math.min(q.w, q.h) else thickness)
@@ -756,10 +779,12 @@ function ClusterView.new(layout: any): ClusterView
 					parts[j].Parent = nil
 				end
 			end
-			local first = places[1]
-			local half = size * ShotLook.TRAIL_WIDTH / 2
-			p.a0.Position = Vector3.new(-first.x, -first.y + half, 0)
-			p.a1.Position = Vector3.new(-first.x, -first.y - half, 0)
+			if p.a0 and p.a1 then
+				local first = places[1]
+				local half = size * ShotLook.TRAIL_WIDTH / 2
+				p.a0.Position = Vector3.new(-first.x, -first.y + half, 0)
+				p.a1.Position = Vector3.new(-first.x, -first.y - half, 0)
+			end
 		end
 
 		-- Muzzle pops at the lead: a quick swell with a tiny recoil bob (the pop moves, never the

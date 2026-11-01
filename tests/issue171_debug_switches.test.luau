@@ -30,7 +30,8 @@ return {
 		name = "issue 171: the A/B switches default to false and validate as booleans",
 		run = function()
 			for _, f in FLAGS do
-				eq((Config.debug :: any)[f], false, `{f} default`)
+				-- issue #255: the calm-screen defaults flip all but noTransparentStrips to true
+				eq((Config.debug :: any)[f], f ~= "noTransparentStrips", `{f} default`)
 				local copy: any = table.clone(Config)
 				copy.debug = table.clone(Config.debug)
 				copy.debug[f] = 1

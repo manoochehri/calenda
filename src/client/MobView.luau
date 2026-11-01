@@ -187,7 +187,7 @@ function MobView.new(parent: Instance, quality: string): MobView
 	local moveCount = 0
 
 	local function dustFor(rank: number): Dust?
-		if rank > level.maxDust then
+		if rank > level.maxDust or not DebugSwitches.dustBuilt(Config.debug) then
 			return nil
 		end
 		local d = dusts[rank]
