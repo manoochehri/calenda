@@ -116,20 +116,32 @@ return {
 		end,
 	},
 	{
-		name = "issue 240: the client applies each switch at its site",
+		name = "issue 240: the client calls each helper, with Config.debug, inside the drawing function",
 		run = function()
-			for _, needle in { "MotionSwitches.mobStride" } do
-				assert(has("src/client/MobView.luau", needle), needle)
+			local function slice(path: string, from: string, to: string): string
+				local text = fs.readFile(path)
+				local a = string.find(text, from, 1, true)
+				local b = string.find(text, to, 1, true)
+				assert(a ~= nil and b ~= nil and b > a, `{path}: cannot find {from} .. {to}`)
+				return string.sub(text, a, b - 1)
 			end
-			for _, needle in
-				{
-					"MotionSwitches.breath",
-					"MotionSwitches.crowdFeel",
-					"MotionSwitches.dance",
-					"MotionSwitches.march",
-				}
-			do
-				assert(has("src/client/CrowdView.luau", needle), needle)
+			local mob = slice(
+				"src/client/MobView.luau",
+				"function self.update(",
+				"function self.setQuality("
+			)
+			assert(
+				string.find(mob, "MotionSwitches.mobStride(Config.debug,", 1, true) ~= nil,
+				"mobStride in MobView update"
+			)
+			local crowd =
+				slice("src/client/CrowdView.luau", "local function draw(", "function view.onEvent(")
+			local flat = string.gsub(crowd, "%s+", "")
+			for _, name in { "breath", "crowdFeel", "dance", "march" } do
+				assert(
+					string.find(flat, `MotionSwitches.{name}(Config.debug,`, 1, true) ~= nil,
+					`{name} in CrowdView draw`
+				)
 			end
 		end,
 	},

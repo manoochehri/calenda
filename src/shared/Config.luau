@@ -90,7 +90,7 @@ export type ConfigType = {
 		noBreath: boolean, -- issue #240 A/B: parade has no per-beat size pulse
 		noCrowdFeel: boolean, -- issue #240 A/B: no join bounce, cheer hop or flinch dip
 		noFollowerDance: boolean, -- issue #240 A/B: parade has no beat-synced dance
-		noFollowerMarch: boolean, -- issue #240 A/B: parade has no march hop or squash
+		noFollowerMarch: boolean, -- issue #240 A/B: no march hop or squash (parade and runners/leavers)
 		quality: string?, -- nil = automatic; "low" | "medium" | "high" forces the mob quality (issue #65)
 	},
 	audio: { [string]: any }, -- AudioIntensity / SfxMap tuning (issue #62)
@@ -596,7 +596,7 @@ local config: ConfigType = {
 		noBreath = false, -- parade: per-beat size pulse off
 		noCrowdFeel = false, -- parade: join bounce, cheer hop, flinch dip off
 		noFollowerDance = false, -- parade: beat-synced dance hop/sway/spin off
-		noFollowerMarch = false, -- parade: march hop and squash/stretch off
+		noFollowerMarch = false, -- parade and runners/leavers: march hop and squash/stretch off (runners lose their hop too)
 	},
 	validate = validate,
 }
