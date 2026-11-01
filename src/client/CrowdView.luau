@@ -25,6 +25,7 @@ local FollowerFlow = require(Shared:WaitForChild("FollowerFlow"))
 local FollowerLook = require(Shared:WaitForChild("FollowerLook"))
 local FollowerSource = require(Shared:WaitForChild("FollowerSource"))
 local LeadPose = require(Shared:WaitForChild("LeadPose"))
+local MoveBatch = require(Shared:WaitForChild("MoveBatch"))
 local Pool = require(Shared:WaitForChild("Pool"))
 local ViewMap = require(Shared:WaitForChild("ViewMap"))
 
@@ -223,11 +224,11 @@ function CrowdView.new(): CrowdView
 
 	local live: { [number]: Avatar } = {} -- drawn avatars by follower id
 	local free: { Avatar } = {} -- hidden, ready for reuse
-	-- Reused per-frame arrays for one engine move call. MobView uses the same path for its
-	-- larger spectator population; keep the dense parade on it too (issue #147).
-	local moveParts: { Instance } = {}
-	local moveCFrames: { CFrame } = {}
-	local moveCount = 0
+	-- MobView uses the same path for its larger spectator population; keep the dense parade on it
+	-- too (issue #147). The pure buffer keeps this engine boundary testable.
+	local moveBatch = MoveBatch.new(function(parts, cframes)
+		Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
+	end)
 
 	local dust: Effects.Effects<{ x: number, z: number }> = Effects.new(FollowerLook.DUST_CAP)
 	local dustPool = Pool.new(function(): Part
@@ -253,9 +254,7 @@ function CrowdView.new(): CrowdView
 	local view = {} :: CrowdView
 
 	local function push(instance: Instance, cf: CFrame)
-		moveCount += 1
-		moveParts[moveCount] = instance
-		moveCFrames[moveCount] = cf
+		moveBatch:push(instance, cf)
 	end
 
 	local function draw(id: number, x: number, z: number, vx: number, y: number, marching: boolean)
@@ -352,7 +351,7 @@ function CrowdView.new(): CrowdView
 		hasAvatar: boolean?,
 		fallbackGrace: number?
 	)
-		moveCount = 0
+		moveBatch:reset()
 		clock = os.clock() -- shared local monotonic beat clock with SectionsView and LeadAvatar
 		absent = LeadPose.absence(absent, hasAvatar == true, dt)
 		if lastLeadZ ~= nil and leadZ < lastLeadZ - REPLAY_JUMP then
@@ -415,13 +414,7 @@ function CrowdView.new(): CrowdView
 		-- Moving the anchored follower pieces one at a time makes the engine process every
 		-- CFrame change separately. The pose and size work above stay per-piece; only the
 		-- equivalent engine movement is batched (the same representation and visual result).
-		for i = moveCount + 1, #moveParts do
-			moveParts[i] = nil :: any
-			moveCFrames[i] = nil :: any
-		end
-		if moveCount > 0 then
-			Workspace:BulkMoveTo(moveParts, moveCFrames, Enum.BulkMoveMode.FireCFrameChanged)
-		end
+		moveBatch:flush()
 
 		local puffs = dust:active(clock)
 		local ds = dustPool:setCount(#puffs)

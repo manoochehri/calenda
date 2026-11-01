@@ -50,13 +50,34 @@ return {
 		run = function()
 			local text = source("src/client/CrowdView.luau")
 			assert(
-				string.find(text, "Workspace:BulkMoveTo(moveParts, moveCFrames", 1, true) ~= nil,
+				string.find(text, "Workspace:BulkMoveTo(parts, cframes", 1, true) ~= nil,
 				"CrowdView moves follower parts individually"
 			)
 			assert(
-				string.find(text, "moveParts[moveCount] = instance", 1, true) ~= nil,
+				string.find(text, "moveBatch:push(instance, cf)", 1, true) ~= nil,
 				"CrowdView does not collect follower parts for batching"
 			)
+		end,
+	},
+	{
+		name = "issue 147: move batch sends all queued parts once and resets after flush",
+		run = function()
+			local MoveBatch = require("../src/shared/MoveBatch")
+			local calls = 0
+			local sentParts = {}
+			local sentFrames = {}
+			local batch = MoveBatch.new(function(parts, frames)
+				calls += 1
+				sentParts, sentFrames = parts, frames
+			end)
+			local a, b = {}, {}
+			batch:push(a, 10)
+			batch:push(b, 20)
+			assert(batch:flush() == 2, "flush reports both queued moves")
+			assert(calls == 1, "flush sends one batch")
+			assert(sentParts[1] == a and sentParts[2] == b, "parts keep queue order")
+			assert(sentFrames[1] == 10 and sentFrames[2] == 20, "frames keep queue order")
+			assert(batch:flush() == 0 and calls == 1, "empty flush sends nothing")
 		end,
 	},
 }
